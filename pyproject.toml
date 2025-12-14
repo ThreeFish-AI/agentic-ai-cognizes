@@ -7,7 +7,7 @@ name = "agentic-ai-papers"
 version = "1.0.0"
 description = "A platform for collecting, translating, and managing Agentic AI research papers"
 authors = [
-    {name = "ThreeFish-AI", email = "aurelius-shu@gmail.com"},
+    {name = "ThreeFish-AI", email = "aureliusshu@gmail.com"},
 ]
 readme = "README.md"
 license = {text = "MIT"}

@@ -160,7 +160,7 @@ agentic-ai-papers/
 ## 📞 联系我们
 
 - 问题反馈: [GitHub Issues](https://github.com/ThreeFish-AI/agentic-ai-papers/issues)
-- 邮箱: aurelius-shu@gmail.com
+- 邮箱: aureliusshu@gmail.com
 
 ---
 
