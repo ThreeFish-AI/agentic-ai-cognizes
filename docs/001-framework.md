@@ -13,15 +13,15 @@ Agentic AI Papers Collection & Translation Platform 是一个专注于智能体 
 
 ### 关键架构决策
 
-1. **MCP 协议采用**：标准化 AI 上下文传输，避免厂商锁定
-2. **Agent-Skill 模式**：实现快速能力组合和扩展
-3. **异步优先架构**：优化资源利用率，支持高并发
-4. **文件系统存储**：简化部署，降低运维复杂度
+1. **Agent-Skill 模式**：实现快速能力组合和扩展（当前使用 Fallback 实现）
+2. **异步优先架构**：优化资源利用率，支持高并发
+3. **文件系统存储**：简化部署，降低运维复杂度
+4. **外部工具集成**：通过 MCP 等外部服务扩展能力，保持架构灵活性
 
 ### 演进路径
 
-- **短期**：扩展 Claude Skills 至 10+ 个专用能力
-- **中期**：支持多语言翻译，增加论文分析维度
+- **短期**：解决 Claude SDK 集成问题，优化批处理性能
+- **中期**：扩展 Claude Skills 至 10+ 个专用能力，支持多语言翻译
 - **长期**：构建 AI 研究知识图谱，提供智能推荐
 
 ## 架构蓝图
@@ -32,12 +32,6 @@ Agentic AI Papers Collection & Translation Platform 是一个专注于智能体 
 flowchart TD
     %% 用户交互层
     A[Web 界面<br/>管理门户] --> B[FastAPI 服务<br/>异步网关]
-    subgraph Enterprise [企业集成层]
-        E1[SSO 集成]
-        E2[API 网关]
-        E3[监控系统]
-    end
-    A --> Enterprise
 
     %% API 路由层
     B --> C[论文管理<br/>/api/papers]
@@ -75,15 +69,7 @@ flowchart TD
     G1 --> C2
     G1 --> C3
 
-    %% MCP 服务层
-    subgraph MCPLayer [MCP 服务层]
-        M1[data-extractor<br/>内容提取]
-        M2[filesystem<br/>文件操作]
-        M3[time<br/>时间服务]
-        M4[web-search<br/>网络搜索]
-    end
-
-    %% Claude Skills
+    %% Claude Skills (通过 Fallback 实现)
     subgraph Skills [Claude Skills - 7个专用能力]
         SK1[pdf-reader<br/>PDF 解析]
         SK2[web-translator<br/>网页转换]
@@ -92,6 +78,7 @@ flowchart TD
         SK5[doc-translator<br/>文档翻译]
         SK6[batch-processor<br/>批量处理]
         SK7[heartfelt<br/>深度分析]
+        NOTE[可调用外部<br/>MCP 服务]
     end
 
     C1 --> SK1
@@ -99,10 +86,17 @@ flowchart TD
     C3 --> SK7
     G2 --> SK6
 
-    Skills --> MCPLayer
+    %% 外部工具服务（可选）
+    subgraph ExternalTools [外部工具服务]
+        T1[data-extractor<br/>内容提取]
+        T2[web-search<br/>网络搜索]
+        T3[其他 MCP 服务]
+    end
+
+    Skills -.-> ExternalTools
 
     %% 存储层
-    subgraph Storage [分层存储]
+    subgraph Storage [文件系统存储]
         F1[papers/source/<br/>原始文档]
         F2[papers/translation/<br/>翻译结果]
         F3[papers/heartfelt/<br/>深度分析]
@@ -119,18 +113,18 @@ flowchart TD
     classDef service fill:#00BCD4,stroke:#0097A7,color:#fff
     classDef agent fill:#9C27B0,stroke:#7B1FA2,color:#fff
     classDef skill fill:#673AB7,stroke:#512DA8,color:#fff
-    classDef mcp fill:#795548,stroke:#5D4037,color:#fff
+    classDef note fill:#9E9E9E,stroke:#757575,color:#fff
+    classDef tool fill:#795548,stroke:#5D4037,color:#fff
     classDef storage fill:#FF9800,stroke:#F57C00,color:#fff
-    classDef enterprise fill:#607D8B,stroke:#455A64,color:#fff
 
     class A ui
     class B,C,D,W api
     class S1,S2,S3 service
     class G1,G2,C1,C2,C3 agent
     class SK1,SK2,SK3,SK4,SK5,SK6,SK7 skill
-    class M1,M2,M3,M4 mcp
+    class NOTE note
+    class T1,T2,T3 tool
     class F1,F2,F3,F4,F5 storage
-    class E1,E2,E3 enterprise
 ```
 
 ### 目录结构
@@ -150,26 +144,35 @@ agentic-ai-papers/
 │   │   └── models/         # 数据模型
 │   │       ├── paper.py
 │   │       └── task.py
-│   ├── claude/            # Claude Agent 实现
+│   ├── claude/            # Claude Agent 实现（Fallback）
 │   │   ├── base.py        # 基础 Agent
 │   │   ├── workflow_agent.py    # 工作流编排
 │   │   ├── pdf_agent.py         # PDF 处理
 │   │   ├── translation_agent.py # 翻译处理
 │   │   ├── heartfelt_agent.py   # 深度分析
-│   │   └── batch_agent.py       # 批量处理
+│   │   ├── batch_agent.py       # 批量处理
+│   │   └── skills.py            # Skill 调用封装
 │   └── core/              # 核心组件
 │       ├── config.py      # 配置管理
 │       ├── exceptions.py  # 异常处理
 │       └── utils.py       # 工具函数
 ├── .claude/               # Claude 配置
 │   └── skills/            # 7 个专用 Skills
+│       ├── pdf-reader/    # PDF 解析
+│       ├── web-translator/ # 网页转换
+│       ├── zh-translator/  # 中文翻译
+│       ├── markdown-formatter/ # 格式优化
+│       ├── doc-translator/ # 文档翻译
+│       ├── batch-processor/ # 批量处理
+│       └── heartfelt/     # 深度分析
 ├── papers/                # 论文存储
 │   ├── source/            # 原始文档
 │   ├── translation/       # 中文翻译
 │   ├── heartfelt/         # 深度分析
 │   └── images/            # 提取图像
-├── tests/                 # 测试套件
+├── tests/                 # 测试套件（39 个测试文件）
 │   └── agents/            # 80%+ 覆盖率
+├── ui/                    # Web UI（静态文件）
 └── docs/                  # 文档
 ```
 
@@ -235,14 +238,14 @@ classDiagram
 
 #### 文档智能处理
 
-- **多引擎 PDF 处理**：PyMuPDF + PyPDF 双引擎，99% 准确率
-- **结构化提取**：表格、公式、图像智能识别
-- **格式保真**：LaTeX 公式、复杂表格完美保留
+- **多引擎 PDF 处理**：pypdf2 + pdfplumber 双引擎，确保高准确率
+- **结构化提取**：表格、公式、图像智能识别与保留
+- **格式保真**：LaTeX 公式、复杂表格格式保持
 
 #### AI 翻译引擎
 
-- **Claude 大模型**：GPT-4 级别理解能力
-- **术语一致性**：专业词汇库确保技术准确性
+- **Claude API 直接集成**：通过 API 调用实现高质量翻译
+- **Fallback Skill 实现**：自定义封装确保功能完整性
 - **上下文感知**：段落级翻译，保持语义连贯
 
 #### 质量保证框架
@@ -250,6 +253,12 @@ classDiagram
 - **Ruff 静态分析**：10 倍于传统工具的速度，90% 问题自动修复
 - **渐进式类型安全**：MyPy 逐步覆盖，降低迁移风险
 - **自动化测试**：pytest-asyncio 异步测试，80%+ 覆盖率
+
+#### 外部工具集成（可选）
+
+- **MCP 服务支持**：通过标准化协议调用外部工具服务
+- **能力扩展**：按需集成如 data-extractor、web-search 等专业服务
+- **架构灵活性**：保持核心架构简洁，通过外部工具增强功能
 
 ### 异步优先架构优势
 
@@ -274,12 +283,13 @@ flowchart LR
 
 ### 技术决策的业务影响
 
-| 技术选择     | 业务收益                       | 风险缓解                 |
-| ------------ | ------------------------------ | ------------------------ |
-| MCP 协议     | 避免厂商锁定，灵活切换 AI 服务 | 标准化接口，降低迁移成本 |
-| 文件系统存储 | 零运维成本，快速部署           | 简化架构，提高可靠性     |
-| 异步架构     | 3 倍并发处理能力               | 资源利用率提升 80%       |
-| 自动化测试   | 减少 90% 线上故障              | 加速交付周期 50%         |
+| 技术选择            | 业务收益               | 风险缓解               |
+| ------------------- | ---------------------- | ---------------------- |
+| Agent-Skill 模式    | 快速能力组合，易于扩展 | 模块化设计，降低耦合度 |
+| 文件系统存储        | 零运维成本，快速部署   | 简化架构，提高可靠性   |
+| 异步架构            | 3 倍并发处理能力       | 资源利用率提升 80%     |
+| 自动化测试          | 减少 90% 线上故障      | 加速交付周期 50%       |
+| Claude API Fallback | 确保功能完整性         | 规避 SDK 依赖问题      |
 
 ## 工程卓越
 
@@ -329,37 +339,36 @@ pie
 
 ### 性能 SLA
 
-| 指标         | 目标值      | 当前值      |
-| ------------ | ----------- | ----------- |
-| PDF 处理速度 | <30 秒/篇   | 25 秒/篇    |
-| 翻译准确率   | >95%        | 96.5%       |
-| 系统可用性   | 99.9%       | 99.95%      |
-| 并发处理能力 | 100 篇/小时 | 120 篇/小时 |
+| 指标         | 目标值     | 当前状态      |
+| ------------ | ---------- | ------------- |
+| PDF 处理速度 | <60 秒/篇  | 估算 45-60 秒 |
+| 翻译准确率   | >95%       | 目标值        |
+| 系统可用性   | 99%        | MVP 阶段      |
+| 并发处理能力 | 50 篇/小时 | 估算 30-40 篇 |
 
 ### 资源效率策略
 
-- **CPU 优化**：异步处理提升 80% 利用率
-- **内存管理**：流式处理，支持大型文档
-- **存储优化**：智能去重，节省 60% 空间
-- **网络优化**：增量同步，减少带宽 70%
+- **CPU 优化**：异步处理提升资源利用率
+- **内存管理**：流式处理，支持大型文档处理
+- **存储优化**：文件系统直接存储，简化管理
+- **网络优化**：按需 API 调用，减少不必要请求
 
-### 监控与告警
+### 监控与告警（计划中）
 
 - **实时指标**：处理队列、成功率、延迟
-- **业务指标**：日处理量、用户满意度
-- **智能告警**：基于趋势的预测性告警
-- **自动恢复**：故障自愈，减少人工干预
+- **业务指标**：日处理量、翻译完成率
+- **日志追踪**：关键操作记录
+- **错误处理**：自动重试机制
 
-### 容量规划
+### 容量规划（MVP 阶段）
 
-- **横向扩展**：无状态服务，轻松扩容
-- **存储扩展**：对象存储，PB 级容量
-- **计算扩展**：容器化部署，弹性伸缩
-- **网络扩展**：CDN 加速，全球访问
+- **文件存储**：本地文件系统，支持定期扩展
+- **内存使用**：按需分配，支持大文档处理
+- **并发处理**：异步架构，支持多任务并行
 
-### 灾难恢复
+### 未来扩展计划
 
-- **数据备份**：每日增量，多地存储
-- **服务冗余**：多可用区部署
-- **恢复演练**：月度演练，RTO<1 小时
-- **业务连续性**：降级方案，核心服务保障
+- **数据库集成**：支持更大规模数据管理
+- **分布式存储**：对象存储，支持海量论文
+- **容器化部署**：Docker 部署，简化运维
+- **监控系统**：完整的可观测性方案

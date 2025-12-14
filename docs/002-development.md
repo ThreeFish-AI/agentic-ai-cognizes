@@ -4,689 +4,521 @@
 
 ### 环境要求
 
-- Python 3.12 或更高版本
+- Python 3.12+
 - Git
-- Docker & Docker Compose（可选，用于容器化开发）
+- Docker & Docker Compose
 - Claude API Key
 - 代码编辑器（推荐 VS Code）
 
 ### 本地开发设置
 
-#### 1. 克隆仓库
-
 ```bash
+# 1. 克隆仓库
 git clone https://github.com/ThreeFish-AI/agentic-ai-papers.git
 cd agentic-ai-papers
-```
 
-#### 2. 创建虚拟环境
-
-```bash
-# 使用 venv
+# 2. 创建虚拟环境
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# 或 venv\Scripts\activate  # Windows
 
-# 或使用 conda
-conda create -n agentic-papers python=3.12
-conda activate agentic-papers
-```
-
-#### 3. 安装依赖
-
-```bash
-# 安装核心依赖
-pip install -e .
-
-# 安装开发依赖
-pip install -e ".[dev]"
-
-# 或使用 uv（更快的包管理器）
+# 3. 安装依赖
 uv pip install -e ".[dev]"
-```
 
-#### 4. 配置环境变量
-
-```bash
-# 复制环境变量模板
+# 4. 配置环境变量
 cp .env.example .env
+# 编辑 .env 添加 ANTHROPIC_API_KEY
 
-# 编辑 .env 文件
-nano .env
-```
-
-必要的环境变量：
-
-```env
-ANTHROPIC_API_KEY=your_claude_api_key_here
-# 可选配置
-LOG_LEVEL=INFO
-MAX_CONCURRENT_TASKS=5
-PAPERS_DIR=./papers
-```
-
-#### 5. 启动开发服务器
-
-```bash
-# 启动 API 服务器
+# 5. 启动开发服务器
 uvicorn agents.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Docker 开发环境
 
-#### 使用 Docker Compose
-
 ```bash
 # 启动开发环境
-docker-compose up
+docker-compose up --build
 
 # 后台运行
 docker-compose up -d
 
-# 启动包含 UI 的完整环境
-docker-compose --profile ui up
-
-# 查看日志
-docker-compose logs -f
+# 启动包含 MCP 服务的完整环境
+docker-compose --profile mcp up
 ```
 
-## 代码组织原则
+## MCP 深度集成开发
 
-### 目录结构规范
+### MCP 架构概览
 
+```mermaid
+graph TB
+    subgraph "Claude Code"
+        A[Agent Layer<br/>6个专用Agent]
+        B[Skill Layer<br/>7个核心技能]
+    end
+
+    subgraph "MCP 服务器"
+        C[data-extractor<br/>PDF/网页数据]
+        D[time<br/>时间管理]
+        E[filesystem<br/>文件操作]
+        F[zai-mcp-server<br/>图像分析]
+        G[web-search-prime<br/>增强搜索]
+        H[web-reader<br/>内容提取]
+    end
+
+    A --> B
+    B --> C
+    B --> D
+    B --> E
+    B --> F
+    B --> G
+    B --> H
+
+    style C fill:#e3f2fd
+    style D fill:#e8f5e9
+    style E fill:#fff3e0
+    style F fill:#fce4ec
+    style G fill:#f3e5f5
+    style H fill:#e0f2f1
 ```
-agents/
-├── claude/              # Claude Agent 实现
-│   ├── __init__.py     # 包初始化
-│   ├── base.py         # 基础 Agent 类
-│   ├── *.py            # 具体实现
-├── api/                # FastAPI 服务
-│   ├── __init__.py
-│   ├── main.py         # 应用入口
-│   ├── routes/         # 路由模块
-│   ├── services/       # 业务逻辑
-│   └── models/         # 数据模型
-└── core/               # 核心工具
-    ├── config.py       # 配置管理
-    ├── exceptions.py   # 异常定义
-    └── utils.py        # 通用工具
-```
 
-### 命名规范
+### 7 大核心技能详解
 
-- **文件名**: 使用小写字母和下划线 (`snake_case`)
-- **类名**: 使用大驼峰命名 (`PascalCase`)
-- **函数/变量**: 使用小写字母和下划线 (`snake_case`)
-- **常量**: 使用大写字母和下划线 (`UPPER_CASE`)
-- **私有成员**: 前缀单下划线 (`_private`)
+| 技能名称               | 功能描述                           | 典型用例         |
+| ---------------------- | ---------------------------------- | ---------------- |
+| **pdf-reader**         | PDF 文档解析，支持图像、表格、公式 | 提取学术论文内容 |
+| **zh-translator**      | 中文学术文档翻译，保留格式         | 论文中文化       |
+| **web-translator**     | 网页内容抓取转换                   | 在线资源本地化   |
+| **batch-processor**    | 批量文档处理协调                   | 大规模文档处理   |
+| **markdown-formatter** | Markdown 格式优化                  | 后翻译格式整理   |
+| **heartfelt**          | 深度理解分析                       | 知识提炼感悟     |
+| **data-extractor**     | 结构化数据提取                     | 信息挖掘整理     |
 
-### 导入规范
+### MCP 调用模式
 
 ```python
-# 标准库导入
-import os
-import asyncio
-from pathlib import Path
-from typing import Optional, Dict, List
+# 直接 MCP 工具调用示例
+async def process_paper_workflow():
+    # 1. 提取PDF内容
+    pdf_result = await mcp__data_extractor__convert_pdf_to_markdown(
+        pdf_source="/papers/source/example.pdf",
+        extract_images=True,
+        extract_tables=True,
+        extract_formulas=True
+    )
 
-# 第三方库导入
-import aiofiles
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+    # 2. 翻译内容
+    if pdf_result.success:
+        translation = await zh_translator(
+            content=pdf_result.markdown_content
+        )
 
-# 本地模块导入
-from agents.claude.base import BaseAgent
-from agents.core.config import settings
-from agents.api.models.paper import Paper
+    # 3. 保存结果
+    await mcp__filesystem__write_file(
+        path="/papers/translation/example.md",
+        content=translation.translated_content
+    )
+
+    # 4. 深度分析
+    await heartfelt(
+        document_path="/papers/translation/example.md"
+    )
 ```
 
-### 代码质量保证
+### 批处理最佳实践
 
-我们使用 **Ruff** 作为 Python 代码检查和格式化工具，并设置了自动化修复流程：
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant BA as Batch Agent
+    participant BP as Batch Processor
+    participant Skills as MCP Skills
+    participant FS as Filesystem
 
-#### 自动修复功能
+    U->>BA: 提交大文档
+    BA->>BA: 分析文档大小
+    BA->>BP: 创建批处理计划
 
-- 🤖 **自动检测**: 当推送代码到任何分支时，自动运行 ruff 检查
-- 🔧 **自动修复**: 可自动修复的问题会被直接修复并创建 PR
-- 📝 **清晰报告**: 在 GitHub Actions 摘要中详细说明修复的内容
+    loop 每个批次
+        Note over BP: 30页/批次<br/>60段/批次<br/>6000字/批次
+        BP->>Skills: 并发处理(最大3)
+        Skills-->>BP: 返回处理结果
+        BP->>FS: 保存批次结果
+    end
 
-#### 通知机制（可选）
-
-项目支持多种通知方式来接收自动修复的结果：
-
-- **GitHub Actions Step Summary**: 始终显示运行结果
-- **Slack 通知**: 通过 Webhook 发送到 Slack 频道
-- **邮件通知**: 发送详细的修复报告到指定邮箱
-
-##### 配置通知
-
-在仓库设置中配置以下变量即可启用通知：
-
-1. **启用通知**:
-
-   ```yaml
-   NOTIFICATION_ENABLED=true
-   ```
-
-2. **Slack 通知**:
-
-   - 添加 Secret: `SLACK_WEBHOOK_URL` (你的 Slack Webhook URL)
-
-3. **邮件通知**:
-   - 添加 Variables:
-     - `EMAIL_NOTIFICATIONS`: 接收通知的邮箱地址（多个用逗号分隔）
-     - `SMTP_SERVER`: SMTP 服务器地址（默认: smtp.gmail.com）
-     - `SMTP_PORT`: SMTP 端口（默认: 587）
-   - 添加 Secrets:
-     - `EMAIL_USERNAME`: SMTP 用户名
-     - `EMAIL_PASSWORD`: SMTP 密码
-     - `EMAIL_FROM`: 发件人邮箱（可选）
-
-#### 工作流说明
-
-- 自动修复工作流会在所有分支的 Push 时运行
-- 修复 PR 会自动添加 `auto-fix` 和 `ruff` 标签
-- 所有修复都会经过完整的 CI 测试流程
-
-#### 本地开发建议
-
-```bash
-# 安装开发依赖
-pip install -e ".[dev]"
-
-# 检查代码问题
-ruff check .
-
-# 自动修复可修复的问题
-ruff check --fix .
-
-# 格式化代码
-ruff format .
+    BP->>BP: 合并所有批次
+    BP-->>BA: 返回最终结果
+    BA-->>U: 完成通知
 ```
 
-## Agent 开发指南
+## 6 大专用 Agent 开发
 
-### 创建新 Agent
-
-#### 1. 继承 BaseAgent
+### Agent 架构
 
 ```python
+# 基础 Agent 类
 from agents.claude.base import BaseAgent
-from typing import Dict, Any
 
 class CustomAgent(BaseAgent):
-    """自定义 Agent 实现"""
-
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         self.agent_name = "custom"
         self.required_skills = ["skill1", "skill2"]
 
     async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """处理输入数据"""
-        # 验证输入
+        # 1. 验证输入
         if not self.validate_input(input_data):
             raise ValueError("Invalid input")
 
-        # 调用技能
+        # 2. 调用技能
         result = await self.call_skill("skill1", input_data)
 
-        # 处理结果
-        processed = self._process_result(result)
+        # 3. 处理结果
+        return self._process_result(result)
+```
 
-        return {"success": True, "data": processed}
+### 1. PDF 处理 Agent
 
-    def validate_input(self, input_data: Dict[str, Any]) -> bool:
-        """验证输入数据"""
-        required_fields = ["field1", "field2"]
-        return all(field in input_data for field in required_fields)
+```python
+class PDFProcessingAgent(BaseAgent):
+    """PDF文档处理专用Agent"""
 
-    def _process_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
-        """处理技能结果"""
-        # 自定义处理逻辑
+    def __init__(self, config):
+        super().__init__(config)
+        self.required_skills = ["pdf-reader", "batch-processor"]
+
+    async def process(self, pdf_path: str) -> Dict:
+        # 大文件自动分批处理
+        file_info = await mcp__filesystem__get_file_info(pdf_path)
+
+        if file_info.size > 50 * 1024 * 1024:  # 50MB
+            # 使用批处理
+            return await self._batch_process(pdf_path)
+        else:
+            # 直接处理
+            return await mcp__data_extractor__convert_pdf_to_markdown(
+                pdf_source=pdf_path,
+                extract_images=True,
+                extract_tables=True
+            )
+```
+
+### 2. 翻译 Agent
+
+```python
+class TranslationAgent(BaseAgent):
+    """学术论文翻译专用Agent"""
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.terminology_cache = {}
+
+    async def process(self, content: str, domain: str = "ai") -> Dict:
+        # 1. 术语提取
+        terms = await self._extract_terms(content, domain)
+
+        # 2. 批量翻译
+        result = await zh_translator(
+            content=content,
+            preserve_formatting=True,
+            terminology=terms
+        )
+
+        # 3. 术语一致性检查
+        await self._check_terminology_consistency(result)
+
         return result
 ```
 
-#### 2. Agent 配置
+### 3. 批处理 Agent
 
 ```python
-# 在 agents/core/config.py 中添加配置
-class CustomAgentConfig(BaseSettings):
-    enabled: bool = True
-    max_retries: int = 3
-    timeout: int = 30
+class BatchProcessingAgent(BaseAgent):
+    """批量处理协调Agent"""
 
-    class Config:
-        env_prefix = "CUSTOM_AGENT_"
-```
+    async def process_batch(self, documents: List[str]) -> Dict:
+        # 创建批处理任务
+        batches = self._create_batches(documents)
 
-#### 3. 注册 Agent
+        # 并发执行
+        semaphore = asyncio.Semaphore(3)  # 最大并发数
+        tasks = [
+            self._process_with_limit(batch, semaphore)
+            for batch in batches
+        ]
 
-```python
-# 在 agents/claude/__init__.py 中注册
-from .custom_agent import CustomAgent
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-AVAILABLE_AGENTS = {
-    "custom": CustomAgent,
-    # ... 其他 agents
-}
-```
-
-### 最佳实践
-
-#### 1. 错误处理
-
-```python
-async def process(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-    try:
-        # 处理逻辑
-        result = await self.call_skill("skill", input_data)
-        return {"success": True, "data": result}
-
-    except SkillTimeoutError as e:
-        self.log_processing(f"Skill timeout: {e}")
-        return {"success": False, "error": "Processing timeout"}
-
-    except ValidationError as e:
-        self.log_processing(f"Validation error: {e}")
-        raise
-
-    except Exception as e:
-        self.log_processing(f"Unexpected error: {e}")
-        raise ProcessingError(f"Failed to process: {e}")
-```
-
-#### 2. 日志记录
-
-```python
-import logging
-
-logger = logging.getLogger(__name__)
-
-class CustomAgent(BaseAgent):
-    async def process(self, input_data):
-        logger.info(f"Processing {len(input_data)} items")
-
-        try:
-            result = await self._do_process(input_data)
-            logger.info(f"Successfully processed {result['count']} items")
-            return result
-        except Exception as e:
-            logger.error(f"Processing failed: {e}", exc_info=True)
-            raise
-```
-
-#### 3. 异步编程
-
-```python
-# 使用 asyncio 进行并发处理
-async def process_batch(self, items: List[Dict]) -> List[Dict]:
-    """批量处理"""
-    semaphore = asyncio.Semaphore(self.max_concurrent)
-
-    async def process_with_limit(item):
-        async with semaphore:
-            return await self.process(item)
-
-    tasks = [process_with_limit(item) for item in items]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    return results
+        # 合并结果
+        return self._merge_results(results)
 ```
 
 ## API 开发模式
 
 ### FastAPI 应用结构
 
-#### 1. 路由定义
-
-```python
-# agents/api/routes/custom.py
-from fastapi import APIRouter, Depends, HTTPException
-from agents.api.services.custom_service import CustomService
-from agents.api.models.custom import CustomRequest, CustomResponse
-
-router = APIRouter(prefix="/api/custom", tags=["custom"])
-
-@router.post("/process", response_model=CustomResponse)
-async def process_data(
-    request: CustomRequest,
-    service: CustomService = Depends()
-) -> CustomResponse:
-    """处理自定义数据"""
-    try:
-        result = await service.process(request.data)
-        return CustomResponse(success=True, data=result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-```
-
-#### 2. 服务层
-
-```python
-# agents/api/services/custom_service.py
-from agents.claude.custom_agent import CustomAgent
-from agents.core.config import settings
-
-class CustomService:
-    def __init__(self):
-        self.agent = CustomAgent(settings.custom_agent_config)
-
-    async def process(self, data: Dict) -> Dict:
-        """处理数据"""
-        result = await self.agent.process(data)
-        return result
-```
-
-#### 3. 数据模型
-
-```python
-# agents/api/models/custom.py
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
-
-class CustomRequest(BaseModel):
-    data: Dict[str, Any] = Field(..., description="处理数据")
-    options: Optional[Dict[str, Any]] = Field(default=None, description="选项")
-
-class CustomResponse(BaseModel):
-    success: bool = Field(..., description="是否成功")
-    data: Optional[Dict[str, Any]] = Field(default=None, description="结果数据")
-    error: Optional[str] = Field(default=None, description="错误信息")
-```
-
-### API 最佳实践
-
-#### 1. 依赖注入
-
-```python
-from fastapi import Depends
-
-def get_current_user():
-    """获取当前用户"""
-    # 认证逻辑
-    return user
-
-@router.get("/protected")
-async def protected_route(user=Depends(get_current_user)):
-    return {"message": f"Hello {user}"}
-```
-
-#### 4. WebSocket 支持
-
-```python
-# agents/api/routes/websocket.py
-from fastapi import WebSocket, WebSocketDisconnect
-from typing import List
-
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    async def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def send_message(self, message: str, websocket: WebSocket):
-        await websocket.send_text(message)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
-
-manager = ConnectionManager()
-
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            data = await websocket.receive_text()
-            await manager.send_message(f"Received: {data}", websocket)
-    except WebSocketDisconnect:
-        await manager.disconnect(websocket)
-```
-
-#### 5. 中间件使用
-
 ```python
 # agents/api/main.py
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
-app = FastAPI()
-
-# CORS 中间件
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="Agentic AI Papers API",
+    version="2.0.0"
 )
 
-# 自定义中间件
-@app.middleware("http")
-async def log_requests(request, call_next):
-    logger.info(f"Request: {request.method} {request.url}")
-    response = await call_next(request)
-    logger.info(f"Response: {response.status_code}")
-    return response
+# 性能优化中间件
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+```
+
+### 路由定义示例
+
+```python
+# agents/api/routes/papers.py
+from fastapi import APIRouter, UploadFile, BackgroundTasks
+from agents.api.services.paper_service import PaperService
+
+router = APIRouter(prefix="/api/papers", tags=["papers"])
+
+@router.post("/upload")
+async def upload_paper(
+    file: UploadFile,
+    background_tasks: BackgroundTasks,
+    service: PaperService = Depends()
+):
+    # 异步处理大文件
+    task_id = await service.create_processing_task(file)
+
+    # 后台执行
+    background_tasks.add_task(
+        service.process_paper,
+        task_id,
+        file.file_path
+    )
+
+    return {"task_id": task_id, "status": "processing"}
+```
+
+### WebSocket 实时进度
+
+```python
+@router.websocket("/ws/progress/{task_id}")
+async def progress_ws(websocket: WebSocket, task_id: str):
+    await websocket.accept()
+
+    async for progress in service.stream_progress(task_id):
+        await websocket.send_json({
+            "task_id": task_id,
+            "progress": progress.current,
+            "total": progress.total,
+            "status": progress.status
+        })
+```
+
+## 性能优化策略
+
+### 批处理优化
+
+```python
+# 批处理配置
+BATCH_LIMITS = {
+    "max_pages": 30,      # PDF页数/批次
+    "max_paragraphs": 60, # 段落数/批次
+    "max_words": 6000,    # 字数/批次
+    "max_concurrent": 3   # 最大并发批次
+}
+
+class BatchProcessor:
+    def __init__(self, limits=BATCH_LIMITS):
+        self.limits = limits
+        self.semaphore = asyncio.Semaphore(limits["max_concurrent"])
+
+    async def process_document(self, doc_path: str):
+        # 1. 分析文档
+        doc_info = await self._analyze_document(doc_path)
+
+        # 2. 计算批次
+        batches = self._calculate_batches(doc_info)
+
+        # 3. 并发处理
+        results = []
+        for batch in batches:
+            async with self.semaphore:
+                result = await self._process_batch(batch)
+                results.append(result)
+
+        # 4. 合并结果
+        return self._merge_results(results)
+```
+
+### 内存管理
+
+```python
+# 流式处理大文件
+async def stream_process_large_file(file_path: str):
+    chunk_size = 1024 * 1024  # 1MB chunks
+
+    async with aiofiles.open(file_path, 'rb') as f:
+        while chunk := await f.read(chunk_size):
+            # 处理数据块
+            await process_chunk(chunk)
+
+            # 及时释放
+            del chunk
+            gc.collect()
+```
+
+### 缓存策略
+
+```python
+from functools import lru_cache
+import diskcache as dc
+
+# 多级缓存
+cache = dc.Cache("./cache")
+
+@lru_cache(maxsize=128)
+async def get_cached_translation(key: str):
+    # L1: 内存缓存
+    if cached := cache.get(key):
+        return cached
+
+    # L2: 磁盘缓存
+    result = await translate(key)
+    cache.set(key, result, expire=3600)
+
+    return result
 ```
 
 ## 测试策略
 
-### 测试框架配置
-
-项目使用 `pytest` 作为测试框架，配置如下：
-
-```toml
-# pyproject.toml
-[tool.pytest.ini_options]
-minversion = "7.0"
-addopts = "-ra -q --strict-markers --strict-config"
-testpaths = ["tests"]
-markers = [
-    "slow: marks tests as slow",
-    "integration: marks tests as integration",
-    "unit: marks tests as unit"
-]
-```
-
 ### 测试结构
 
 ```
-tests/agents/
-├── unit/               # 单元测试
-│   ├── agents/
-│   ├── api/
-│   └── core/
-├── integration/        # 集成测试
-│   ├── workflows/
-│   └── endpoints/
-├── fixtures/           # 测试数据
-│   ├── factories/
-│   └── mocks/
-└── conftest.py         # 测试配置
+tests/
+├── unit/          # 单元测试
+├── integration/   # 集成测试
+├── e2e/          # 端到端测试
+├── fixtures/     # 测试数据
+└── conftest.py   # 测试配置
 ```
 
-### 单元测试示例
+### MCP 技能测试
 
 ```python
-# tests/agents/unit/agents/test_custom_agent.py
-import pytest
-from agents.claude.custom_agent import CustomAgent
-
-@pytest.fixture
-def custom_agent():
-    config = {"max_retries": 3}
-    return CustomAgent(config)
-
 @pytest.mark.asyncio
-async def test_process_success(custom_agent):
-    """测试成功处理"""
-    input_data = {"field1": "value1", "field2": "value2"}
+async def test_pdf_processing():
+    # 测试PDF提取
+    result = await mcp__data_extractor__convert_pdf_to_markdown(
+        pdf_source="tests/fixtures/sample.pdf"
+    )
 
-    result = await custom_agent.process(input_data)
-
-    assert result["success"] is True
-    assert "data" in result
-
-@pytest.mark.asyncio
-async def test_process_invalid_input(custom_agent):
-    """测试无效输入"""
-    input_data = {"field1": "value1"}  # 缺少 field2
-
-    with pytest.raises(ValueError):
-        await custom_agent.process(input_data)
+    assert result.success
+    assert "markdown_content" in result
+    assert len(result.markdown_content) > 0
 ```
 
-### Mock 策略
+### Agent 集成测试
 
 ```python
-# tests/conftest.py
-import pytest
-from unittest.mock import AsyncMock, patch
+@pytest.mark.asyncio
+async def test_translation_workflow():
+    agent = TranslationAgent(test_config)
 
-@pytest.fixture
-def mock_skill():
-    """Mock 技能调用"""
-    async def mock_call(name, params):
-        return {"result": f"mocked_{name}_result"}
+    # 模拟处理流程
+    result = await agent.process({
+        "content": "Sample AI paper content...",
+        "source_lang": "en",
+        "target_lang": "zh"
+    })
 
-    with patch("agents.claude.base.BaseAgent.call_skill", mock_call):
-        yield
-
-@pytest.fixture
-def sample_pdf():
-    """提供示例 PDF 文件路径"""
-    return "tests/fixtures/sample_papers/sample.pdf"
+    assert result["success"]
+    assert "translated_content" in result
 ```
 
-## MCP 开发
+## Docker 最佳实践
 
-### MCP (Model Context Protocol) 集成
+### Dockerfile 优化
 
-项目使用 MCP 工具来扩展 Claude 的能力，包括：
+```dockerfile
+# 多阶段构建
+FROM python:3.12-slim as builder
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-#### 可用的 MCP 工具
+FROM python:3.12-slim
+WORKDIR /app
+COPY --from=builder /usr/local/lib/python3.12/site-packages .
+COPY . .
 
-- **pdf-reader**: PDF 文档解析和内容提取
-- **zh-translator**: 中文学术文档翻译
-- **web-translator**: 网页内容抓取和转换
-- **data-extractor**: 数据提取和网页抓取
-- **batch-processor**: 批量文档处理
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s \
+    CMD curl -f http://localhost:8000/health || exit 1
+```
 
-#### MCP 配置
-
-MCP 工具配置位于 `.claude/` 目录：
+### Docker Compose 配置
 
 ```yaml
-# .claude/claude_desktop_config.json
-{
-  "mcpServers":
-    { "data-extractor": { "command": "mcp-data-extractor", "args": [] } },
-}
-```
+version: "3.8"
+services:
+  api:
+    build: .
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./papers:/app/papers
+      - ./cache:/app/cache
 
-#### 在 Agent 中使用 MCP 技能
+  mcp-data-extractor:
+    image: mcp-data-extractor:latest
+    profiles: ["mcp"]
 
-```python
-from agents.claude.base import BaseAgent
-
-class PDFProcessingAgent(BaseAgent):
-    def __init__(self, config):
-        super().__init__(config)
-        self.required_skills = ["pdf-reader", "zh-translator"]
-
-    async def process_paper(self, pdf_path: str) -> dict:
-        # 使用 PDF 读取技能
-        result = await self.call_skill("pdf-reader", {"file_path": pdf_path})
-
-        # 使用翻译技能
-        if result.get("success"):
-            translated = await self.call_skill(
-                "zh-translator",
-                {"content": result["content"]}
-            )
-            return translated
-
-        return result
-```
-
-## 调试和故障排除
-
-### 日志配置
-
-```python
-# agents/core/logging.py
-import logging
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-```
-
-### 常见问题
-
-1. **Agent 无法启动**: 检查 API Key 配置和 MCP 工具是否安装
-2. **技能调用失败**: 验证技能名称和参数格式
-3. **性能问题**: 使用 `ruff` 分析代码，检查异步操作
-
-### 性能分析
-
-```python
-import time
-from functools import wraps
-
-def timing_decorator(func):
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        start = time.time()
-        result = await func(*args, **kwargs)
-        print(f"{func.__name__} took {time.time() - start:.2f}s")
-        return result
-    return wrapper
+  # 开发环境热重载
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    command: uvicorn --reload agents.api.main:app
 ```
 
 ## 安全考虑
 
 ### API 安全
 
-- **API Key 管理**: 使用环境变量存储敏感信息
-- **输入验证**: 对所有用户输入进行验证和清理
-- **文件安全**: 限制上传文件类型和大小
-- **访问控制**: 实施适当的认证和授权
-
-### 数据保护
-
 ```python
-# 敏感数据保护示例
-import os
-from cryptography.fernet import Fernet
+# 输入验证
+from pydantic import BaseModel, validator
 
-class SecureConfig:
-    def __init__(self):
-        self.key = os.environ.get("ENCRYPTION_KEY")
-        self.cipher = Fernet(self.key.encode())
+class PaperUploadRequest(BaseModel):
+    title: str
+    content: str
 
-    def encrypt_api_key(self, api_key: str) -> str:
-        return self.cipher.encrypt(api_key.encode()).decode()
-
-    def decrypt_api_key(self, encrypted_key: str) -> str:
-        return self.cipher.decrypt(encrypted_key.encode()).decode()
+    @validator('content')
+    def validate_content(cls, v):
+        if len(v) > 10 * 1024 * 1024:  # 10MB limit
+            raise ValueError('Content too large')
+        return v
 ```
 
-### 最佳实践
+### 敏感信息保护
 
-- 定期更新依赖包
-- 使用 HTTPS 进行通信
-- 实施日志审计
-- 定期进行安全审查
+```python
+# API密钥管理
+class SecureConfig:
+    def __init__(self):
+        self.api_key = self._decrypt(
+            os.environ.get("ENCRYPTED_API_KEY")
+        )
+
+    def _decrypt(self, encrypted: str) -> str:
+        # 使用Fernet解密
+        key = os.environ.get("MASTER_KEY").encode()
+        cipher = Fernet(key)
+        return cipher.decrypt(encrypted.encode()).decode()
+```
 
 ## 贡献指南
 
@@ -694,49 +526,157 @@ class SecureConfig:
 
 ```mermaid
 flowchart LR
-    A[Fork 仓库] --> B[创建功能分支]
+    A[Fork仓库] --> B[创建功能分支]
     B --> C[编写代码]
     C --> D[编写测试]
-    D --> E[运行测试]
+    D --> E[本地测试]
     E --> F{测试通过?}
     F -->|否| C
-    F -->|是| G[提交代码]
-    G --> H[推送分支]
-    H --> I[创建 PR]
-    I --> J[代码审查]
-    J --> K[合并主分支]
+    F -->|是| G[提交PR]
+    G --> H[代码审查]
+    H --> I[自动测试]
+    I --> J{CI通过?}
+    J -->|否| H
+    J -->|是| K[合并主分支]
 ```
 
 ### 提交规范
 
-使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
-
-```
-feat: 添加新功能
-fix: 修复 bug
-docs: 更新文档
-style: 代码格式调整
-refactor: 代码重构
-test: 添加或修改测试
-chore: 构建过程或辅助工具的变动
-```
-
-示例：
-
 ```bash
-git commit -m "feat(agent): 添加新的翻译 Agent"
-git commit -m "fix(api): 修复文件上传的内存泄漏问题"
+# 使用Conventional Commits
+feat(agent): 添加新的翻译Agent
+fix(api): 修复WebSocket连接问题
+docs(readme): 更新安装说明
+perf(batch): 优化批处理性能
 ```
 
-### 代码审查清单
+## 性能监控
 
-- [ ] 代码符合项目编码规范
-- [ ] 包含必要的单元测试
-- [ ] 文档已更新
-- [ ] 没有硬编码的配置
-- [ ] 错误处理完善
-- [ ] 日志记录合理
-- [ ] 性能影响已评估
+### 关键指标
+
+- **API 响应时间**: 目标 < 1 秒
+- **批处理吞吐量**: 目标 > 100 页/分钟
+- **内存使用**: 稳定在 2GB 以内
+- **错误率**: 目标 < 1%
+
+### 监控实现
+
+```python
+# Prometheus指标
+from prometheus_client import Counter, Histogram
+
+REQUEST_COUNT = Counter('api_requests_total', 'Total API requests')
+REQUEST_DURATION = Histogram('api_request_duration_seconds', 'Request duration')
+
+@app.middleware("http")
+async def monitor_requests(request, call_next):
+    start_time = time.time()
+
+    response = await call_next(request)
+
+    REQUEST_COUNT.inc()
+    REQUEST_DURATION.observe(time.time() - start_time)
+
+    return response
+```
+
+## 故障排查
+
+### 常见问题
+
+1. **MCP 服务不可用**
+
+   ```bash
+   # 检查MCP服务状态
+   docker ps | grep mcp
+   # 重启服务
+   docker-compose restart mcp-data-extractor
+   ```
+
+2. **批处理内存溢出**
+
+   ```python
+   # 减小批次大小
+   BATCH_LIMITS["max_pages"] = 20
+   BATCH_LIMITS["max_words"] = 4000
+   ```
+
+3. **翻译质量不一致**
+   ```python
+   # 启用术语缓存
+   agent = TranslationAgent({
+       "use_terminology_cache": True,
+       "domain": "computer_science"
+   })
+   ```
+
+### 日志配置
+
+```python
+# 结构化日志
+import structlog
+
+logger = structlog.get_logger()
+
+logger.info(
+    "Processing document",
+    document_id=doc_id,
+    batch_id=batch_id,
+    progress=0.5
+)
+```
+
+## Web UI 开发前瞻
+
+### 技术栈建议
+
+- **前端框架**: React + TypeScript
+- **状态管理**: Zustand
+- **UI 组件**: Ant Design
+- **实时通信**: WebSocket
+- **构建工具**: Vite
+
+### API 集成规范
+
+```typescript
+// API客户端示例
+class PapersAPI {
+  private ws: WebSocket;
+
+  async uploadPaper(file: File): Promise<TaskId> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch("/api/papers/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    return response.json();
+  }
+
+  subscribeToProgress(taskId: TaskId, callback: Callback) {
+    this.ws = new WebSocket(`/ws/progress/${taskId}`);
+    this.ws.onmessage = (event) => {
+      callback(JSON.parse(event.data));
+    };
+  }
+}
+```
+
+### 实时进度展示
+
+```mermaid
+graph TD
+    A[用户上传文件] --> B[创建任务]
+    B --> C[WebSocket连接]
+    C --> D[实时推送进度]
+    D --> E[前端更新UI]
+    E --> F[完成通知]
+
+    style D fill:#e8f5e9
+    style E fill:#e3f2fd
+```
 
 ## 发布流程
 
@@ -744,80 +684,33 @@ git commit -m "fix(api): 修复文件上传的内存泄漏问题"
 
 使用语义化版本 (SemVer)：
 
-- **主版本号**：不兼容的 API 修改
-- **次版本号**：向下兼容的功能性新增
-- **修订号**：向下兼容的问题修正
+- **主版本**: 不兼容的 API 修改
+- **次版本**: 向下兼容的新功能
+- **修订号**: 向下兼容的问题修正
 
-### 发布步骤
+### 自动发布
 
-1. **更新版本号**
+```yaml
+# .github/workflows/release.yml
+name: Release
+on:
+  push:
+    tags:
+      - "v*"
 
-```bash
-# 更新 pyproject.toml
-version = "1.1.0"
-
-# 更新 API 版本（如果需要）
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
 ```
 
-2. **更新 CHANGELOG**
+---
 
-```markdown
-# 更新日志
-
-## [1.1.0] - 2024-01-15
-
-### 新增
-
-- 添加批量处理功能
-- 支持更多文档格式
-
-### 修复
-
-- 修复 PDF 解码问题
-```
-
-3. **创建发布标签**
-
-```bash
-git tag -a v1.1.0 -m "Release version 1.1.0"
-git push origin v1.1.0
-```
-
-4. **构建和发布**
-
-```bash
-# 构建 Docker 镜像
-docker build -t agentic-ai-papers:v1.1.0 .
-
-# 发布到 PyPI（可选）
-python -m build
-twine upload dist/*
-```
-
-## 性能优化
-
-### 关键优化点
-
-1. **并发处理**: 使用 `asyncio.Semaphore` 限制并发数
-2. **缓存机制**: 使用 `functools.lru_cache` 缓存频繁访问的数据
-3. **响应压缩**: 添加 `GZipMiddleware` 减少传输大小
-4. **异步操作**: 确保所有 I/O 操作都是异步的
-
-## 维护与监控
-
-### 定期维护
-
-- 每日检查错误日志
-- 每周更新依赖包
-- 每月清理临时文件
-- 定期备份 `papers/` 目录
-
-### 监控要点
-
-- API 响应时间
-- 错误率
-- 内存和磁盘使用
-
-### 应急响应
-
-1. 监控告警 → 2. 定位问题 → 3. 实施修复 → 4. 复盘改进
+_最后更新: 2025-12-14_
+_版本: 2.0.0_

@@ -1,24 +1,25 @@
 # Agentic AI Papers Collection & Translation Platform 🔬
 
-一个专注于 Agentic AI 研究的学术论文收集、翻译和管理平台，基于 Claude Agent SDK 和 Claude Skills 构建，为中文读者提供高质量的人工智能智能体领域技术资源。
+> **开发状态**: 早期 MVP 阶段 · 后端优先 · [📋 查看完整路线图](docs/000-roadmap.md)
 
-> **注意**: 项目目前处于 MVP 阶段，部分 AI 功能依赖的 `claude-agent-sdk` 暂未安装。详细架构说明请参考 [docs/01-framework.md](docs/01-framework.md)。
+一个专注于 Agentic AI 研究的学术论文收集、翻译、理解、语义检索、应用的智能平台，为中文读者提供高质量的人工智能智能体领域技术资源与服务支持。
 
-## 📋 核心功能
+## 📊 当前进展
 
-- 📚 **论文收集管理** - 系统性收集和分类 Agentic AI 领域研究论文
-- 🔄 **AI 驱动翻译** - 基于 Claude 的高质量中文翻译
-- 🤖 **智能工作流** - 自动化的论文处理和分析流程
-- 🖥️ **RESTful API** - 完整的 API 接口支持
+| 模块        | 完成度 | 说明                               |
+| ----------- | ------ | ---------------------------------- |
+| 🤖 核心后端 | 60%    | 智能体系统 90% + API 后端 95%      |
+| 📚 内容建设 | 59%    | 27 篇论文收集，16 篇已翻译         |
+| 🏗️ 基础设施 | 35%    | Docker 容器化完成，缺少 UI、数据库 |
+| 🖥️ Web 前端 | 0%     | 计划于 Q1 2026 开发                |
+| ✅ 测试覆盖 | 82%    | 针对后端代码的测试                 |
 
-## 📚 文档
+### ⚠️ 当前限制
 
-- [🗺️ Main Roadmap](docs/000-roadmap.md) - 项目整体路线图
-- [📖 系统架构](docs/001-framework.md) - 架构设计和技术栈
-- [💻 开发指南](docs/002-development.md) - 开发环境和代码规范
-- [👥 用户手册](docs/003-user-guide.md) - 安装部署和使用教程
-- [🧪 测试方案](docs/004-testing.md) - 测试框架和 CI/CD
-- [🚀 GitHub Actions](docs/005-github-actions.md) - 自动化工作流
+- Web 界面尚未开发（计划 Q1 2026）
+- Claude SDK 依赖问题导致 AI 功能暂不可用
+- 仅支持文件存储，暂无数据库
+- 无用户认证系统
 
 ## 🚀 快速开始
 
@@ -26,9 +27,8 @@
 
 - Python 3.12+
 - Docker & Docker Compose（推荐）
-- Claude API Key
 
-### Docker Compose 部署（推荐）
+### Docker Compose 部署
 
 ```bash
 # 1. 克隆仓库
@@ -37,14 +37,13 @@ cd agentic-ai-papers
 
 # 2. 配置环境变量
 cp .env.example .env
-# 编辑 .env 文件，添加 ANTHROPIC_API_KEY
+# 编辑 .env 文件，添加必要的 API Key
 
 # 3. 启动服务
 docker-compose up -d
 
-# 4. 访问服务
-# API 文档: http://localhost:8000/docs
-# Web UI: http://localhost:3000
+# 4. 访问 API 文档
+# http://localhost:8000/docs
 ```
 
 ### 本地开发
@@ -60,51 +59,97 @@ uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 # http://localhost:8000/docs
 ```
 
+## ✨ 功能特性
+
+### ✅ 已实现
+
+- 📚 **论文收集管理** - 系统性收集和分类 Agentic AI 领域论文
+- 🔄 **基础工作流** - 自动化的论文处理流程
+- 🖥️ **RESTful API** - 完整的异步 API 接口
+- 🧪 **测试覆盖** - 82% 的后端测试覆盖率
+
+### 🚧 开发中
+
+- 🤖 **AI 驱动翻译** - 等待 Claude SDK 依赖解决
+- 🔍 **检索功能** - 基于文件系统的搜索实现
+
+### 📋 计划中
+
+- 🌐 Web 用户界面（Q1 2026）
+- 🗄️ 数据库支持（PostgreSQL）
+- 🔐 用户认证系统
+- 📊 高级分析功能
+
 ## 🏗️ 系统架构
 
 ```mermaid
 flowchart LR
-    A[Web UI / API Client] --> B[FastAPI 服务]
+    A[API Client] --> B[FastAPI 服务]
     B --> C[Agent 层]
     C --> D[Claude Skills]
     D --> E[MCP 服务]
     C --> F[文件系统存储]
 
+    G[Web UI<br/>🚧 计划中] -.-> B
+
     style A fill:#e1f5fe
-    style B fill:#f3e5f5
-    style C fill:#e8f5e9
-    style D fill:#fff3e0
-    style E fill:#fce4ec
-    style F fill:#f1f8e9
+    style B fill:#4CAF50,color:#fff
+    style C fill:#4CAF50,color:#fff
+    style D fill:#4CAF50,color:#fff
+    style E fill:#4CAF50,color:#fff
+    style F fill:#4CAF50,color:#fff
+    style G fill:#FFC107
 ```
 
-系统采用混合架构，结合 **Claude Agent SDK** 标准化接口与 **Claude Skills** 专用能力，提供模块化、可扩展的论文处理解决方案。
+**架构说明**：
 
-**核心组件**：
+- **绿色**：已实现的组件
+- **黄色**：计划中的组件
+- 目前采用后端优先策略，核心 API 功能已就绪
 
-- **Agent 层** - WorkflowAgent、PDFProcessingAgent、TranslationAgent 等
-- **API 层** - FastAPI 异步服务，支持 REST 和 WebSocket
-- **Skills 层** - 7 个专用 Claude Skills（pdf-reader、zh-translator 等）
+## 📁 项目结构
+
+```
+agentic-ai-papers/
+├── agents/              # 核心后端实现
+│   ├── api/            # FastAPI 路由和服务
+│   ├── claude/         # Agent 实现
+│   └── core/           # 共享工具
+├── papers/             # 论文存储
+│   ├── source/         # 原始论文
+│   ├── translation/    # 中文翻译
+│   └── images/         # 提取的图片
+├── ui/                 # Web前端（待开发）
+└── docs/               # 完整文档
+```
+
+## 📚 文档
+
+- [🗺️ 项目路线图](docs/000-roadmap.md) - 完整的开发计划和进度
+- [📖 系统架构](docs/001-framework.md) - 架构设计和技术栈
+- [💻 开发指南](docs/002-development.md) - 开发环境和规范
+- [👥 用户手册](docs/003-user-guide.md) - 详细使用教程
+- [🧪 测试方案](docs/004-testing.md) - 测试框架和 CI/CD
 
 ## 🤝 贡献指南
 
-我们欢迎社区贡献！请遵循以下流程：
+我们欢迎社区贡献！当前最需要的帮助：
+
+1. **前端开发** - React/TypeScript Web UI 实现
+2. **翻译工作** - 新论文的翻译和校对
+3. **SDK 集成** - 帮助解决 Claude SDK 依赖问题
+4. **测试** - 提高测试覆盖率
+5. **文档** - 改进和完善文档
+
+### 如何贡献
 
 1. Fork 项目并创建功能分支
-2. 遵循代码规范（见 [开发指南](docs/02-development.md)）
+2. 遵循代码规范（见 [开发指南](docs/002-development.md)）
 3. 提交 Pull Request
-
-### 贡献方向
-
-- 📝 添加新的研究论文
-- 🔄 改进翻译质量
-- 🛠️ 开发新的 Agent 能力
-- 🐛 报告和修复问题
-- 📚 完善文档
 
 ## 📜 许可证
 
-本项目采用 [MIT License](LICENSE)，所有翻译内容仅供学术研究使用。原始论文版权属于相应出版机构和作者。
+本项目采用 [MIT License](LICENSE)，所有翻译内容仅供学术研究使用。
 
 ## 🔗 相关资源
 
