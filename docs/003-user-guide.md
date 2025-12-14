@@ -11,6 +11,46 @@
 - **主要限制**：claude-agent-sdk 依赖缺失，AI 处理功能暂时不可用
 - **目标用户**：开发者、研究人员
 
+### 系统架构
+
+```mermaid
+flowchart TD
+    User[用户] --> Interface[交互接口]
+
+    subgraph Interface [交互层]
+        A[Web UI<br/>开发中]
+        B[API 接口<br/>当前可用]
+        C[WebSocket<br/>实时更新]
+    end
+
+    subgraph Processing [处理层]
+        D[论文上传]
+        E[任务管理]
+        F[状态追踪]
+    end
+
+    subgraph Limitations [当前限制]
+        G[⚠️ AI 处理模块<br/>依赖缺失]
+        H[⚠️ 翻译功能<br/>暂时不可用]
+        I[⚠️ 深度分析<br/>等待修复]
+    end
+
+    B --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+
+    classDef available fill:#4CAF50,color:#fff
+    classDef developing fill:#FFC107,color:#000
+    classDef limited fill:#F44336,color:#fff
+
+    class B,C,D,E,F available
+    class A developing
+    class G,H,I limited
+```
+
 ## 快速开始
 
 ### 环境要求
@@ -18,6 +58,27 @@
 - Python 3.12+
 - Docker & Docker Compose（推荐）
 - ANTHROPIC_API_KEY（用于未来 AI 功能）
+
+### 用户使用流程
+
+```mermaid
+journey
+    title 用户使用流程
+    section 安装部署
+      环境准备: 5: 用户
+      Docker部署: 4: 用户
+      本地安装: 3: 开发者
+      服务验证: 5: 用户
+    section 基础使用
+      上传论文: 5: 用户
+      创建任务: 4: 用户
+      查询状态: 5: 用户
+      获取更新: 4: 用户
+    section 开发参与
+      获取源码: 4: 开发者
+      运行测试: 3: 开发者
+      贡献代码: 2: 开发者
+```
 
 ### 安装方式
 
@@ -100,6 +161,30 @@ curl "http://localhost:8000/api/tasks/{task_id}"
 
 ### 2. WebSocket 连接
 
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant TaskQueue
+    participant WebSocket
+
+    Note over Client,WebSocket: 基础流程（当前可用）
+    Client->>API: 上传PDF
+    API->>API: 验证并存储
+    API-->>Client: 返回论文ID
+
+    Note over Client,WebSocket: 任务处理（当前受限）
+    Client->>API: 创建处理任务
+    API->>TaskQueue: 加入队列
+    API-->>Client: 返回任务ID
+
+    Client->>WebSocket: 建立连接
+    WebSocket-->>Client: 实时状态更新
+
+    Note over TaskQueue: ⚠️ 等待依赖修复
+    TaskQueue->>TaskQueue: AI处理（暂时失败）
+```
+
 ```javascript
 // 实时获取任务更新
 const ws = new WebSocket("ws://localhost:8000/ws/{client_id}");
@@ -144,18 +229,71 @@ ws.onmessage = (event) => {
 - **tool-learning**：工具学习
 - **planning**：规划与推理
 
-## 文件组织建议
+### 论文管理流程
 
-```
-papers/
-├── source/              # 原始 PDF 文件
-│   ├── llm-agents/
-│   └── context-engineering/
-├── translation/         # 翻译结果（未来）
-└── heartfelt/          # 深度分析（未来）
+```mermaid
+flowchart LR
+    Upload[论文上传] --> Category[分类选择]
+
+    subgraph Categories [支持分类]
+        LLM[LLM Agents]
+        CTX[Context Engineering]
+        KG[Knowledge Graphs]
+        MULTI[Multi-Agent]
+        TOOL[Tool Learning]
+        PLAN[Planning]
+    end
+
+    Category --> Categories
+
+    subgraph Storage [存储结构]
+        Source[papers/source/<br/>原始PDF]
+        Images[papers/images/<br/>提取图片]
+        Trans[papers/translation/<br/>中文翻译<br/>⚠️ 暂停]
+        Heart[papers/heartfelt/<br/>深度分析<br/>⚠️ 暂停]
+    end
+
+    Categories --> Storage
+
+    classDef storage fill:#2196F3,color:#fff
+    classDef category fill:#FF9800,color:#fff
+    classDef limited fill:#F44336,color:#fff
+
+    class Source,Images storage
+    class LLM,CTX,KG,MULTI,TOOL,PLAN category
+    class Trans,Heart limited
 ```
 
 ## 常见问题
+
+### 故障排除决策树
+
+```mermaid
+flowchart TD
+    Start[遇到问题?] --> Check{服务是否运行?}
+
+    Check -->|否| Service[启动服务]
+    Check -->|是| Upload{文件上传问题?}
+
+    Upload -->|是| FileCheck{文件格式?}
+    FileCheck -->|非PDF| Convert[转换为PDF]
+    FileCheck -->|PDF| SizeCheck{文件大小?}
+    SizeCheck -->|>50MB| Split[分割文件]
+    SizeCheck -->|≤50MB| Retry[重新上传]
+
+    Upload -->|否| Task{任务问题?}
+    Task -->|是| Dependency[⚠️ 已知依赖问题<br/>等待修复]
+    Task -->|否| WS{WebSocket问题?}
+    WS -->|是| Firewall[检查防火墙<br/>验证client_id]
+    WS -->|否| Log[查看日志<br/>提交Issue]
+
+    classDef solution fill:#4CAF50,color:#fff
+    classDef warning fill:#FFC107,color:#000
+    classDef error fill:#F44336,color:#fff
+
+    class Service,Convert,Split,Retry,Firewall,Log solution
+    class Dependency warning
+```
 
 ### Q1: claude-agent-sdk 依赖问题？
 
@@ -225,6 +363,24 @@ const ws = new WebSocket(`ws://localhost:8000/ws/${clientId}`);
 - 本地部署：控制台输出
 
 ## 参与开发
+
+### 开发贡献流程
+
+```mermaid
+gitgraph
+    commit id: "初始状态"
+    branch feature
+    checkout feature
+    commit id: "Fork项目"
+    commit id: "创建分支"
+    commit id: "开发功能"
+    commit id: "编写测试"
+    checkout main
+    pull feature
+    commit id: "代码审查"
+    commit id: "合并PR"
+    commit id: "发布版本"
+```
 
 ### 获取源码
 
