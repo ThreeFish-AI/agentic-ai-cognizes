@@ -490,8 +490,14 @@ class PaperService:
     def _get_source_path(self, paper_id: str) -> Path:
         """获取源文件路径."""
         # 从 paper_id 提取分类
+        # paper_id格式: category_timestamp_filename
         if "_" in paper_id:
-            category = paper_id.split("_")[0]
+            parts = paper_id.split("_")
+            if len(parts) >= 3:
+                # 第一个部分是category
+                category = parts[0]
+            else:
+                category = "general"
         else:
             category = "general"
 
@@ -649,7 +655,7 @@ class PaperService:
         """
         source_path = self._get_source_path(paper_id)
         if not source_path.exists():
-            raise ValueError(f"Paper not found: {paper_id}")
+            raise ValueError(f"Paper must be extracted before translation: {paper_id}")
 
         # 更新状态
         await self._update_status(paper_id, "processing", "translate")
@@ -714,7 +720,7 @@ class PaperService:
         """
         source_path = self._get_source_path(paper_id)
         if not source_path.exists():
-            raise ValueError(f"Paper not found: {paper_id}")
+            raise ValueError(f"Paper must be extracted before analysis: {paper_id}")
 
         # 更新状态
         await self._update_status(paper_id, "processing", "heartfelt")
@@ -789,6 +795,7 @@ class PaperService:
                 "success": False,
                 "batch_id": f"batch_translate_{datetime.now().strftime('%Y%m%d%H%M%S')}",
                 "total_requested": len(paper_ids),
+                "total_valid": 0,
                 "total_success": 0,
                 "total_failed": len(paper_ids),
                 "results": [],
@@ -799,9 +806,8 @@ class PaperService:
         batch_params: dict[str, Any] = {
             "files": valid_paper_ids,
             "workflow": "translation",
+            "options": options if options is not None else {},
         }
-        if options:
-            batch_params["options"] = options
 
         result = await self.batch_agent.batch_process(batch_params)
 
@@ -810,6 +816,7 @@ class PaperService:
             "success": True,
             "batch_id": f"batch_translate_{datetime.now().strftime('%Y%m%d%H%M%S')}",
             "total_requested": len(paper_ids),
+            "total_valid": len(valid_paper_ids),
             "total_success": len(valid_paper_ids),
             "total_failed": len(paper_ids) - len(valid_paper_ids),
             "results": [result] if isinstance(result, dict) else result,
