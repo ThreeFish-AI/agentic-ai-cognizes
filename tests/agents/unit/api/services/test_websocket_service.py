@@ -1,6 +1,6 @@
 """Unit tests for WebSocketService."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -15,6 +15,8 @@ class TestWebSocketService:
     def mock_connection_manager(self):
         """Create a mock connection manager."""
         manager = AsyncMock()
+        # Mock active_connections as a list for send_batch_progress tests
+        manager.active_connections = ["client1", "client2", "client3"]
         return manager
 
     @pytest.fixture
@@ -34,11 +36,22 @@ class TestWebSocketService:
         task_id = "task_123"
         status = "processing"
 
-        # Mock the imported function
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            await websocket_service.send_task_update(task_id, status)
+        # Test the service method directly - it should use the manager
+        await websocket_service.send_task_update(task_id, status)
 
-            mock_send.assert_called_once_with(task_id, status, 0.0, "")
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        message = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert message["type"] == "task_update"
+        assert message["task_id"] == task_id
+        assert message["status"] == status
+        assert message["progress"] == 0.0
+        assert message["message"] == ""
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_send_task_update_with_all_params(self, websocket_service):
@@ -48,25 +61,45 @@ class TestWebSocketService:
         progress = 75.5
         message = "Processing file..."
 
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            await websocket_service.send_task_update(task_id, status, progress, message)
+        await websocket_service.send_task_update(task_id, status, progress, message)
 
-            mock_send.assert_called_once_with(
-                task_id, status, 75.5, "Processing file..."
-            )
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_update"
+        assert msg["task_id"] == task_id
+        assert msg["status"] == status
+        assert msg["progress"] == progress
+        assert msg["message"] == message
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_task_update_with_zero_progress(self, websocket_service):
         """Test send_task_update with explicit zero progress."""
         task_id = "task_123"
         status = "starting"
+        progress = 0.0
+        message = "Starting..."
 
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            await websocket_service.send_task_update(
-                task_id, status, 0.0, "Starting..."
-            )
+        await websocket_service.send_task_update(task_id, status, progress, message)
 
-            mock_send.assert_called_once_with(task_id, status, 0.0, "Starting...")
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_update"
+        assert msg["task_id"] == task_id
+        assert msg["status"] == status
+        assert msg["progress"] == progress
+        assert msg["message"] == message
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_task_update_with_none_values(self, websocket_service):
@@ -74,10 +107,21 @@ class TestWebSocketService:
         task_id = "task_123"
         status = "processing"
 
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            await websocket_service.send_task_update(task_id, status, None, None)
+        await websocket_service.send_task_update(task_id, status, None, None)
 
-            mock_send.assert_called_once_with(task_id, status, 0.0, "")
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_update"
+        assert msg["task_id"] == task_id
+        assert msg["status"] == status
+        assert msg["progress"] == 0.0  # None defaults to 0.0
+        assert msg["message"] == ""  # None defaults to ""
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_task_completion_success(self, websocket_service):
@@ -85,10 +129,21 @@ class TestWebSocketService:
         task_id = "task_123"
         result = {"output_file": "translated.pdf", "word_count": 5000}
 
-        with patch("agents.api.routes.websocket.send_task_completion") as mock_send:
-            await websocket_service.send_task_completion(task_id, result)
+        await websocket_service.send_task_completion(task_id, result)
 
-            mock_send.assert_called_once_with(task_id, result, "")
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_completed"
+        assert msg["task_id"] == task_id
+        assert msg["success"] is True
+        assert msg["result"] == result
+        assert msg["error"] == ""
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_task_completion_failure(self, websocket_service):
@@ -96,10 +151,21 @@ class TestWebSocketService:
         task_id = "task_123"
         error = "Translation failed: timeout"
 
-        with patch("agents.api.routes.websocket.send_task_completion") as mock_send:
-            await websocket_service.send_task_completion(task_id, error=error)
+        await websocket_service.send_task_completion(task_id, error=error)
 
-            mock_send.assert_called_once_with(task_id, {}, error)
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_completed"
+        assert msg["task_id"] == task_id
+        assert msg["success"] is False
+        assert msg["result"] == {}
+        assert msg["error"] == error
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_task_completion_both_result_and_error(self, websocket_service):
@@ -108,20 +174,42 @@ class TestWebSocketService:
         result = {"partial_output": "some content"}
         error = "Warning: incomplete translation"
 
-        with patch("agents.api.routes.websocket.send_task_completion") as mock_send:
-            await websocket_service.send_task_completion(task_id, result, error)
+        await websocket_service.send_task_completion(task_id, result, error)
 
-            mock_send.assert_called_once_with(task_id, result, error)
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_completed"
+        assert msg["task_id"] == task_id
+        assert msg["success"] is False  # error is not None
+        assert msg["result"] == result
+        assert msg["error"] == error
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_task_completion_none_values(self, websocket_service):
         """Test send_task_completion with None values."""
         task_id = "task_123"
 
-        with patch("agents.api.routes.websocket.send_task_completion") as mock_send:
-            await websocket_service.send_task_completion(task_id, None, None)
+        await websocket_service.send_task_completion(task_id, None, None)
 
-            mock_send.assert_called_once_with(task_id, {}, "")
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_completed"
+        assert msg["task_id"] == task_id
+        assert msg["success"] is True  # error is None
+        assert msg["result"] == {}
+        assert msg["error"] == ""
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_batch_progress_minimal(self, websocket_service):
@@ -130,10 +218,24 @@ class TestWebSocketService:
         total = 10
         processed = 5
 
-        with patch("agents.api.routes.websocket.send_batch_progress") as mock_send:
-            await websocket_service.send_batch_progress(batch_id, total, processed)
+        await websocket_service.send_batch_progress(batch_id, total, processed)
 
-            mock_send.assert_called_once_with(batch_id, total, processed, "")
+        # Verify send_personal_message was called for each active connection
+        assert websocket_service.manager.send_personal_message.call_count == 3
+
+        # Check the arguments for the first call
+        call_args = websocket_service.manager.send_personal_message.call_args_list[0]
+        message = call_args[0][0]
+        client_id = call_args[0][1]
+
+        assert client_id in ["client1", "client2", "client3"]
+        assert message["type"] == "batch_progress"
+        assert message["batch_id"] == batch_id
+        assert message["total"] == total
+        assert message["processed"] == processed
+        assert message["progress"] == 50.0  # 5/10 * 100
+        assert message["current_file"] == ""
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_send_batch_progress_with_current_file(self, websocket_service):
@@ -143,12 +245,24 @@ class TestWebSocketService:
         processed = 5
         current_file = "paper5.pdf"
 
-        with patch("agents.api.routes.websocket.send_batch_progress") as mock_send:
-            await websocket_service.send_batch_progress(
-                batch_id, total, processed, current_file
-            )
+        await websocket_service.send_batch_progress(
+            batch_id, total, processed, current_file
+        )
 
-            mock_send.assert_called_once_with(batch_id, total, processed, "paper5.pdf")
+        # Verify send_personal_message was called for each active connection
+        assert websocket_service.manager.send_personal_message.call_count == 3
+
+        # Check the arguments for the first call
+        call_args = websocket_service.manager.send_personal_message.call_args_list[0]
+        message = call_args[0][0]
+
+        assert message["type"] == "batch_progress"
+        assert message["batch_id"] == batch_id
+        assert message["total"] == total
+        assert message["processed"] == processed
+        assert message["progress"] == 50.0  # 5/10 * 100
+        assert message["current_file"] == current_file
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_send_batch_progress_with_none_current_file(self, websocket_service):
@@ -157,12 +271,22 @@ class TestWebSocketService:
         total = 10
         processed = 5
 
-        with patch("agents.api.routes.websocket.send_batch_progress") as mock_send:
-            await websocket_service.send_batch_progress(
-                batch_id, total, processed, None
-            )
+        await websocket_service.send_batch_progress(batch_id, total, processed, None)
 
-            mock_send.assert_called_once_with(batch_id, total, processed, "")
+        # Verify send_personal_message was called for each active connection
+        assert websocket_service.manager.send_personal_message.call_count == 3
+
+        # Check the arguments for the first call
+        call_args = websocket_service.manager.send_personal_message.call_args_list[0]
+        message = call_args[0][0]
+
+        assert message["type"] == "batch_progress"
+        assert message["batch_id"] == batch_id
+        assert message["total"] == total
+        assert message["processed"] == processed
+        assert message["progress"] == 50.0  # 5/10 * 100
+        assert message["current_file"] == ""  # None defaults to ""
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_send_batch_progress_complete(self, websocket_service):
@@ -172,48 +296,88 @@ class TestWebSocketService:
         processed = 10
         current_file = None
 
-        with patch("agents.api.routes.websocket.send_batch_progress") as mock_send:
-            await websocket_service.send_batch_progress(
-                batch_id, total, processed, current_file
-            )
+        await websocket_service.send_batch_progress(
+            batch_id, total, processed, current_file
+        )
 
-            mock_send.assert_called_once_with(batch_id, total, processed, "")
+        # Verify send_personal_message was called for each active connection
+        assert websocket_service.manager.send_personal_message.call_count == 3
+
+        # Check the arguments for the first call
+        call_args = websocket_service.manager.send_personal_message.call_args_list[0]
+        message = call_args[0][0]
+
+        assert message["type"] == "batch_progress"
+        assert message["batch_id"] == batch_id
+        assert message["total"] == total
+        assert message["processed"] == processed
+        assert message["progress"] == 100.0  # 10/10 * 100
+        assert message["current_file"] == ""  # None defaults to ""
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
-    async def test_send_task_update_exception_handling(self, websocket_service):
+    async def test_send_task_update_exception_handling(self, websocket_service, caplog):
         """Test send_task_update exception handling."""
         task_id = "task_123"
         status = "processing"
 
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            mock_send.side_effect = Exception("WebSocket error")
+        # Make the manager's broadcast_to_subscribers raise an exception
+        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception(
+            "WebSocket error"
+        )
 
-            with pytest.raises(Exception, match="WebSocket error"):
-                await websocket_service.send_task_update(task_id, status)
+        # Should not raise exception, just log it
+        await websocket_service.send_task_update(task_id, status)
+
+        # Verify the error was handled (method didn't crash)
+        # Verify the error was logged
+        assert "Error sending task update: WebSocket error" in caplog.text
+        # Ensure the method still attempted to call broadcast_to_subscribers
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_send_task_completion_exception_handling(self, websocket_service):
+    async def test_send_task_completion_exception_handling(
+        self, websocket_service, caplog
+    ):
         """Test send_task_completion exception handling."""
         task_id = "task_123"
 
-        with patch("agents.api.routes.websocket.send_task_completion") as mock_send:
-            mock_send.side_effect = Exception("WebSocket connection lost")
+        # Make the manager's broadcast_to_subscribers raise an exception
+        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception(
+            "WebSocket connection lost"
+        )
 
-            with pytest.raises(Exception, match="WebSocket connection lost"):
-                await websocket_service.send_task_completion(task_id)
+        # Should not raise exception, just log it
+        await websocket_service.send_task_completion(task_id)
+
+        # Verify the error was handled (method didn't crash)
+        # Verify the error was logged
+        assert "Error sending task completion: WebSocket connection lost" in caplog.text
+        # Ensure the method still attempted to call broadcast_to_subscribers
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_send_batch_progress_exception_handling(self, websocket_service):
+    async def test_send_batch_progress_exception_handling(
+        self, websocket_service, caplog
+    ):
         """Test send_batch_progress exception handling."""
         batch_id = "batch_123"
         total = 10
         processed = 5
 
-        with patch("agents.api.routes.websocket.send_batch_progress") as mock_send:
-            mock_send.side_effect = Exception("Broadcast failed")
+        # Make the manager's send_personal_message raise an exception
+        websocket_service.manager.send_personal_message.side_effect = Exception(
+            "Broadcast failed"
+        )
 
-            with pytest.raises(Exception, match="Broadcast failed"):
-                await websocket_service.send_batch_progress(batch_id, total, processed)
+        # Should not raise exception, just log it
+        await websocket_service.send_batch_progress(batch_id, total, processed)
+
+        # Verify the error was handled (method didn't crash)
+        # Verify errors were logged for each client
+        assert "Error sending batch progress to client" in caplog.text
+        # Ensure send_personal_message was called for each active connection
+        assert websocket_service.manager.send_personal_message.call_count == 3
 
     @pytest.mark.asyncio
     async def test_service_methods_are_async(self, websocket_service):
@@ -224,6 +388,7 @@ class TestWebSocketService:
         assert inspect.iscoroutinefunction(websocket_service.send_task_update)
         assert inspect.iscoroutinefunction(websocket_service.send_task_completion)
         assert inspect.iscoroutinefunction(websocket_service.send_batch_progress)
+        assert inspect.iscoroutinefunction(websocket_service.send_paper_analysis)
 
     @pytest.mark.asyncio
     async def test_send_task_update_with_float_progress(self, websocket_service):
@@ -232,24 +397,45 @@ class TestWebSocketService:
         status = "processing"
         progress = 33.333333
 
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            await websocket_service.send_task_update(task_id, status, progress)
+        await websocket_service.send_task_update(task_id, status, progress)
 
-            mock_send.assert_called_once_with(task_id, status, 33.333333, "")
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_update"
+        assert msg["task_id"] == task_id
+        assert msg["status"] == status
+        assert msg["progress"] == progress
+        assert msg["message"] == ""
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_task_update_with_empty_message(self, websocket_service):
         """Test send_task_update with empty message."""
         task_id = "task_123"
         status = "processing"
+        progress = 50
         message = ""
 
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            await websocket_service.send_task_update(
-                task_id, status, progress=50, message=message
-            )
+        await websocket_service.send_task_update(task_id, status, progress, message)
 
-            mock_send.assert_called_once_with(task_id, status, 50, "")
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_update"
+        assert msg["task_id"] == task_id
+        assert msg["status"] == status
+        assert msg["progress"] == progress
+        assert msg["message"] == ""
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_batch_progress_zero_total(self, websocket_service):
@@ -258,10 +444,22 @@ class TestWebSocketService:
         total = 0
         processed = 0
 
-        with patch("agents.api.routes.websocket.send_batch_progress") as mock_send:
-            await websocket_service.send_batch_progress(batch_id, total, processed)
+        await websocket_service.send_batch_progress(batch_id, total, processed)
 
-            mock_send.assert_called_once_with(batch_id, 0, 0, "")
+        # Verify send_personal_message was called for each active connection
+        assert websocket_service.manager.send_personal_message.call_count == 3
+
+        # Check the arguments for the first call
+        call_args = websocket_service.manager.send_personal_message.call_args_list[0]
+        message = call_args[0][0]
+
+        assert message["type"] == "batch_progress"
+        assert message["batch_id"] == batch_id
+        assert message["total"] == 0
+        assert message["processed"] == 0
+        assert message["progress"] == 0  # 0/0 should be 0 to avoid division by zero
+        assert message["current_file"] == ""
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_send_batch_progress_progress_calculation(self, websocket_service):
@@ -277,7 +475,135 @@ class TestWebSocketService:
             (100, 100),  # Complete
         ]
 
-        with patch("agents.api.routes.websocket.send_batch_progress") as mock_send:
-            for processed, expected_processed in test_cases:
-                await websocket_service.send_batch_progress(batch_id, total, processed)
-                mock_send.assert_called_with(batch_id, total, expected_processed, "")
+        for processed, expected_processed in test_cases:
+            # Reset the mock for each iteration
+            websocket_service.manager.send_personal_message.reset_mock()
+
+            await websocket_service.send_batch_progress(batch_id, total, processed)
+
+            # Verify send_personal_message was called for each active connection
+            assert websocket_service.manager.send_personal_message.call_count == 3
+
+            # Check the arguments for the first call
+            call_args = websocket_service.manager.send_personal_message.call_args_list[
+                0
+            ]
+            message = call_args[0][0]
+
+            assert message["type"] == "batch_progress"
+            assert message["batch_id"] == batch_id
+            assert message["total"] == total
+            assert message["processed"] == expected_processed
+
+            # Calculate expected progress percentage
+            expected_progress = expected_processed / total * 100 if total > 0 else 0
+            assert message["progress"] == expected_progress
+            assert message["current_file"] == ""
+            assert "timestamp" in message
+
+    @pytest.mark.asyncio
+    async def test_send_paper_analysis_minimal(self, websocket_service):
+        """Test send_paper_analysis with minimal parameters."""
+        paper_id = "paper_123"
+        analysis_data = {"title": "Test Paper", "status": "completed"}
+
+        await websocket_service.send_paper_analysis(paper_id, analysis_data)
+
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        message = call_args[0]
+        sent_paper_id = call_args[1]
+
+        assert sent_paper_id == paper_id
+        assert message["type"] == "paper_analysis"
+        assert message["paper_id"] == paper_id
+        assert message["title"] == "Test Paper"
+        assert message["status"] == "completed"
+        assert "timestamp" in message
+
+    @pytest.mark.asyncio
+    async def test_send_paper_analysis_complete(self, websocket_service):
+        """Test send_paper_analysis with complete analysis data."""
+        paper_id = "paper_456"
+        analysis_data = {
+            "title": "Deep Learning for NLP",
+            "authors": ["John Doe", "Jane Smith"],
+            "abstract": "This paper discusses...",
+            "key_findings": [
+                "Transformer models excel at NLP tasks",
+                "Pre-training improves performance",
+            ],
+            "confidence_score": 0.95,
+            "processing_time": 12.5,
+            "word_count": 5000,
+            "language": "en",
+        }
+
+        await websocket_service.send_paper_analysis(paper_id, analysis_data)
+
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        message = call_args[0]
+        sent_paper_id = call_args[1]
+
+        assert sent_paper_id == paper_id
+        assert message["type"] == "paper_analysis"
+        assert message["paper_id"] == paper_id
+        # Verify all analysis data fields are included
+        for key, value in analysis_data.items():
+            assert message[key] == value
+        assert "timestamp" in message
+
+    @pytest.mark.asyncio
+    async def test_send_paper_analysis_empty_data(self, websocket_service):
+        """Test send_paper_analysis with empty analysis data."""
+        paper_id = "paper_789"
+        analysis_data = {}
+
+        await websocket_service.send_paper_analysis(paper_id, analysis_data)
+
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        message = call_args[0]
+        sent_paper_id = call_args[1]
+
+        assert sent_paper_id == paper_id
+        assert message["type"] == "paper_analysis"
+        assert message["paper_id"] == paper_id
+        # Empty dict should only have type, paper_id, and timestamp
+        assert (
+            len(
+                [
+                    k
+                    for k in message.keys()
+                    if k not in ["type", "paper_id", "timestamp"]
+                ]
+            )
+            == 0
+        )
+        assert "timestamp" in message
+
+    @pytest.mark.asyncio
+    async def test_send_paper_analysis_exception_handling(
+        self, websocket_service, caplog
+    ):
+        """Test send_paper_analysis exception handling."""
+        paper_id = "paper_error"
+        analysis_data = {"title": "Error Test"}
+
+        # Make the manager's broadcast_to_subscribers raise an exception
+        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception(
+            "Analysis broadcast failed"
+        )
+
+        # Should not raise exception, just log it
+        await websocket_service.send_paper_analysis(paper_id, analysis_data)
+
+        # Verify the error was handled (method didn't crash)
+        # Verify the error was logged
+        assert "Error sending paper analysis: Analysis broadcast failed" in caplog.text
+        # Ensure the method still attempted to call broadcast_to_subscribers
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()

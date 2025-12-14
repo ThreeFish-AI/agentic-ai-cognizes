@@ -17,10 +17,10 @@
 ```mermaid
 timeline
     title 项目后续路线图
-    section 2025 Q1
+    section 2026 Q1
         依赖问题解决 : 替换 claude-agent-sdk<br>实现独立 MCP 集成
         功能增强 : 批量处理优化<br>翻译质量提升
-    section 2025 Q2
+    section 2026 Q2
         平台完善 : Web UI 开发<br>用户体验优化
         内容扩展 : 论文收集达到 50+<br>翻译覆盖率达到 80%
 ```

@@ -823,7 +823,7 @@ class TestPaperService:
                     assert "summary" in result["result"]
                     assert "key_insights" in result["result"]
                     paper_service.heartfelt_agent.analyze.assert_called_once_with(
-                        {"paper_id": paper_id, "source_path": str(source_path)}
+                        {"paper_id": paper_id}
                     )
 
     @pytest.mark.asyncio
