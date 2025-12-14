@@ -1,8 +1,8 @@
 # Agentic AI Papers Collection & Translation Platform 🔬
 
-一个专注于 Agentic AI 研究的学术论文收集、翻译和管理平台，基于 Claude Agent SDK 和 Claude Skills 构建，为中文读者提供高质量的人工智能智能体领域技术资源。
+一个专注于 Agentic AI 研究的学术论文收集、翻译、理解、检索、应用的智能平台，基于 Claude Agent 和 Google ADK 搭建，为中文读者提供高质量的人工智能智能体领域技术资源与服务支持。
 
-> **注意**: 项目目前处于 MVP 阶段，部分 AI 功能依赖的 `claude-agent-sdk` 暂未安装。详细架构说明请参考 [docs/01-framework.md](docs/01-framework.md)。
+> **注意**: 项目目前处于 MVP 阶段，部分 AI 功能依赖的 `claude-agent-sdk` 暂未安装。详细架构说明请参考 [系统架构](docs/001-framework.md)。
 
 ## 📋 核心功能
 
