@@ -372,19 +372,21 @@ class TestWebSocketRoutes:
         service = WebSocketService(mock_manager)
 
         # Send task update
-        await service.send_task_update(
-            "task123", {"status": "processing", "progress": 50}
-        )
+        await service.send_task_update("task123", "processing", 50, "Task in progress")
 
-        mock_manager.broadcast_to_subscribers.assert_called_once_with(
-            {
-                "type": "task_update",
-                "task_id": "task123",
-                "status": "processing",
-                "progress": 50,
-            },
-            "task123",
-        )
+        # Check the call was made with the expected structure (including timestamp)
+        mock_manager.broadcast_to_subscribers.assert_called_once()
+        call_args = mock_manager.broadcast_to_subscribers.call_args[0]
+        message = call_args[0]
+        task_id = call_args[1]
+
+        assert task_id == "task123"
+        assert message["type"] == "task_update"
+        assert message["task_id"] == "task123"
+        assert message["status"] == "processing"
+        assert message["progress"] == 50
+        assert message["message"] == "Task in progress"
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_websocket_service_send_task_completion(self):
@@ -399,39 +401,48 @@ class TestWebSocketRoutes:
             "task123", {"result": "success", "output": "processed"}
         )
 
-        mock_manager.broadcast_to_subscribers.assert_called_once_with(
-            {
-                "type": "task_completed",
-                "task_id": "task123",
-                "result": "success",
-                "output": "processed",
-            },
-            "task123",
-        )
+        # Check the call was made with the expected structure
+        mock_manager.broadcast_to_subscribers.assert_called_once()
+        call_args = mock_manager.broadcast_to_subscribers.call_args[0]
+        message = call_args[0]
+        task_id = call_args[1]
+
+        assert task_id == "task123"
+        assert message["type"] == "task_completed"
+        assert message["task_id"] == "task123"
+        assert message["success"] is True
+        assert message["result"] == {"result": "success", "output": "processed"}
+        assert message["error"] == ""
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_websocket_service_send_batch_progress(self):
         """Test WebSocketService send_batch_progress method."""
         mock_manager = AsyncMock()
-        mock_manager.broadcast_to_subscribers = AsyncMock()
+        mock_manager.send_personal_message = AsyncMock()
+        mock_manager.active_connections = ["client1", "client2"]
 
         service = WebSocketService(mock_manager)
 
-        # Send batch progress
-        await service.send_batch_progress(
-            "batch123", {"completed": 5, "total": 10, "current": "paper5"}
-        )
+        # Send batch progress using new API
+        await service.send_batch_progress("batch123", 10, 5, "paper5")
 
-        mock_manager.broadcast_to_subscribers.assert_called_once_with(
-            {
-                "type": "batch_progress",
-                "batch_id": "batch123",
-                "completed": 5,
-                "total": 10,
-                "current": "paper5",
-            },
-            "batch123",
-        )
+        # Verify send_personal_message was called for each client
+        assert mock_manager.send_personal_message.call_count == 2
+
+        # Check the message content
+        call_args = mock_manager.send_personal_message.call_args_list[0]
+        message = call_args[0][0]
+        client_id = call_args[0][1]
+
+        assert client_id == "client1"
+        assert message["type"] == "batch_progress"
+        assert message["batch_id"] == "batch123"
+        assert message["total"] == 10
+        assert message["processed"] == 5
+        assert message["progress"] == 50.0
+        assert message["current_file"] == "paper5"
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_websocket_service_send_error(self):
@@ -444,7 +455,7 @@ class TestWebSocketRoutes:
         service = WebSocketService(mock_manager)
 
         # Should not raise exception
-        await service.send_task_update("task123", {"status": "error"})
+        await service.send_task_update("task123", "error", 0, "Error occurred")
 
         # Error should be logged but not raised
 
@@ -461,15 +472,17 @@ class TestWebSocketRoutes:
             "paper123", {"summary": "Test summary", "insights": []}
         )
 
-        mock_manager.broadcast_to_subscribers.assert_called_once_with(
-            {
-                "type": "paper_analysis",
-                "paper_id": "paper123",
-                "summary": "Test summary",
-                "insights": [],
-            },
-            "paper123",
-        )
+        mock_manager.broadcast_to_subscribers.assert_called_once()
+        call_args = mock_manager.broadcast_to_subscribers.call_args[0]
+        message = call_args[0]
+        paper_id = call_args[1]
+
+        assert paper_id == "paper123"
+        assert message["type"] == "paper_analysis"
+        assert message["paper_id"] == "paper123"
+        assert message["summary"] == "Test summary"
+        assert message["insights"] == []
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_connection_manager_get_connection_count(self):

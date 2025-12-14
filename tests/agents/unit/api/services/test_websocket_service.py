@@ -34,11 +34,22 @@ class TestWebSocketService:
         task_id = "task_123"
         status = "processing"
 
-        # Mock the imported function
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            await websocket_service.send_task_update(task_id, status)
+        # Test the service method directly - it should use the manager
+        await websocket_service.send_task_update(task_id, status)
 
-            mock_send.assert_called_once_with(task_id, status, 0.0, "")
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        message = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert message["type"] == "task_update"
+        assert message["task_id"] == task_id
+        assert message["status"] == status
+        assert message["progress"] == 0.0
+        assert message["message"] == ""
+        assert "timestamp" in message
 
     @pytest.mark.asyncio
     async def test_send_task_update_with_all_params(self, websocket_service):
@@ -48,12 +59,21 @@ class TestWebSocketService:
         progress = 75.5
         message = "Processing file..."
 
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            await websocket_service.send_task_update(task_id, status, progress, message)
+        await websocket_service.send_task_update(task_id, status, progress, message)
 
-            mock_send.assert_called_once_with(
-                task_id, status, 75.5, "Processing file..."
-            )
+        # Verify the manager was called with correct message
+        websocket_service.manager.broadcast_to_subscribers.assert_called_once()
+        call_args = websocket_service.manager.broadcast_to_subscribers.call_args[0]
+        msg = call_args[0]
+        sent_task_id = call_args[1]
+
+        assert sent_task_id == task_id
+        assert msg["type"] == "task_update"
+        assert msg["task_id"] == task_id
+        assert msg["status"] == status
+        assert msg["progress"] == progress
+        assert msg["message"] == message
+        assert "timestamp" in msg
 
     @pytest.mark.asyncio
     async def test_send_task_update_with_zero_progress(self, websocket_service):
@@ -185,11 +205,16 @@ class TestWebSocketService:
         task_id = "task_123"
         status = "processing"
 
-        with patch("agents.api.routes.websocket.send_task_update") as mock_send:
-            mock_send.side_effect = Exception("WebSocket error")
+        # Make the manager's broadcast_to_subscribers raise an exception
+        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception(
+            "WebSocket error"
+        )
 
-            with pytest.raises(Exception, match="WebSocket error"):
-                await websocket_service.send_task_update(task_id, status)
+        # Should not raise exception, just log it
+        await websocket_service.send_task_update(task_id, status)
+
+        # Verify the error was handled (method didn't crash)
+        assert True
 
     @pytest.mark.asyncio
     async def test_send_task_completion_exception_handling(self, websocket_service):

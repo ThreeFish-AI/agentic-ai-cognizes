@@ -178,8 +178,8 @@ async def send_task_update(
         "type": "task_update",
         "task_id": task_id,
         "status": status,
-        "progress": progress,
-        "message": message,
+        "progress": progress if progress is not None else 0.0,
+        "message": message if message is not None else "",
         "timestamp": datetime.now().isoformat(),
     }
     await manager.broadcast_to_subscribers(update_message, task_id)
@@ -194,8 +194,8 @@ async def send_task_completion(
         "type": "task_completed",
         "task_id": task_id,
         "success": error is None,
-        "result": result,
-        "error": error,
+        "result": result if result is not None else {},
+        "error": error if error is not None else "",
         "timestamp": datetime.now().isoformat(),
     }
     await manager.broadcast_to_subscribers(completion_message, task_id)
@@ -211,8 +211,8 @@ async def send_batch_progress(
         "batch_id": batch_id,
         "total": total,
         "processed": processed,
-        "progress": processed / total * 100,
-        "current_file": current_file,
+        "progress": processed / total * 100 if total > 0 else 0,
+        "current_file": current_file if current_file is not None else "",
         "timestamp": datetime.now().isoformat(),
     }
 
