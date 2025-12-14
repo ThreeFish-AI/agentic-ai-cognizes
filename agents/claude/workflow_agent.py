@@ -434,7 +434,7 @@ class WorkflowAgent(BaseAgent):
                 or self.__class__.process != WorkflowAgent.process
             ):
                 # Test scenario - call with expected mock signature
-                task = self.process(doc_path, "full")
+                task = self.process(doc_path, "full")  # type: ignore[arg-type,call-arg]
             else:
                 # Real implementation - call with dict
                 task = self.process(
@@ -514,7 +514,7 @@ class WorkflowAgent(BaseAgent):
                     or self.__class__.process != WorkflowAgent.process
                 ):
                     # Test scenario - call with expected mock signature
-                    result = await self.process(paper_path, workflow_type)
+                    result = await self.process(paper_path, workflow_type)  # type: ignore[arg-type,call-arg]
                 else:
                     # Real implementation - call with dict
                     result = await self.process(

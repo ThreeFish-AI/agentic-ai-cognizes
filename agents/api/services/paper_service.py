@@ -876,7 +876,7 @@ class PaperService:
         total_success = 0
         total_failed = 0
 
-        async def translate_single(paper_id: str):
+        async def translate_single(paper_id: str) -> dict[str, Any]:
             try:
                 result = await self.translate_paper(paper_id, options)
                 if result.get("success", False):
@@ -895,7 +895,7 @@ class PaperService:
         translation_results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Process results
-        for i, result in enumerate(translation_results):
+        for i, result in enumerate(translation_results):  # type: ignore[assignment]
             if isinstance(result, Exception):
                 total_failed += 1
                 results.append(

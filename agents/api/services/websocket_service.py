@@ -86,7 +86,7 @@ class WebSocketService:
     async def send_batch_progress(
         self,
         batch_id: str,
-        total_or_progress: int | dict,
+        total_or_progress: int | dict[str, Any],
         processed: int | None = None,
         current_file: str | None = None,
     ) -> None:

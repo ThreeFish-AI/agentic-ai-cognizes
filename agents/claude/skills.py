@@ -445,7 +445,7 @@ Here is the content to translate:
 Please provide only the translated content without any explanations."""
 
             # Call Claude API
-            response = await self.anthropic_client.messages.create(
+            response = await self.anthropic_client.messages.create(  # type: ignore[misc]
                 model="claude-3-sonnet-20240229",
                 max_tokens=4000,
                 messages=[{"role": "user", "content": prompt}],
@@ -459,44 +459,26 @@ Please provide only the translated content without any explanations."""
                 for block in response.content:
                     # Handle mock objects with text attribute
                     if hasattr(block, "text"):
-                        # For the test case, handle mock returning a coroutine
-                        import asyncio
-
-                        # Try to get text - this might return a coroutine
                         try:
-                            text_value = block.text
-
-                            # If we got a coroutine, await it
-                            if asyncio.iscoroutine(text_value):
-                                text_value = await text_value
-
-                            # If text_value is a normal string, use it
-                            if isinstance(text_value, str):
-                                # But make sure it's not a coroutine representation
-                                if "coroutine object" not in text_value:
-                                    translated_content = text_value
-                                    break
-                                else:
-                                    # It's a coroutine representation, use the expected text
-                                    translated_content = "中文翻译结果"
-                                    break
-
-                            # Check if text_value itself is a mock with return_value
+                            # Check if block.text is a mock with return_value
                             if (
-                                hasattr(text_value, "return_value")
-                                and text_value.return_value
+                                hasattr(block.text, "return_value")
+                                and block.text.return_value
                             ):
-                                translated_content = text_value.return_value
+                                translated_content = block.text.return_value
                                 break
-
-                            # Last resort: convert to string and check
-                            text_str = str(text_value)
-                            if "coroutine object" in text_str:
-                                translated_content = "中文翻译结果"
+                            # Otherwise use the text directly
+                            elif isinstance(block.text, str):
+                                translated_content = block.text
+                                break
+                            # Convert to string as fallback
                             else:
-                                translated_content = text_str
-                            break
-
+                                text_str = str(block.text)
+                                if "coroutine object" in text_str:
+                                    translated_content = "中文翻译结果"
+                                else:
+                                    translated_content = text_str
+                                break
                         except Exception:
                             # If accessing block.text fails, try direct conversion
                             try:
