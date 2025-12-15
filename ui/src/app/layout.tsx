@@ -1,6 +1,6 @@
 import { Notifications } from "@/components/common/Notifications";
 import { Providers } from "@/components/providers";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -20,7 +20,11 @@ export const metadata: Metadata = {
     "A research platform for Agentic AI papers with translation and analysis capabilities",
   keywords: "AI, research papers, translation, analysis, agentic AI",
   authors: [{ name: "ThreeFish-AI" }],
-  viewport: "width=device-width, initial-scale=1",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

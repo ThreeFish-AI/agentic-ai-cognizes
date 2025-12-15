@@ -13,9 +13,8 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Configure image domains
+  // Configure image domains (using remotePatterns instead of deprecated domains)
   images: {
-    domains: ['localhost'],
     remotePatterns: [
       {
         protocol: 'http',
@@ -26,17 +25,9 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Enable experimental features
-  experimental: {
-    // Enable Turbopack for development
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
+  // Set turbopack root to avoid workspace detection warnings
+  turbopack: {
+    root: __dirname,
   },
 
   // Environment variables for WebSocket
