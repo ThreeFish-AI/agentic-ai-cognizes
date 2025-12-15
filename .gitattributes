@@ -11,9 +11,8 @@
 *.mkv filter=lfs diff=lfs merge=lfs -text
 *.wmv filter=lfs diff=lfs merge=lfs -text
 # Specific large PDF file
-"papers/source/llm-agents/阿里云 AI 应用架构白皮书.pdf" filter=lfs diff=lfs merge=lfs -text
+papers/source/llm-agents/阿里云[[:space:]]AI[[:space:]]应用架构白皮书.pdf filter=lfs diff=lfs merge=lfs -text
 # Exclude common configuration files from LFS
 package.json !filter !diff !merge text
 *.config.json !filter !diff !merge text
 tsconfig.json !filter !diff !merge text
-papers/source/llm-agents/阿里云[[:space:]]AI[[:space:]]应用架构白皮书.pdf filter=lfs diff=lfs merge=lfs -text
