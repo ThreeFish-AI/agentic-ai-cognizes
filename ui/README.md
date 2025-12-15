@@ -1,80 +1,36 @@
-# Admin UI for Agentic AI Papers Management
-
-This directory contains the web-based Admin UI system for managing Agentic AI research papers and their translations.
-
-## Features
-
-### Paper Management
-- **Upload**: Upload PDF papers and web articles
-- **Organize**: Categorize papers by topics (LLM Agents, Context Engineering, Knowledge Graphs, etc.)
-- **Track**: Monitor processing status and progress
-- **Search**: Full-text search across all papers
-
-### Translation Pipeline
-- **Queue Management**: View and manage translation jobs
-- **Progress Tracking**: Real-time progress updates
-- **Quality Control**: Review and edit translations
-- **Batch Operations**: Process multiple papers simultaneously
-
-### Agent Configuration
-- **Agent Settings**: Configure Claude and ADK agents
-- **Pipeline Management**: Set up processing pipelines
-- **Performance Monitoring**: Track agent performance metrics
-
-## Architecture
-
-```
-ui/
-├── frontend/          # React frontend
-├── backend/           # FastAPI backend
-├── docker/           # Docker configurations
-└── docs/             # API documentation
-```
-
-## Tech Stack
-
-- **Frontend**: React 18, TypeScript, Ant Design
-- **Backend**: FastAPI, Python, SQLAlchemy
-- **Database**: PostgreSQL
-- **Queue**: Redis + Celery
-- **Storage**: MinIO (S3-compatible)
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-1. Install dependencies:
-```bash
-# Frontend
-cd frontend && npm install
+First, run the development server:
 
-# Backend
-cd backend && pip install -r requirements.txt
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-2. Configure environment:
-```bash
-cp .env.example .env
-# Edit .env with your settings
-```
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-3. Run services:
-```bash
-# With Docker Compose
-docker-compose up -d
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-# Or manually
-npm run dev:frontend
-npm run dev:backend
-```
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-4. Access the UI at `http://localhost:3000`
+## Learn More
 
-## API Documentation
+To learn more about Next.js, take a look at the following resources:
 
-API documentation is available at `http://localhost:8000/docs` when running the backend.
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-## Development
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-- Frontend development server: `npm run dev`
-- Backend development server: `uvicorn main:app --reload`
-- Run tests: `npm test`
-- Build for production: `npm run build`
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
