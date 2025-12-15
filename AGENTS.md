@@ -27,4 +27,5 @@ This is a research repository focused on AI Agents papers, containing translated
 - [👥 用户手册](docs/003-user-guide.md) - 安装部署和使用教程
 - [🧪 测试方案](docs/004-testing.md) - 测试框架和 CI/CD
 - [🚀 GitHub Actions](docs/005-github-actions.md) - 自动化工作流
-- [🤖 AI 智能体](docs/006-agents.md) - Claude SDK 与 Google ADK 实现方案
+- [🤖 AI Agents](docs/006-agents.md) - Claude SDK 与 Google ADK 实现方案
+- [📡 API 接口](docs/007-apis.md) - RESTful API 和 WebSocket 详细文档
