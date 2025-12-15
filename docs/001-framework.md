@@ -31,100 +31,118 @@ Agentic AI Papers Collection & Translation Platform 是一个专注于智能体 
 ```mermaid
 flowchart TD
     %% 用户交互层
-    A[Web 界面<br/>管理门户] --> B[FastAPI 服务<br/>异步网关]
-
-    %% API 路由层
-    B --> C[论文管理<br/>/api/papers]
-    B --> D[任务管理<br/>/api/tasks]
-    B --> W[WebSocket<br/>实时更新]
-
-    %% 服务编排层
-    subgraph Orchestration [服务编排层]
-        S1[论文服务<br/>业务逻辑]
-        S2[任务服务<br/>流程控制]
-        S3[WebSocket 服务<br/>实时通信]
+    subgraph UserLayer [用户交互层]
+        A[API Client<br/>REST/HTTP]
+        B[Web UI<br/>🚧 计划中 Q1 2026]
     end
 
-    C --> S1
-    D --> S2
-    W --> S3
+    %% API 网关层
+    subgraph GatewayLayer [API 网关层]
+        C[FastAPI 服务<br/>异步网关]
+        D[WebSocket<br/>实时更新]
+    end
 
-    %% Agent 协调层
+    %% 路由层
+    subgraph RouteLayer [API 路由层]
+        E[论文管理<br/>/api/papers]
+        F[任务管理<br/>/api/tasks]
+        G[健康检查<br/>/health]
+    end
+
+    %% 服务层
+    subgraph ServiceLayer [业务服务层]
+        H[论文服务<br/>Paper Service]
+        I[任务服务<br/>Task Service]
+        J[WebSocket 服务<br/>实时通信]
+    end
+
+    %% Agent 智能层
     subgraph AgentLayer [Agent 智能层]
-        G1[工作流 Agent<br/>流程编排]
-        G2[批处理 Agent<br/>并发控制]
+        K[工作流 Agent<br/>WorkflowAgent]
+        L[批处理 Agent<br/>BatchAgent]
+        M[PDF 处理 Agent<br/>PDFAgent]
+        N[翻译 Agent<br/>TranslationAgent]
+        O[深度分析 Agent<br/>HeartfeltAgent]
     end
 
-    S1 --> G1
-    S2 --> G2
-
-    %% 能力执行层
-    subgraph CapabilityLayer [能力执行层]
-        C1[PDF 处理 Agent<br/>文档解析]
-        C2[翻译 Agent<br/>中英转换]
-        C3[深度分析 Agent<br/>洞察提取]
+    %% Claude Skills 能力层
+    subgraph SkillLayer [Claude Skills - 7个专用能力]
+        P[pdf-reader<br/>PDF解析]
+        Q[web-translator<br/>网页转换]
+        R[zh-translator<br/>中文翻译]
+        S[markdown-formatter<br/>格式优化]
+        T[doc-translator<br/>文档翻译]
+        U[batch-processor<br/>批量处理]
+        V[heartfelt<br/>深度分析]
     end
 
-    G1 --> C1
-    G1 --> C2
-    G1 --> C3
-
-    %% Claude Skills (通过 Fallback 实现)
-    subgraph Skills [Claude Skills - 7个专用能力]
-        SK1[pdf-reader<br/>PDF 解析]
-        SK2[web-translator<br/>网页转换]
-        SK3[zh-translator<br/>中文翻译]
-        SK4[markdown-formatter<br/>格式优化]
-        SK5[doc-translator<br/>文档翻译]
-        SK6[batch-processor<br/>批量处理]
-        SK7[heartfelt<br/>深度分析]
-        NOTE[可调用外部<br/>MCP 服务]
+    %% 外部工具层
+    subgraph ExternalLayer [外部工具服务]
+        W[data-extractor<br/>内容提取]
+        X[web-search<br/>网络搜索]
+        Y[其他 MCP 服务]
     end
-
-    C1 --> SK1
-    C2 --> SK3
-    C3 --> SK7
-    G2 --> SK6
-
-    %% 外部工具服务（可选）
-    subgraph ExternalTools [外部工具服务]
-        T1[data-extractor<br/>内容提取]
-        T2[web-search<br/>网络搜索]
-        T3[其他 MCP 服务]
-    end
-
-    Skills -.-> ExternalTools
 
     %% 存储层
-    subgraph Storage [文件系统存储]
-        F1[papers/source/<br/>原始文档]
-        F2[papers/translation/<br/>翻译结果]
-        F3[papers/heartfelt/<br/>深度分析]
-        F4[papers/images/<br/>提取图像]
-        F5[logs/<br/>审计日志]
+    subgraph StorageLayer [文件系统存储]
+        Z1[papers/source/<br/>原始文档]
+        Z2[papers/translation/<br/>翻译结果]
+        Z3[papers/heartfelt/<br/>深度分析]
+        Z4[papers/images/<br/>提取图像]
+        Z5[logs/<br/>审计日志]
     end
 
-    S1 --> Storage
-    S2 --> F5
+    %% 连接关系
+    A --> C
+    B -.-> C
+    C --> D
+    C --> E
+    C --> F
+    C --> G
 
-    %% 样式定义
-    classDef ui fill:#4CAF50,stroke:#388E3C,color:#fff
+    E --> H
+    F --> I
+    D --> J
+
+    H --> K
+    I --> L
+    K --> M
+    K --> N
+    K --> O
+    L --> U
+
+    M --> P
+    N --> R
+    N --> S
+    N --> T
+    O --> V
+
+    SkillLayer -.-> ExternalLayer
+
+    H --> Z1
+    H --> Z2
+    H --> Z3
+    H --> Z4
+    I --> Z5
+
+    %% 样式定义 - 深色主题适配
+    classDef userUI fill:#61DAFB,stroke:#2171B5,color:#fff
     classDef api fill:#2196F3,stroke:#1976D2,color:#fff
     classDef service fill:#00BCD4,stroke:#0097A7,color:#fff
     classDef agent fill:#9C27B0,stroke:#7B1FA2,color:#fff
     classDef skill fill:#673AB7,stroke:#512DA8,color:#fff
-    classDef note fill:#9E9E9E,stroke:#757575,color:#fff
-    classDef tool fill:#795548,stroke:#5D4037,color:#fff
+    classDef tool fill:#FF6F00,stroke:#E65100,color:#fff
     classDef storage fill:#FF9800,stroke:#F57C00,color:#fff
+    classDef planned fill:#757575,stroke:#424242,color:#fff,stroke-dasharray: 5 5
 
-    class A ui
-    class B,C,D,W api
-    class S1,S2,S3 service
-    class G1,G2,C1,C2,C3 agent
-    class SK1,SK2,SK3,SK4,SK5,SK6,SK7 skill
-    class NOTE note
-    class T1,T2,T3 tool
-    class F1,F2,F3,F4,F5 storage
+    class A,B userUI
+    class C,D,E,F,G api
+    class H,I,J service
+    class K,L,M,N,O agent
+    class P,Q,R,S,T,U,V skill
+    class W,X,Y tool
+    class Z1,Z2,Z3,Z4,Z5 storage
+    class B planned
 ```
 
 ### 目录结构
