@@ -228,11 +228,14 @@ agentic-ai-papers/
 
 ## 📚 文档
 
-- [🗺️ 项目路线图](docs/000-roadmap.md) - 完整的开发计划和进度
+- [🗺️ 项目路线](docs/000-roadmap.md) - 完整的开发计划和进度
 - [📖 系统架构](docs/001-framework.md) - 架构设计和技术栈
 - [💻 开发指南](docs/002-development.md) - 开发环境和规范
 - [👥 用户手册](docs/003-user-guide.md) - 详细使用教程
 - [🧪 测试方案](docs/004-testing.md) - 测试框架和 CI/CD
+- [🚀 GitHub Actions](docs/005-github-actions.md) - 自动化工作流配置
+- [🤖 AI Agents](docs/006-agents.md) - Claude SDK 与 Google ADK 实现方案
+- [📡 API 接口](docs/007-apis.md) - RESTful API 和 WebSocket 详细文档
 
 ## 🤝 贡献指南
 
