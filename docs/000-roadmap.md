@@ -18,23 +18,23 @@ graph TD
         end
 
         subgraph "内容建设层 - 59%完成"
-            B1[📚 内容建设<br/><span style='color:#FF9800;'>██████░░░░ 59%</span>]
+            B1[📚 内容建设<br/><span style='color:#ed8936;'>██████░░░░ 59%</span>]
             B1 --> B2["27篇收集 ✓"]
             B1 --> B3["16篇翻译 ✓"]
             B1 --> B4["11篇待续 ⏳"]
         end
 
         subgraph "技术状态层 - 85%完成"
-            C1[⚙️ 技术状态<br/><span style='color:#2196F3;'>████████░ 85%</span>]
+            C1[⚙️ 技术状态<br/><span style='color:#4299e1;'>████████░ 85%</span>]
             C1 --> C2["SDK Fallback ✓"]
             C1 --> C3["CI/CD稳定 ✓"]
             C1 --> C4["测试达标 82%"]
         end
     end
 
-    classDef infrastructure fill:#1a237e,color:#fff,stroke:#3f51b5,stroke-width:2px
-    classDef content fill:#2e7d32,color:#fff,stroke:#4caf50,stroke-width:2px
-    classDef technical fill:#006064,color:#fff,stroke:#00acc1,stroke-width:2px
+    classDef infrastructure fill:#805ad5,color:#fff,stroke:#9f7aea,stroke-width:2px
+    classDef content fill:#38a169,color:#fff,stroke:#48bb78,stroke-width:2px
+    classDef technical fill:#3182ce,color:#fff,stroke:#4299e1,stroke-width:2px
 
     class A1,A2,A3,A4,A5 infrastructure
     class B1,B2,B3,B4 content
@@ -85,14 +85,14 @@ graph TB
     C1 --> D2
     C1 --> D3
 
-    style A1 fill:#805ad5
-    style A2 fill:#805ad5
-    style A3 fill:#805ad5
-    style A4 fill:#805ad5
-    style A5 fill:#805ad5
-    style A6 fill:#805ad5
-    style B1 fill:#3182ce
-    style C1 fill:#38a169
+    style A1 fill:#9f7aea
+    style A2 fill:#9f7aea
+    style A3 fill:#9f7aea
+    style A4 fill:#9f7aea
+    style A5 fill:#9f7aea
+    style A6 fill:#9f7aea
+    style B1 fill:#4299e1
+    style C1 fill:#48bb78
 ```
 
 ## 下一步行动
@@ -133,10 +133,40 @@ timeline
 ## 实施优先级
 
 ```mermaid
-pie title 实施优先级任务分布
-    "🚀 立即执行<br/>Web UI/搜索/内容" : 33
-    "⚡ 短期目标<br/>用户系统/性能优化" : 33
-    "🎯 中期目标<br/>高级功能/协作工具" : 34
+graph TD
+    subgraph "实施优先级矩阵"
+        direction LR
+
+        subgraph Q1[🚀 立即执行<br/>短期-高影响]
+            A1[Web UI]
+            A2[搜索功能]
+            A3[内容补全]
+        end
+
+        subgraph Q2[⚡ 短期目标<br/>中期-中影响]
+            B1[用户系统]
+            B2[性能优化]
+            B3[推荐系统]
+        end
+
+        subgraph Q3[🎯 中期目标<br/>长期-中影响]
+            C1[高级功能]
+            C2[协作工具]
+            C3[生态扩展]
+        end
+    end
+
+    style Q1 fill:#9f7aea,stroke:#805ad5,stroke-width:2px,color:#fff
+    style Q2 fill:#4299e1,stroke:#3182ce,stroke-width:2px,color:#fff
+    style Q3 fill:#48bb78,stroke:#38a169,stroke-width:2px,color:#fff
+
+    classDef urgent fill:#9f7aea,stroke:#805ad5,stroke-width:2px,color:#fff
+    classDef medium fill:#4299e1,stroke:#3182ce,stroke-width:2px,color:#fff
+    classDef longterm fill:#48bb78,stroke:#38a169,stroke-width:2px,color:#fff
+
+    class A1,A2,A3 urgent
+    class B1,B2,B3 medium
+    class C1,C2,C3 longterm
 ```
 
 ### 🚀 立即执行（2-4 周）
@@ -160,34 +190,34 @@ pie title 实施优先级任务分布
 ## 成功指标
 
 ```mermaid
-graph LR
-    subgraph "技术指标"
-        A1[测试覆盖率 82% → 90%]
-        A2[API可用性 已达标]
-        A3[响应时间 待优化 <1s]
-        A4[批处理 待优化 5x]
-    end
-
-    subgraph "内容指标"
-        B1[论文收集 27 → 50+]
-        B2[翻译完成 59% → 80%]
-        B3[质量评分 待建立 4.5/5]
-    end
-
-    subgraph "用户体验"
-        C1[Web UI 开发中 Q1完成]
-        C2[搜索功能 待实现 Q1完成]
-        C3[用户认证 待开发 Q2完成]
-    end
-
-    classDef completed fill:#4CAF50
-    classDef inProgress fill:#FF9800
-    classDef pending fill:#9E9E9E
-
-    class A2 completed
-    class A1,A3,A4,B1,B2,C1,C2,C3 inProgress
-    class B3 pending
+xychart-beta
+    title "项目成功指标完成度"
+    x-axis ["测试覆盖", "API可用", "响应时间", "批处理", "论文收集", "翻译完成", "质量评分", "Web UI", "搜索功能", "用户认证"]
+    y-axis "完成度 (%)" 0 --> 100
+    bar [82, 100, 0, 0, 54, 59, 0, 0, 0, 0]
+    line [90, 100, 0, 0, 100, 80, 0, 0, 0, 0]
 ```
+
+### 详细指标
+
+**技术指标**
+
+- ✅ 测试覆盖率：82% → 目标 90%
+- ✅ API 可用性：已达标 → 目标 99%
+- ⏳ 响应时间：待优化 → 目标 < 1 秒
+- ⏳ 批处理：待优化 → 目标 5x 提升
+
+**内容指标**
+
+- ✅ 论文收集：27 篇 → 目标 50+
+- ⏳ 翻译完成：59% → 目标 80%
+- ⏳ 质量评分：待建立 → 目标 4.5/5
+
+**用户体验**
+
+- ⏳ Web UI：开发中 → Q1 完成
+- ⏳ 搜索功能：待实现 → Q1 完成
+- ⏳ 用户认证：待开发 → Q2 完成
 
 ---
 
