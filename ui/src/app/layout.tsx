@@ -1,46 +1,44 @@
-import { Notifications } from "@/components/common/Notifications";
-import { Providers } from "@/components/providers";
-import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import "@/css/satoshi.css";
+import "@/css/style.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import { Sidebar } from "@/components/Layouts/sidebar";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import "flatpickr/dist/flatpickr.min.css";
+import "jsvectormap/dist/jsvectormap.css";
+
+import { Header } from "@/components/Layouts/header";
+import type { Metadata } from "next";
+import NextTopLoader from "nextjs-toploader";
+import type { PropsWithChildren } from "react";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Agentic AI Papers Research Platform",
+  title: {
+    template: "%s | NextAdmin - Next.js Dashboard Kit",
+    default: "NextAdmin - Next.js Dashboard Kit",
+  },
   description:
-    "A research platform for Agentic AI papers with translation and analysis capabilities",
-  keywords: "AI, research papers, translation, analysis, agentic AI",
-  authors: [{ name: "ThreeFish-AI" }],
+    "Next.js admin dashboard toolkit with 200+ templates, UI components, and integrations for fast dashboard development.",
 };
 
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: PropsWithChildren) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning
-      >
+    <html lang="en" suppressHydrationWarning>
+      <body>
         <Providers>
-          {children}
-          <Notifications />
+          <NextTopLoader color="#5750F1" showSpinner={false} />
+
+          <div className="flex min-h-screen">
+            <Sidebar />
+
+            <div className="w-full bg-gray-2 dark:bg-[#020d1a]">
+              <Header />
+
+              <main className="isolate mx-auto w-full max-w-screen-2xl overflow-hidden p-4 md:p-6 2xl:p-10">
+                {children}
+              </main>
+            </div>
+          </div>
         </Providers>
       </body>
     </html>
