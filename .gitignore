@@ -56,7 +56,7 @@ geckodriver*
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 # dependencies
-/node_modules
+/ui/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -78,7 +78,7 @@ htmlcov/
 bandit-report.json
 
 # next.js
-/.next/
+/ui/.next/
 /out/
 
 # production

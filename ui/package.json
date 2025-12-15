@@ -1,6 +1,6 @@
 {
-  "name": "free-nextadmin-nextjs",
-  "version": "1.2.2",
+  "name": "agentic-ai-papers-ui",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
