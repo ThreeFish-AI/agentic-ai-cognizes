@@ -1,10 +1,8 @@
 # 🗺️ Agentic AI 论文平台路线图
 
-## 项目现状
-
 **生产就绪的 Agentic AI 研究论文平台**，为中文读者提供高质量技术资源。
 
-### 核心指标
+## 核心指标
 
 ```mermaid
 graph TD
@@ -42,6 +40,79 @@ graph TD
     class B1,B2,B3,B4 content
     class C1,C2,C3,C4 technical
 ```
+
+## 已实现模块
+
+```mermaid
+graph TB
+    subgraph "Agent层"
+        A1[Workflow Agent]
+        A2[PDF Agent]
+        A3[Translation Agent]
+        A4[Analysis Agent]
+        A5[Batch Agent]
+        A6[Heartfelt Agent]
+    end
+
+    subgraph "服务层"
+        B1[FastAPI服务]
+        B2[WebSocket支持]
+        B3[RESTful API]
+    end
+
+    subgraph "技能层"
+        C1[Claude Skills × 7]
+        C2[MCP协议]
+    end
+
+    subgraph "存储层"
+        D1[论文文件]
+        D2[翻译内容]
+        D3[分析数据]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    A4 --> B1
+    A5 --> B1
+    A6 --> B1
+
+    B1 --> C1
+    B1 --> C2
+
+    C1 --> D1
+    C1 --> D2
+    C1 --> D3
+
+    style A1 fill:#805ad5
+    style A2 fill:#805ad5
+    style A3 fill:#805ad5
+    style A4 fill:#805ad5
+    style A5 fill:#805ad5
+    style A6 fill:#805ad5
+    style B1 fill:#3182ce
+    style C1 fill:#38a169
+```
+
+## 下一步行动
+
+1. **本周重点**
+
+   - 启动 Web UI 开发
+   - 制定搜索技术方案
+   - 分配翻译任务
+
+2. **本月目标**
+
+   - Web UI beta 版本
+   - 基础搜索上线
+   - 5 篇新翻译完成
+
+3. **季度里程碑**
+   - 完整用户界面
+   - 全功能搜索
+   - 翻译覆盖率达 80%
 
 ## 发展路线图
 
@@ -118,62 +189,6 @@ timeline
    - 第三方集成
    - 移动端适配
 
-## 技术架构
-
-### 已实现模块
-
-```mermaid
-graph TB
-    subgraph "Agent层"
-        A1[Workflow Agent]
-        A2[PDF Agent]
-        A3[Translation Agent]
-        A4[Analysis Agent]
-        A5[Batch Agent]
-        A6[Heartfelt Agent]
-    end
-
-    subgraph "服务层"
-        B1[FastAPI服务]
-        B2[WebSocket支持]
-        B3[RESTful API]
-    end
-
-    subgraph "技能层"
-        C1[Claude Skills × 7]
-        C2[MCP协议]
-    end
-
-    subgraph "存储层"
-        D1[论文文件]
-        D2[翻译内容]
-        D3[分析数据]
-    end
-
-    A1 --> B1
-    A2 --> B1
-    A3 --> B1
-    A4 --> B1
-    A5 --> B1
-    A6 --> B1
-
-    B1 --> C1
-    B1 --> C2
-
-    C1 --> D1
-    C1 --> D2
-    C1 --> D3
-
-    style A1 fill:#805ad5
-    style A2 fill:#805ad5
-    style A3 fill:#805ad5
-    style A4 fill:#805ad5
-    style A5 fill:#805ad5
-    style A6 fill:#805ad5
-    style B1 fill:#3182ce
-    style C1 fill:#38a169
-```
-
 ## 成功指标
 
 ### 技术指标
@@ -194,25 +209,6 @@ graph TB
 - ⏳ Web UI：开发中 → Q1 完成
 - ⏳ 搜索功能：待实现 → Q1 完成
 - ⏳ 用户认证：待开发 → Q2 完成
-
-## 下一步行动
-
-1. **本周重点**
-
-   - 启动 Web UI 开发
-   - 制定搜索技术方案
-   - 分配翻译任务
-
-2. **本月目标**
-
-   - Web UI beta 版本
-   - 基础搜索上线
-   - 5 篇新翻译完成
-
-3. **季度里程碑**
-   - 完整用户界面
-   - 全功能搜索
-   - 翻译覆盖率达 80%
 
 ---
 
