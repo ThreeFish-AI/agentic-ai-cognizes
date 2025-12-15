@@ -4,6 +4,8 @@
 
 ## 核心指标
 
+<div align="center">
+
 ```mermaid
 graph TD
     subgraph "🎯 项目健康度仪表板"
@@ -41,7 +43,11 @@ graph TD
     class C1,C2,C3,C4 technical
 ```
 
+</div>
+
 ## 已实现模块
+
+<div align="center">
 
 ```mermaid
 graph TB
@@ -95,7 +101,11 @@ graph TB
     style C1 fill:#48bb78
 ```
 
+</div>
+
 ## 下一步行动
+
+<div align="center">
 
 ```mermaid
 timeline
@@ -114,7 +124,11 @@ timeline
         翻译覆盖率达 80%
 ```
 
+</div>
+
 ## 发展路线图
+
+<div align="center">
 
 ```mermaid
 timeline
@@ -130,7 +144,11 @@ timeline
         生态建设 : 开放API<br>社区贡献机制
 ```
 
+</div>
+
 ## 实施优先级
+
+<div align="center">
 
 ```mermaid
 graph TD
@@ -169,6 +187,8 @@ graph TD
     class C1,C2,C3 longterm
 ```
 
+</div>
+
 ### 🚀 立即执行（2-4 周）
 
 - Web UI 开发：响应式界面、浏览筛选、阅读模式
@@ -189,6 +209,8 @@ graph TD
 
 ## 成功指标
 
+<div align="center">
+
 ```mermaid
 xychart-beta
     title "项目成功指标完成度"
@@ -197,6 +219,8 @@ xychart-beta
     bar [82, 100, 0, 0, 54, 59, 0, 0, 0, 0]
     line [90, 100, 0, 0, 100, 80, 0, 0, 0, 0]
 ```
+
+</div>
 
 ### 详细指标
 
