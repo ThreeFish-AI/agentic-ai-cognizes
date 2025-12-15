@@ -28,4 +28,5 @@ This is a research repository focused on AI Agents papers, containing translated
 - [🧪 测试方案](docs/004-testing.md) - 测试框架和 CI/CD
 - [🚀 GitHub Actions](docs/005-github-actions.md) - 自动化工作流
 - [🤖 AI Agents](docs/006-agents.md) - Claude SDK 与 Google ADK 实现方案
-- [📡 API 接口](docs/007-apis.md) - RESTful API 和 WebSocket 详细文档
+- [📡 API 文档](docs/007-apis.md) - RESTful API 和 WebSocket 详细文档
+- [🖥️ Web UI 方案](docs/008-ui.md) - 基于 Next.js 和 NextAdmin 的前端设计方案
