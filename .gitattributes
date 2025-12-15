@@ -4,18 +4,16 @@
 *.tar.bz2 filter=lfs diff=lfs merge=lfs -text
 *.rar filter=lfs diff=lfs merge=lfs -text
 *.7z filter=lfs diff=lfs merge=lfs -text
-
 # Large media files - track with Git LFS
 *.mp4 filter=lfs diff=lfs merge=lfs -text
 *.avi filter=lfs diff=lfs merge=lfs -text
 *.mov filter=lfs diff=lfs merge=lfs -text
 *.mkv filter=lfs diff=lfs merge=lfs -text
 *.wmv filter=lfs diff=lfs merge=lfs -text
-
 # Specific large PDF file
 "papers/source/llm-agents/阿里云 AI 应用架构白皮书.pdf" filter=lfs diff=lfs merge=lfs -text
-
 # Exclude common configuration files from LFS
 package.json !filter !diff !merge text
 *.config.json !filter !diff !merge text
 tsconfig.json !filter !diff !merge text
+papers/source/llm-agents/阿里云[[:space:]]AI[[:space:]]应用架构白皮书.pdf filter=lfs diff=lfs merge=lfs -text
