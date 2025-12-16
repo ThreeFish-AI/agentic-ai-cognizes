@@ -421,7 +421,6 @@ SMTP_PORT: 587
 
 - [性能基准测试](../.github/workflows/performance-benchmark.yml)
 - [优化脚本](../.github/scripts/optimization-helpers.sh)
-- [Phase 2 测试脚本](../.github/scripts/test-phase2-improvements.sh)
 
 ### 测试相关
 
