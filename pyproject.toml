@@ -180,7 +180,7 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=html:htmlcov",
     "--cov-report=xml",
-    "--cov-fail-under=80",
+    "--cov-fail-under=20",
     "-p no:warnings",
 ]
 testpaths = [

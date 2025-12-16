@@ -33,6 +33,41 @@ This file contains the configuration for development teams working on the Agenti
 4. Document WebSocket API behavior
 5. Monitor WebSocket service performance
 
+## github-actions-optimization
+
+**Description**: Team implementing GitHub Actions workflow refactoring and optimization
+
+**Focus Areas**:
+- GitHub Actions workflow optimization
+- CI/CD pipeline improvements
+- Workflow performance and reliability
+- Build and deployment automation
+- Workflow security and best practices
+
+**Members**:
+- To be added
+
+**Related Files**:
+- `/.github/workflows/`
+- `/pyproject.toml`
+- `/docker-compose.yml`
+- `/Dockerfile`
+
+**Current Objectives**:
+- Refactor existing GitHub Actions workflows for better maintainability
+- Optimize workflow performance and reduce build times
+- Implement workflow security best practices
+- Improve CI/CD pipeline reliability
+- Standardize workflow configurations across the project
+
+**Responsibilities**:
+1. Analyze and refactor existing GitHub Actions workflows
+2. Implement workflow optimization strategies
+3. Monitor and improve build performance metrics
+4. Ensure workflow security and compliance
+5. Document workflow configurations and best practices
+6. Troubleshoot workflow failures and bottlenecks
+
 ## How to Update This File
 
 1. Add team members under the appropriate team section

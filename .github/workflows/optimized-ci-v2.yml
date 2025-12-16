@@ -1,0 +1,510 @@
+name: Optimized CI/CD Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - 'release/**'
+  push:
+    branches:
+      - main
+      - master
+      - 'release/**'
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "18"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ===== ENVIRONMENT PREPARATION (Parallel) =====
+
+  prepare-python:
+    name: Prepare Python Environment
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache.outputs.key }}
+      python-hash: ${{ steps.cache.outputs.python-hash }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate cache keys
+        id: cache
+        run: |
+          PYTHON_HASH="${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}"
+          CACHE_KEY="${{ runner.os }}-python-${PYTHON_HASH}-${{ github.run_id }}"
+          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "python-hash=$PYTHON_HASH" >> $GITHUB_OUTPUT
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            **/pyproject.toml
+            **/requirements*.txt
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/share/virtualenvs
+          key: ${{ steps.cache.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ steps.cache.outputs.python-hash }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" --quiet
+          pip install pytest pytest-cov pytest-xdist --quiet
+
+  prepare-node:
+    name: Prepare Node Environment
+    runs-on: ubuntu-latest
+    if: hashFiles('ui/package.json') != ''
+    outputs:
+      cache-key: ${{ steps.cache.outputs.key }}
+      node-hash: ${{ steps.cache.outputs.node-hash }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate cache keys
+        id: cache
+        run: |
+          NODE_HASH="${{ hashFiles('ui/package.json', 'ui/yarn.lock') }}"
+          CACHE_KEY="${{ runner.os }}-node-${NODE_HASH}-${{ github.run_id }}"
+          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "node-hash=$NODE_HASH" >> $GITHUB_OUTPUT
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: ui/yarn.lock
+
+      - name: Install dependencies
+        working-directory: ./ui
+        run: yarn install --frozen-lockfile --prefer-offline --silent
+
+  # ===== CORE TESTING (Parallel) =====
+
+  lint-python:
+    name: Python Linting
+    runs-on: ubuntu-latest
+    needs: prepare-python
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/share/virtualenvs
+          key: ${{ needs.prepare-python.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ needs.prepare-python.outputs.python-hash }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" --quiet
+
+      - name: Run linting
+        run: |
+          ruff check agents/ tests/
+          ruff format --check agents/ tests/
+          mypy agents/
+
+  test-python:
+    name: Python Tests (${{ matrix.test-type }})
+    runs-on: ubuntu-latest
+    needs: prepare-python
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        test-type: [unit, integration]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/share/virtualenvs
+          key: ${{ needs.prepare-python.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ needs.prepare-python.outputs.python-hash }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" --quiet
+          pip install pytest-xdist --quiet
+
+      - name: Setup environment
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            echo "PAPERS_DIR=papers" > .env
+            echo "MAX_UPLOAD_SIZE=52428800" >> .env
+            echo "DEBUG=false" >> .env
+            echo "LOG_LEVEL=INFO" >> .env
+          fi
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
+
+      - name: Run ${{ matrix.test-type }} tests
+        run: |
+          python tests/agents/run_tests.py ${{ matrix.test-type }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  coverage-python:
+    name: Python Coverage
+    runs-on: ubuntu-latest
+    needs: prepare-python
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/share/virtualenvs
+          key: ${{ needs.prepare-python.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ needs.prepare-python.outputs.python-hash }}-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" --quiet
+
+      - name: Setup environment
+        run: |
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            echo "PAPERS_DIR=papers" > .env
+            echo "MAX_UPLOAD_SIZE=52428800" >> .env
+            echo "DEBUG=false" >> .env
+            echo "LOG_LEVEL=INFO" >> .env
+          fi
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
+
+      - name: Generate coverage
+        run: |
+          python tests/agents/run_tests.py coverage
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov/
+          retention-days: 30
+
+  test-ui:
+    name: UI Tests (${{ matrix.test-type }})
+    runs-on: ubuntu-latest
+    needs: prepare-node
+    if: hashFiles('ui/package.json') != ''
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        test-type: [lint, unit, e2e]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: ui/yarn.lock
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ui/.yarn/cache
+            ui/.next/cache
+            ui/node_modules/.cache
+          key: ${{ needs.prepare-node.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ needs.prepare-node.outputs.node-hash }}-
+
+      - name: Install dependencies
+        working-directory: ./ui
+        run: yarn install --frozen-lockfile --prefer-offline --silent
+
+      - name: Run linting
+        if: matrix.test-type == 'lint'
+        working-directory: ./ui
+        run: |
+          yarn lint &
+          LINT_PID=$!
+          npx tsc --noEmit &
+          TYPE_PID=$!
+          wait $LINT_PID || exit 1
+          wait $TYPE_PID || exit 1
+
+      - name: Run unit tests
+        if: matrix.test-type == 'unit'
+        working-directory: ./ui
+        run: yarn test:coverage --maxWorkers=4
+        env:
+          CI: true
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+      - name: Upload UI coverage
+        if: matrix.test-type == 'unit'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./ui/coverage/lcov.info
+          flags: ui-unit-tests
+          name: codecov-ui-unit-tests
+          fail_ci_if_error: false
+
+      - name: Run E2E tests
+        if: matrix.test-type == 'e2e'
+        working-directory: ./ui
+        run: |
+          yarn build
+          npx playwright install --with-deps chromium
+          npx playwright test --project=chromium --workers=2
+        env:
+          CI: true
+          E2E_BASE_URL: http://localhost:3000
+
+      - name: Upload E2E results
+        if: matrix.test-type == 'e2e' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: |
+            ui/playwright-report/
+            ui/test-results/
+          retention-days: 30
+
+  # ===== SECURITY SCANNING (Parallel) =====
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: prepare-python
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/share/virtualenvs
+          key: ${{ needs.prepare-python.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-python-${{ needs.prepare-python.outputs.python-hash }}-
+
+      - name: Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety bandit --quiet
+
+      - name: Run security scans
+        run: |
+          safety check --json --output safety-report.json || true
+          bandit -r agents/ -f json -o bandit-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            safety-report.json
+            bandit-report.json
+          retention-days: 30
+
+  # ===== BUILD JOBS (Parallel with testing) =====
+
+  build-docker:
+    name: Docker Build (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    needs: [prepare-python, lint-python]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/')
+    timeout-minutes: 20
+
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME || 'agentic-ai-papers' }}/agentic-ai-papers
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: false
+          load: false
+          tags: test-image-${{ matrix.platform }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          secrets: |
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ===== DEPLOYMENT JOBS =====
+
+  deploy-docker:
+    name: Deploy Docker Images
+    runs-on: ubuntu-latest
+    needs: [test-python, coverage-python, build-docker]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/'))
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME || 'agentic-ai-papers' }}/agentic-ai-papers
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push multi-platform image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          secrets: |
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+
+  # ===== WORKFLOW SUMMARY =====
+
+  workflow-summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    needs: [lint-python, test-python, coverage-python, test-ui, security-scan, build-docker]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🚀 Optimized CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Linting | ${{ needs.lint-python.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Tests | ${{ needs.test-python.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Coverage | ${{ needs.coverage-python.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| UI Tests | ${{ needs.test-ui.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build | ${{ needs.build-docker.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Performance Improvements" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Parallel environment preparation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Optimized caching strategy" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Removed duplicate UI testing" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Parallel test execution" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Smart job dependencies" >> $GITHUB_STEP_SUMMARY
