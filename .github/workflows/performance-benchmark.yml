@@ -302,7 +302,7 @@ jobs:
           echo "|-------------|-------------|---------------|-------------|" >> $GITHUB_STEP_SUMMARY
 
           # Parse job times and generate comparison
-          python << 'EOF'
+          python << 'EOF' >> $GITHUB_STEP_SUMMARY
           import json
 
           try:
@@ -323,7 +323,7 @@ jobs:
 
           except Exception as e:
               print(f"| Error loading job data | N/A | N/A | N/A |")
-          EOF >> $GITHUB_STEP_SUMMARY
+          EOF
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
