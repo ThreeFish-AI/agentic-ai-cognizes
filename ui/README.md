@@ -1,80 +1,89 @@
-# Admin UI for Agentic AI Papers Management
+# NextAdmin - Next.js Admin Dashboard Template and Components
 
-This directory contains the web-based Admin UI system for managing Agentic AI research papers and their translations.
+**NextAdmin** is a Free, open-source Next.js admin dashboard toolkit featuring 200+ UI components and templates that come with pre-built elements, components, pages, high-quality design, integrations, and much more to help you create powerful admin dashboards with ease.
 
-## Features
 
-### Paper Management
-- **Upload**: Upload PDF papers and web articles
-- **Organize**: Categorize papers by topics (LLM Agents, Context Engineering, Knowledge Graphs, etc.)
-- **Track**: Monitor processing status and progress
-- **Search**: Full-text search across all papers
+[![nextjs admin template](https://cdn.pimjo.com/nextadmin-2.png)](https://nextadmin.co/)
 
-### Translation Pipeline
-- **Queue Management**: View and manage translation jobs
-- **Progress Tracking**: Real-time progress updates
-- **Quality Control**: Review and edit translations
-- **Batch Operations**: Process multiple papers simultaneously
 
-### Agent Configuration
-- **Agent Settings**: Configure Claude and ADK agents
-- **Pipeline Management**: Set up processing pipelines
-- **Performance Monitoring**: Track agent performance metrics
+**NextAdmin** provides you with a diverse set of dashboard UI components, elements, examples and pages necessary for creating top-notch admin panels or dashboards with **powerful** features and integrations. Whether you are working on a complex web application or a basic website, **NextAdmin** has got you covered.
 
-## Architecture
+### [✨ Visit Website](https://nextadmin.co/)
+### [🚀 Live Demo](https://demo.nextadmin.co/)
+### [📖 Docs](https://docs.nextadmin.co/)
+
+By leveraging the latest features of **Next.js 14** and key functionalities like **server-side rendering (SSR)**, **static site generation (SSG)**, and seamless **API route integration**, **NextAdmin** ensures optimal performance. With the added benefits of **React 18 advancements** and **TypeScript** reliability, **NextAdmin** is the ultimate choice to kickstart your **Next.js** project efficiently.
+
+## Installation
+
+1. Download/fork/clone the repo and Once you're in the correct directory, it's time to install all the necessary dependencies. You can do this by typing the following command:
 
 ```
-ui/
-├── frontend/          # React frontend
-├── backend/           # FastAPI backend
-├── docker/           # Docker configurations
-└── docs/             # API documentation
+npm install
+```
+If you're using **Yarn** as your package manager, the command will be:
+
+```
+yarn install
 ```
 
-## Tech Stack
+2. Okay, you're almost there. Now all you need to do is start the development server. If you're using **npm**, the command is:
 
-- **Frontend**: React 18, TypeScript, Ant Design
-- **Backend**: FastAPI, Python, SQLAlchemy
-- **Database**: PostgreSQL
-- **Queue**: Redis + Celery
-- **Storage**: MinIO (S3-compatible)
+```
+npm run dev
+```
+And if you're using **Yarn**, it's:
 
-## Getting Started
-
-1. Install dependencies:
-```bash
-# Frontend
-cd frontend && npm install
-
-# Backend
-cd backend && pip install -r requirements.txt
+```
+yarn dev
 ```
 
-2. Configure environment:
-```bash
-cp .env.example .env
-# Edit .env with your settings
-```
+And voila! You're now ready to start developing. **Happy coding**!
 
-3. Run services:
-```bash
-# With Docker Compose
-docker-compose up -d
+## Highlighted Features
+**200+ Next.js Dashboard Ul Components and Templates** - includes a variety of prebuilt **Ul elements, components, pages, and examples** crafted with a high-quality design.
+Additionally, features seamless **essential integrations and extensive functionalities**.
 
-# Or manually
-npm run dev:frontend
-npm run dev:backend
-```
+- A library of over **200** professional dashboard UI components and elements.
+- Five distinctive dashboard variations, catering to diverse use-cases.
+- A comprehensive set of essential dashboard and admin pages.
+- More than **45** **Next.js** files, ready for use.
+- Styling facilitated by **Tailwind CSS** files.
+- A design that resonates premium quality and high aesthetics.
+- A handy UI kit with assets.
+- Over ten web apps complete with examples.
+- Support for both **dark mode** and **light mode**.
+- Essential integrations including - Authentication (**NextAuth**), Database (**Postgres** with **Prisma**), and Search (**Algolia**).
+- Detailed and user-friendly documentation.
+- Customizable plugins and add-ons.
+- **TypeScript** compatibility.
+- Plus, much more!
 
-4. Access the UI at `http://localhost:3000`
+All these features and more make **NextAdmin** a robust, well-rounded solution for all your dashboard development needs.
 
-## API Documentation
+## Update Logs
 
-API documentation is available at `http://localhost:8000/docs` when running the backend.
+### Version 1.2.2 - [December 01, 2025]
+- Updated to Next.js 16
+- Updated dependencies.
 
-## Development
+### Version 1.2.1 - [Mar 20, 2025]
+- Fix Peer dependency issues and NextConfig warning.
+- Updated apexcharts and react-apexhcarts to the latest version.
 
-- Frontend development server: `npm run dev`
-- Backend development server: `uvicorn main:app --reload`
-- Run tests: `npm test`
-- Build for production: `npm run build`
+### Version 1.2.0 - Major Upgrade and UI Improvements - [Jan 27, 2025]
+
+- Upgraded to Next.js v15 and updated dependencies
+- API integration with loading skeleton for tables and charts.
+- Improved code structure for better readability.
+- Rebuilt components like dropdown, sidebar, and all ui-elements using accessibility practices.
+- Using search-params to store dropdown selection and refetch data.
+- Semantic markups, better separation of concerns and more.
+
+### Version 1.1.0
+- Updated Dependencies
+- Removed Unused Integrations
+- Optimized App
+
+### Version 1.0
+- Initial Release - [May 13, 2024]
