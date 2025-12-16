@@ -26,7 +26,7 @@ uv pip install -e ".[dev]"
 
 # 4. 配置环境变量
 cp .env.example .env
-# 编辑 .env 添加 ANTHROPIC_API_KEY
+# 编辑 .env 添加 ANTHROPIC_API_KEY 和 ANTHROPIC_BASE_URL
 
 # 5. 启动开发服务器
 uvicorn agents.api.main:app --reload --host 0.0.0.0 --port 8000
@@ -465,6 +465,7 @@ services:
     build: .
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}
     volumes:
       - ./papers:/app/papers
       - ./cache:/app/cache

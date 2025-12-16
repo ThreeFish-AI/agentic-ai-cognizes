@@ -13,6 +13,7 @@ This is a research repository focused on AI Agents papers, containing translated
 - 内容充分理解：对内容的任何操作都是以对内容充分阅读并深入理解为前提，而不是通过字符的模式匹配方式进行机械操作；
 - 优先使用 Mermaid 作图说明：能用「图 + 文」进行清晰描述的内容，尽量使用 Mermaid 作图来加以说明；
 - 如非显性要求，不要调用 git commit 进行变更提交；
+- 如需创建执行计划、Teams、Phases 等临时文件，一律在 .temp/ 路径下进行，使用完这些文件后将之清理干净；
 
 ## Mermaid 作图注意事项
 

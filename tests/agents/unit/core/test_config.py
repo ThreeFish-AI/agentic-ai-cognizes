@@ -26,6 +26,7 @@ class TestSettings:
             "PAPERS_DIR": "test_papers",
             "MAX_UPLOAD_SIZE": "100",
             "ANTHROPIC_API_KEY": "test-key-123",
+            "ANTHROPIC_BASE_URL": "https://test.api.example.com",
             "BATCH_SIZE": "20",
             "PARALLEL_TASKS": "5",
             "EXTRACT_IMAGES": "false",
@@ -87,6 +88,7 @@ class TestSettings:
         assert s.PAPERS_DIR == "papers"
         assert s.MAX_UPLOAD_SIZE == 50 * 1024 * 1024
         assert s.ANTHROPIC_API_KEY == ""
+        assert s.ANTHROPIC_BASE_URL == ""
         assert s.WORKFLOW_CONFIG["papers_dir"] == "papers"
         assert s.WORKFLOW_CONFIG["batch_size"] == 10
         assert s.WORKFLOW_CONFIG["parallel_tasks"] == 3
@@ -126,6 +128,7 @@ class TestSettings:
             assert s.PAPERS_DIR == "test_papers"
             assert s.MAX_UPLOAD_SIZE == 100 * 1024 * 1024
             assert s.ANTHROPIC_API_KEY == "test-key-123"
+            assert s.ANTHROPIC_BASE_URL == "https://test.api.example.com"
             assert s.WORKFLOW_CONFIG["batch_size"] == 20
             assert s.WORKFLOW_CONFIG["parallel_tasks"] == 5
             assert s.PDF_CONFIG["extract_images"] is False

@@ -32,8 +32,16 @@ class SkillInvoker:
         """Initialize the skill invoker."""
         self.anthropic_client = None
         api_key = os.getenv("ANTHROPIC_API_KEY")
+        base_url = os.getenv("ANTHROPIC_BASE_URL")
+
         if api_key:
-            self.anthropic_client = anthropic.Anthropic(api_key=api_key)
+            # Only pass base_url if it's configured
+            if base_url:
+                self.anthropic_client = anthropic.Anthropic(
+                    api_key=api_key, base_url=base_url
+                )
+            else:
+                self.anthropic_client = anthropic.Anthropic(api_key=api_key)
 
         # Registry of available skills
         self.skill_registry = {

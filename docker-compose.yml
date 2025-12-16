@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # 主 API 服务
@@ -11,12 +11,13 @@ services:
       - "8000:8000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}
       - PAPERS_DIR=/app/papers
       - LOG_LEVEL=INFO
       - DEBUG=false
     volumes:
       - ./papers:/app/papers
-      - ./.claude:/app/.claude:ro  # 只读挂载
+      - ./.claude:/app/.claude:ro # 只读挂载
       - ./logs:/app/logs
     command: uvicorn agents.api.main:app --host 0.0.0.0 --port 8000
     restart: unless-stopped
@@ -40,7 +41,7 @@ services:
       - api
     restart: unless-stopped
     profiles:
-      - ui  # 使用 docker-compose --profile ui up 启动
+      - ui # 使用 docker-compose --profile ui up 启动
 
   # MCP 服务（按需启动）
   mcp-data-extractor:
@@ -50,7 +51,7 @@ services:
       - "8081:8081"
     restart: unless-stopped
     profiles:
-      - mcp  # 可选配置
+      - mcp # 可选配置
 
 networks:
   default:

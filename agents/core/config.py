@@ -32,6 +32,7 @@ class Settings:
 
         # Claude API
         self.ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
+        self.ANTHROPIC_BASE_URL: str = os.getenv("ANTHROPIC_BASE_URL", "")
 
         # 基本配置属性，其他配置会动态使用这些值
         self._init_configs()

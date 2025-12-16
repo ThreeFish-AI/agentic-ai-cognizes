@@ -32,6 +32,22 @@ class TestSkillInvoker:
                 return SkillInvoker()
 
     @pytest.fixture
+    def skill_invoker_with_api_key_and_base_url(self, mock_anthropic_client):
+        """Create a SkillInvoker instance with API key and base URL."""
+        with patch.dict(
+            os.environ,
+            {
+                "ANTHROPIC_API_KEY": "test-key",
+                "ANTHROPIC_BASE_URL": "https://test.api.example.com",
+            },
+        ):
+            with patch(
+                "agents.claude.skills.anthropic.Anthropic",
+                return_value=mock_anthropic_client,
+            ) as mock_anthropic_class:
+                return SkillInvoker(), mock_anthropic_class
+
+    @pytest.fixture
     def skill_invoker_no_api_key(self):
         """Create a SkillInvoker instance without API key."""
         with patch.dict(os.environ, {}, clear=True):
@@ -54,6 +70,18 @@ class TestSkillInvoker:
         """Test SkillInvoker initialization without API key."""
         invoker = skill_invoker_no_api_key
         assert invoker.anthropic_client is None
+        assert len(invoker.skill_registry) == 7
+
+    def test_init_with_api_key_and_base_url(
+        self, skill_invoker_with_api_key_and_base_url
+    ):
+        """Test SkillInvoker initialization with API key and base URL."""
+        invoker, mock_anthropic_class = skill_invoker_with_api_key_and_base_url
+        assert invoker.anthropic_client is not None
+        # Verify that Anthropic was called with both api_key and base_url
+        mock_anthropic_class.assert_called_once_with(
+            api_key="test-key", base_url="https://test.api.example.com"
+        )
         assert len(invoker.skill_registry) == 7
 
     async def test_call_skill_success(self, skill_invoker_with_api_key):
