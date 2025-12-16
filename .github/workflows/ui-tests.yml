@@ -17,6 +17,15 @@ on:
       - main
       - master
       - 'release/**'
+  workflow_dispatch:
+    inputs:
+      triggered_by:
+        description: 'Which workflow triggered this run'
+        required: false
+        default: 'manual'
+      commit_sha:
+        description: 'Commit SHA to test'
+        required: false
 
 # Environment variables
 env:

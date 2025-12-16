@@ -171,6 +171,7 @@ npm install @anthropic-ai/claude-agent-sdk
 
 ```bash
 export ANTHROPIC_API_KEY=your-api-key
+export ANTHROPIC_BASE_URL=your-api-base-url
 ```
 
 #### 配置管理
@@ -181,6 +182,7 @@ Claude SDK 智能体支持多层级配置：
 
 ```bash
 export ANTHROPIC_API_KEY="your-api-key"
+export ANTHROPIC_BASE_URL="your-api-base-url"
 export DEFAULT_LANGUAGE="zh"
 ```
 

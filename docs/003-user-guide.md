@@ -57,7 +57,8 @@ flowchart TD
 
 - Python 3.12+
 - Docker & Docker Compose（推荐）
-- ANTHROPIC_API_KEY（用于未来 AI 功能）
+- ANTHROPIC_API_KEY（用于 AI 功能）
+- ANTHROPIC_BASE_URL（API 端点，默认为 Anthropic API）
 
 ### 用户使用流程
 
@@ -91,7 +92,7 @@ cd agentic-ai-papers
 
 # 2. 配置环境变量
 cp .env.example .env
-# 编辑 .env 文件，添加 ANTHROPIC_API_KEY（可选）
+# 编辑 .env 文件，添加 ANTHROPIC_API_KEY 和 ANTHROPIC_BASE_URL
 
 # 3. 启动服务
 docker-compose up -d

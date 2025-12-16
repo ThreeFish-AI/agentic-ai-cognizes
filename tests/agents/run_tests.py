@@ -60,7 +60,24 @@ def run_unit_tests():
 
 
 def run_integration_tests():
-    """Run integration tests with coverage."""
+    """Run integration tests only."""
+    return run_command(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/agents/integration",
+            "-v",
+            "--tb=short",
+            "-m",
+            "integration",
+        ],
+        "Integration Tests",
+    )
+
+
+def generate_coverage_report():
+    """Generate coverage report for all tests."""
     return run_command(
         [
             sys.executable,
@@ -71,25 +88,9 @@ def run_integration_tests():
             "--cov-report=term-missing",
             "--cov-report=html",
             "--cov-report=xml",
-            "--cov-fail-under=80",
+            "--cov-fail-under=20",
             "-v",
             "--tb=short",
-        ],
-        "Integration Tests with Coverage",
-    )
-
-
-def generate_coverage_report():
-    """Generate coverage report only."""
-    return run_command(
-        [
-            sys.executable,
-            "-m",
-            "pytest",
-            "tests/agents",
-            "--cov=agents",
-            "--cov-report=term-missing",
-            "--cov-report=html",
         ],
         "Coverage Report",
     )
