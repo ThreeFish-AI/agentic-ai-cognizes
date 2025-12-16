@@ -182,12 +182,14 @@ jobs:
             echo "LOG_LEVEL=INFO" >> .env
           fi
           echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
+          echo "ANTHROPIC_BASE_URL=${{ secrets.ANTHROPIC_BASE_URL }}" >> .env
 
       - name: Run ${{ matrix.test-type }} tests
         run: |
           python tests/agents/run_tests.py ${{ matrix.test-type }}
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
 
   coverage-python:
     name: Python Coverage
@@ -216,12 +218,14 @@ jobs:
             echo "LOG_LEVEL=INFO" >> .env
           fi
           echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
+          echo "ANTHROPIC_BASE_URL=${{ secrets.ANTHROPIC_BASE_URL }}" >> .env
 
       - name: Generate coverage
         run: |
           python tests/agents/run_tests.py coverage
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -388,6 +392,7 @@ jobs:
             type=registry,ref=${{ secrets.DOCKER_USERNAME || 'agentic-ai-papers' }}/agentic-ai-papers:cache,mode=max
           secrets: |
             ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+            ANTHROPIC_BASE_URL=${{ secrets.ANTHROPIC_BASE_URL }}
 
   # ===== DOCS BUILD (Conditional) =====
 
