@@ -256,7 +256,7 @@ agentic-ai-papers/
 
 ## 📜 许可证
 
-本项目采用 [MIT License](LICENSE)，所有翻译内容仅供学术研究使用。
+本项目采用 [Apache License 2.0](LICENSE)，所有翻译内容仅供学术研究使用。
 
 ## 🔗 相关资源
 
