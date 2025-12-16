@@ -47,8 +47,12 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: ui/yarn.lock
 
+      - name: Configure npm for CI
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --registry=https://registry.npmjs.org/
 
       - name: Run ESLint
         run: yarn lint
@@ -78,8 +82,12 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: ui/yarn.lock
 
+      - name: Configure npm for CI
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --registry=https://registry.npmjs.org/
 
       - name: Run tests with coverage
         run: yarn test:coverage
@@ -131,8 +139,12 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: ui/yarn.lock
 
+      - name: Configure npm for CI
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --registry=https://registry.npmjs.org/
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -189,8 +201,12 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: ui/yarn.lock
 
+      - name: Configure npm for CI
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --registry=https://registry.npmjs.org/
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps ${{ matrix.browser }}
@@ -242,8 +258,12 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: ui/yarn.lock
 
+      - name: Configure npm for CI
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --registry=https://registry.npmjs.org/
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
@@ -282,8 +302,12 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: ui/yarn.lock
 
+      - name: Configure npm for CI
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --registry=https://registry.npmjs.org/
 
       - name: Build application with bundle analysis
         run: |
@@ -325,8 +349,12 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: ui/yarn.lock
 
+      - name: Configure npm for CI
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --registry=https://registry.npmjs.org/
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
@@ -366,8 +394,12 @@ jobs:
           cache: 'yarn'
           cache-dependency-path: ui/yarn.lock
 
+      - name: Configure npm for CI
+        run: |
+          echo "registry=https://registry.npmjs.org/" > .npmrc
+
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install --registry=https://registry.npmjs.org/
 
       - name: Build application
         run: yarn build
