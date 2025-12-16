@@ -383,7 +383,7 @@ jobs:
             "moderate")
               # Simulate moderate load: 3 concurrent workflows
               echo "Simulating moderate load (3 workflows)..."
-              python << 'EOF'
+              cat > moderate_load.py << 'EOF'
               import concurrent.futures
               import time
 
@@ -395,11 +395,12 @@ jobs:
                   for f in concurrent.futures.as_completed(futures):
                       f.result()
               EOF
+              python moderate_load.py
               ;;
             "heavy")
               # Simulate heavy load: 5 concurrent workflows
               echo "Simulating heavy load (5 workflows)..."
-              python << 'EOF'
+              cat > heavy_load.py << 'EOF'
               import concurrent.futures
               import time
 
@@ -411,6 +412,7 @@ jobs:
                   for f in concurrent.futures.as_completed(futures):
                       f.result()
               EOF
+              python heavy_load.py
               ;;
           esac
 
