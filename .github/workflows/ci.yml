@@ -167,11 +167,73 @@ jobs:
             safety-report.json
             bandit-report.json
 
+  # UI Tests job (triggered if UI files changed)
+  ui-tests:
+    name: UI Tests
+    runs-on: ubuntu-latest
+    needs: test
+    if: contains(github.event.head_commit.modified, 'ui/') || contains(github.event.head_commit.modified, 'tests/ui/')
+    defaults:
+      run:
+        working-directory: ./ui
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint and type check
+        run: |
+          npm run lint
+          npx tsc --noEmit
+
+      - name: Run unit tests
+        run: npm run test:coverage
+        env:
+          CI: true
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+
+      - name: Upload UI coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./ui/coverage/lcov.info
+          flags: ui-tests
+          name: codecov-ui-tests
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          CI: true
+          E2E_BASE_URL: http://localhost:3000
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-e2e-results
+          path: ui/playwright-report/
+          retention-days: 30
+
   # Docker build and test job
   docker:
     name: Docker Build & Test
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, ui-tests]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/')
 
     steps:
@@ -389,7 +451,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [test, security, docker]
+    needs: [test, security, docker, ui-tests]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/'))
 
     steps:
