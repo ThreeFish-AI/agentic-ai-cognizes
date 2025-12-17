@@ -187,28 +187,28 @@ pytest --tb=long
 3. **命名规范**: `test_<function>_<condition>_<expected>()`
 4. **覆盖率**: 聚焦业务逻辑，测试错误处理路径
 
-## Web UI 测试
+### Web UI 测试
 
-### 测试技术栈
+#### 测试技术栈
 
 ```mermaid
 graph TB
     subgraph UI-Testing["UI 测试框架"]
-        A["Jest + React Testing Library<br/>单元/集成测试"]
-        B["Playwright<br/>E2E 测试"]
-        C["MSW<br/>API Mock"]
+        A["Vitest<br/>主测试框架"]
+        B["React Testing Library<br/>组件测试"]
+        C["Playwright<br/>E2E 测试"]
     end
 
     subgraph UI-Tools["测试工具"]
         D["@testing-library/user-event<br/>用户交互"]
-        E["jest-axe<br/>可访问性"]
+        E["MSW<br/>API Mock"]
         F["Faker<br/>测试数据"]
     end
 
     UI-Testing --> UI-Tools
 ```
 
-### 测试层级分布
+#### 测试层级分布
 
 ```mermaid
 pie
@@ -219,18 +219,19 @@ pie
     "单元测试 (70%)" : 70
 ```
 
-### 测试命令
+#### 测试命令
 
 ```bash
 # 进入 UI 目录
 cd ui
 
-# 单元测试和集成测试
+# 单元测试和集成测试 (Vitest)
 npm run test                # 运行所有测试
 npm run test:watch         # 监听模式
 npm run test:coverage      # 生成覆盖率报告
+npm run test:ui            # Vitest UI 界面
 
-# E2E 测试
+# E2E 测试 (Playwright)
 npm run test:e2e           # 运行 E2E 测试
 npm run test:e2e:ui        # Playwright UI 模式
 npm run test:e2e:debug     # 调试模式
@@ -239,39 +240,25 @@ npm run test:e2e:debug     # 调试模式
 npm run test:visual        # 更新快照
 ```
 
-### 目录结构
+#### 目录结构
 
 ```
 tests/ui/                      # UI 测试统一目录
-├── __mocks__/                 # MSW Mock 定义
-│   ├── server.ts             # MSW 服务器
-│   └── handlers.ts           # API handlers
+├── __mocks__/                 # Mock 定义
 ├── fixtures/                 # 测试数据
-│   ├── papers.json
-│   └── users.json
 ├── helpers/                  # 测试辅助函数
-│   ├── render.tsx            # 自定义 render
-│   ├── test-utils.tsx        # 测试工具
-│   └── factory.ts            # 数据工厂
 ├── unit/                     # 单元测试
 │   ├── components/           # 组件测试
-│   │   └── PaperCard.test.tsx
-│   ├── hooks/                # Hooks 测试
-│   │   └── usePaperStore.test.ts
-│   └── utils/                # 工具函数测试
+│   └── hooks/                # Hooks 测试
 ├── integration/              # 集成测试
 │   └── pages/                # 页面测试
-│       └── papers.test.tsx
-└── e2e/                     # E2E 测试
-    ├── auth.spec.ts
-    ├── papers.spec.ts
-    └── upload.spec.ts
+└── e2e/                     # E2E 测试 (Playwright)
 
-ui/                          # UI 项目配置文件
-├── jest.config.js           # Jest 配置
-├── jest.setup.js           # 测试环境初始化
+ui/                          # UI 项目配置
+├── vitest.config.ts        # Vitest 配置
 ├── playwright.config.ts    # Playwright 配置
-└── src/setupTests.ts       # 测试入口文件
+└── test/                   # 测试配置
+    └── setup.ts            # 测试环境初始化
 ```
 
 ### 单元测试示例
@@ -281,25 +268,20 @@ ui/                          # UI 项目配置文件
 ```typescript
 import { render, screen, fireEvent } from "../../helpers/render";
 import { PaperCard } from "@/components/papers/PaperCard";
+import { vi } from "vitest";
 
 describe("PaperCard", () => {
   const mockPaper = {
-    id: "1",
-    title: "Test Paper",
-    authors: ["Author One", "Author Two"],
-    status: "processed",
-    created_at: "2024-01-01T00:00:00Z",
+    // ... paper data
   };
 
   it("renders paper information", () => {
     render(<PaperCard paper={mockPaper} />);
-
-    expect(screen.getByText(mockPaper.title)).toBeInTheDocument();
-    expect(screen.getByText(mockPaper.authors.join(", "))).toBeInTheDocument();
+    // ... assertions
   });
 
   it("handles click events", () => {
-    const onClick = jest.fn();
+    const onClick = vi.fn();
     render(<PaperCard paper={mockPaper} onClick={onClick} />);
 
     fireEvent.click(screen.getByRole("article"));
@@ -357,45 +339,24 @@ test.describe("Paper Upload Flow", () => {
 
 #### MSW API Mock
 
+````typescript
+#### MSW API Mock
+
 ```typescript
 // tests/__mocks__/handlers.ts
-import { rest } from "msw";
+import { http, HttpResponse } from "msw";
 import { papers } from "../fixtures/papers";
 
 export const handlers = [
-  rest.get("/api/papers", (req, res, ctx) => {
-    const page = Number(req.url.searchParams.get("page")) || 1;
-    const search = req.url.searchParams.get("search");
-
-    let filteredPapers = papers;
-    if (search) {
-      filteredPapers = papers.filter((p) =>
-        p.title.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-
-    return res(
-      ctx.status(200),
-      ctx.json({
-        success: true,
-        data: filteredPapers,
-        total: filteredPapers.length,
-      })
-    );
-  }),
-
-  rest.post("/api/papers", async (req, res, ctx) => {
-    const paper = await req.json();
-    return res(
-      ctx.status(201),
-      ctx.json({
-        success: true,
-        data: { id: "new-id", ...paper },
-      })
-    );
+  http.get("/api/papers", ({ request }) => {
+    // ... implementation
+    return HttpResponse.json({
+      success: true,
+      data: papers,
+    });
   }),
 ];
-```
+````
 
 ### 测试数据管理
 
