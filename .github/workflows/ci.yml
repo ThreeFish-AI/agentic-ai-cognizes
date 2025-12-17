@@ -263,7 +263,7 @@ jobs:
         if: matrix.test-type == 'lint'
         working-directory: ./ui
         run: |
-          yarn lint &
+          npx next lint &
           LINT_PID=$!
           npx tsc --noEmit &
           TYPE_PID=$!
