@@ -21,16 +21,38 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "*": [
+        "node_modules/*"
+      ],
+      "@testing-library/*": [
+        "./node_modules/@testing-library/*"
+      ],
+      "msw": [
+        "./node_modules/msw"
+      ],
+      "msw/*": [
+        "./node_modules/msw/*"
+      ],
+      "swr": [
+        "./node_modules/swr"
+      ],
+      "@tanstack/react-query": [
+        "./node_modules/@tanstack/react-query"
+      ],
+      "next-themes": [
+        "./node_modules/next-themes"
       ]
     },
     "target": "ES2019"
   },
   "include": [
     "next-env.d.ts",
-    "src/**/*.{ts,tsx}",
+    "src",
     ".next/types/**/*.ts"
   ],
   "exclude": [
