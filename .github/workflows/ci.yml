@@ -263,12 +263,10 @@ jobs:
         if: matrix.test-type == 'lint'
         working-directory: ./ui
         run: |
-          ESLINT_USE_FLAT_CONFIG=false npx eslint . &
-          LINT_PID=$!
-          npx tsc --noEmit &
-          TYPE_PID=$!
-          wait $LINT_PID || exit 1
-          wait $TYPE_PID || exit 1
+          # Run ESLint with legacy config flag
+          ESLINT_USE_FLAT_CONFIG=false npx eslint --ext .js,.jsx,.ts,.tsx . || exit 1
+          # Then run TypeScript check
+          npx tsc --noEmit || exit 1
 
       - name: Run unit tests
         if: matrix.test-type == 'unit'
