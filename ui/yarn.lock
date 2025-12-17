@@ -831,7 +831,7 @@
 
 "@mswjs/interceptors@^0.40.0":
   version "0.40.0"
-  resolved "https://nexus.automizely.org/repository/npm-group/@mswjs/interceptors/-/interceptors-0.40.0.tgz#1b45f215ba8c2983ed133763ca03af92896083d6"
+  resolved "https://registry.yarnpkg.com/@mswjs/interceptors/-/interceptors-0.40.0.tgz#1b45f215ba8c2983ed133763ca03af92896083d6"
   integrity sha512-EFd6cVbHsgLa6wa4RljGj6Wk75qoHxUSyc5asLyyPSyuhIcdS2Q3Phw6ImS1q+CkALthJRShiYfKANcQMuMqsQ==
   dependencies:
     "@open-draft/deferred-promise" "^2.2.0"
