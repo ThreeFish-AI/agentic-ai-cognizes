@@ -25,27 +25,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "*": [
-        "node_modules/*"
-      ],
-      "@testing-library/*": [
-        "./node_modules/@testing-library/*"
-      ],
-      "msw": [
-        "./node_modules/msw"
-      ],
-      "msw/*": [
-        "./node_modules/msw/*"
-      ],
-      "swr": [
-        "./node_modules/swr"
-      ],
-      "@tanstack/react-query": [
-        "./node_modules/@tanstack/react-query"
-      ],
-      "next-themes": [
-        "./node_modules/next-themes"
       ]
     },
     "target": "ES2019"
@@ -56,6 +35,7 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "../tests"
   ]
 }
