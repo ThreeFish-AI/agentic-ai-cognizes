@@ -3,13 +3,13 @@ name: Advanced Cache Management
 on:
   schedule:
     # Run cache maintenance daily at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
   workflow_dispatch:
     inputs:
       action:
-        description: 'Cache action to perform'
+        description: "Cache action to perform"
         required: true
-        default: 'cleanup'
+        default: "cleanup"
         type: choice
         options:
           - cleanup
@@ -17,9 +17,9 @@ on:
           - analyze
           - repair
       cache_type:
-        description: 'Cache type to target'
+        description: "Cache type to target"
         required: false
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
@@ -30,7 +30,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
-  NODE_VERSION: "18"
+  NODE_VERSION: "20"
   CACHE_RETENTION_DAYS: 30
   MAX_CACHE_SIZE_GB: 10
 
@@ -166,7 +166,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Install and cache Node dependencies

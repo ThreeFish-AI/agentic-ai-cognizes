@@ -6,7 +6,7 @@ inputs:
   node-version:
     description: "Node.js version to use"
     required: false
-    default: "18"
+    default: "20"
   working-directory:
     description: "Working directory for Node.js project"
     required: false
