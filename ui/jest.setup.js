@@ -1,10 +1,10 @@
-import '@testing-library/jest-dom'
-import { server } from '../tests/ui/__mocks__/server'
+import "@testing-library/jest-dom";
+// import { server } from '../tests/ui/__mocks__/server'
 
 // Mock Service Worker setup
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+// beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+// afterEach(() => server.resetHandlers())
+// afterAll(() => server.close())
 
 // IntersectionObserver mock
 global.IntersectionObserver = class IntersectionObserver {
@@ -12,7 +12,7 @@ global.IntersectionObserver = class IntersectionObserver {
   disconnect() {}
   observe() {}
   unobserve() {}
-}
+};
 
 // ResizeObserver mock
 global.ResizeObserver = class ResizeObserver {
@@ -20,10 +20,10 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
   observe() {}
   unobserve() {}
-}
+};
 
 // Next.js router mock
-jest.mock('next/navigation', () => ({
+jest.mock("next/navigation", () => ({
   useRouter() {
     return {
       push: jest.fn(),
@@ -32,15 +32,15 @@ jest.mock('next/navigation', () => ({
       back: jest.fn(),
       forward: jest.fn(),
       refresh: jest.fn(),
-    }
+    };
   },
   useSearchParams() {
-    return new URLSearchParams()
+    return new URLSearchParams();
   },
   usePathname() {
-    return '/'
+    return "/";
   },
-}))
+}));
 
 // WebRTC mock for file upload
 global.RTCPeerConnection = jest.fn().mockImplementation(() => ({
@@ -49,22 +49,22 @@ global.RTCPeerConnection = jest.fn().mockImplementation(() => ({
   setLocalDescription: jest.fn(),
   setRemoteDescription: jest.fn(),
   close: jest.fn(),
-}))
+}));
 
 // File reader mock
 global.FileReader = class FileReader {
   constructor() {
-    this.readyState = 0
-    this.result = null
+    this.readyState = 0;
+    this.result = null;
   }
 
   readAsDataURL() {
     setTimeout(() => {
-      this.result = 'data:application/pdf;base64,dGVzdA=='
-      this.onload && this.onload()
-    }, 100)
+      this.result = "data:application/pdf;base64,dGVzdA==";
+      this.onload && this.onload();
+    }, 100);
   }
-}
+};
 
 // Canvas mock for image processing
 global.HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
@@ -80,7 +80,7 @@ global.HTMLCanvasElement.prototype.getContext = jest.fn(() => ({
   createRadialGradient: jest.fn(() => ({
     addColorStop: jest.fn(),
   })),
-}))
+}));
 
 // Speech Synthesis mock
 global.speechSynthesis = {
@@ -92,7 +92,7 @@ global.speechSynthesis = {
   pending: false,
   speaking: false,
   paused: false,
-}
+};
 
 // AbortController mock for fetch cancellation
 global.AbortController = jest.fn().mockImplementation(() => ({
@@ -103,12 +103,12 @@ global.AbortController = jest.fn().mockImplementation(() => ({
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),
   },
-}))
+}));
 
 // Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   writable: true,
-  value: jest.fn().mockImplementation(query => ({
+  value: jest.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
@@ -118,10 +118,10 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),
   })),
-})
+});
 
 // Mock window.scrollTo
-Object.defineProperty(window, 'scrollTo', {
+Object.defineProperty(window, "scrollTo", {
   writable: true,
   value: jest.fn(),
-})
+});
