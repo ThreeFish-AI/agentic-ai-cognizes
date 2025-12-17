@@ -1,30 +1,30 @@
-name: 'Setup Node.js Environment'
-description: 'Setup Node.js with caching and dependency installation'
-author: 'workflow-optimizer-2'
+name: "Setup Node.js Environment"
+description: "Setup Node.js with caching and dependency installation"
+author: "threefish.ai"
 
 inputs:
   node-version:
-    description: 'Node.js version to use'
+    description: "Node.js version to use"
     required: false
-    default: '18'
+    default: "18"
   working-directory:
-    description: 'Working directory for Node.js project'
+    description: "Working directory for Node.js project"
     required: false
-    default: '.'
+    default: "."
   package-manager:
-    description: 'Package manager to use (npm or yarn)'
+    description: "Package manager to use (npm or yarn)"
     required: false
-    default: 'yarn'
+    default: "yarn"
   cache-key-suffix:
-    description: 'Additional suffix for cache key'
+    description: "Additional suffix for cache key"
     required: false
-    default: ''
+    default: ""
   install-deps:
-    description: 'Whether to install dependencies'
+    description: "Whether to install dependencies"
     required: false
-    default: 'true'
+    default: "true"
   cache-dependency-path:
-    description: 'Path to package lock file'
+    description: "Path to package lock file"
     required: false
     default: |
       **/package-lock.json
@@ -32,20 +32,20 @@ inputs:
 
 outputs:
   cache-key:
-    description: 'Generated cache key'
+    description: "Generated cache key"
     value: ${{ steps.cache-key.outputs.key }}
   node-hash:
-    description: 'Hash of Node.js dependencies'
+    description: "Hash of Node.js dependencies"
     value: ${{ steps.cache-key.outputs.node-hash }}
   cache-hit:
-    description: 'Whether cache was hit'
+    description: "Whether cache was hit"
     value: ${{ steps.cache.outputs.cache-hit }}
   package-manager:
-    description: 'Detected or configured package manager'
+    description: "Detected or configured package manager"
     value: ${{ steps.detect-pm.outputs.package-manager }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Detect package manager
       id: detect-pm
@@ -83,9 +83,9 @@ runs:
 
         # Generate hash for Node.js dependencies
         if [ -f "$LOCK_FILE" ]; then
-          NODE_HASH="${{ hashFiles(inputs.working-directory }}/${LOCK_FILE}, ${{ inputs.working-directory }}/package.json)"
+          NODE_HASH="${{ hashFiles(format('{0}/{1}', inputs.working-directory, LOCK_FILE), format('{0}/package.json', inputs.working-directory)) }}"
         else
-          NODE_HASH="${{ hashFiles(inputs.working-directory }}/package.json)"
+          NODE_HASH="${{ hashFiles(format('{0}/package.json', inputs.working-directory)) }}"
         fi
 
         # Create comprehensive cache key
