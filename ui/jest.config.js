@@ -14,6 +14,8 @@ const customJestConfig = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "\\.(css|less|scss|sass)$": "identity-obj-proxy",
+    "^msw/node$": "<rootDir>/node_modules/msw/lib/node/index.js",
+    "^msw$": "<rootDir>/node_modules/msw/lib/core/index.js",
   },
   moduleDirectories: ["node_modules", "<rootDir>/node_modules"],
   testEnvironment: "jest-environment-jsdom",
@@ -48,6 +50,8 @@ const customJestConfig = {
     },
   },
   testMatch: ["**/__tests__/**/*.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
+  // Handle ESM modules
+  transformIgnorePatterns: ["/node_modules/(?!(msw|@mswjs)/).*"],
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

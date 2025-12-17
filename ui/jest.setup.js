@@ -1,10 +1,13 @@
 import "@testing-library/jest-dom";
-// import { server } from '../tests/ui/__mocks__/server'
+
+// Note: MSW setup is disabled due to Jest ESM compatibility issues
+// Tests that require API mocking will use Jest mocks instead
+// import { server } from "../tests/ui/__mocks__/server";
 
 // Mock Service Worker setup
-// beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
-// afterEach(() => server.resetHandlers())
-// afterAll(() => server.close())
+// beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+// afterEach(() => server.resetHandlers());
+// afterAll(() => server.close());
 
 // IntersectionObserver mock
 global.IntersectionObserver = class IntersectionObserver {
