@@ -139,7 +139,7 @@ runs:
       run: |
         if [ "${{ steps.detect-pm.outputs.package-manager }}" == "yarn" ]; then
           echo "Installing dependencies with yarn..."
-          yarn install --frozen-lockfile --prefer-offline --silent
+          yarn install --prefer-offline --silent
         else
           echo "Installing dependencies with npm..."
           npm ci --prefer-offline --no-audit
