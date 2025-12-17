@@ -125,6 +125,13 @@ runs:
         # Use public npm registry for faster downloads
         npm config set registry https://registry.npmjs.org/
 
+    - name: Set yarn registry
+      if: steps.detect-pm.outputs.package-manager == 'yarn'
+      shell: bash
+      run: |
+        # Use public npm registry for yarn to avoid authentication issues
+        yarn config set registry https://registry.npmjs.org/
+
     - name: Install dependencies
       if: inputs.install-deps == 'true'
       shell: bash
