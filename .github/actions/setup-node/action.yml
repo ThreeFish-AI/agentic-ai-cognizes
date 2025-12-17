@@ -83,7 +83,11 @@ runs:
 
         # Generate hash for Node.js dependencies
         if [ -f "$LOCK_FILE" ]; then
-          NODE_HASH="${{ hashFiles(format('{0}/{1}', inputs.working-directory, LOCK_FILE), format('{0}/package.json', inputs.working-directory)) }}"
+          if [ "$LOCK_FILE" == "yarn.lock" ]; then
+            NODE_HASH="${{ hashFiles(format('{0}/yarn.lock', inputs.working-directory), format('{0}/package.json', inputs.working-directory)) }}"
+          else
+            NODE_HASH="${{ hashFiles(format('{0}/package-lock.json', inputs.working-directory), format('{0}/package.json', inputs.working-directory)) }}"
+          fi
         else
           NODE_HASH="${{ hashFiles(format('{0}/package.json', inputs.working-directory)) }}"
         fi
