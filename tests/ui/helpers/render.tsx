@@ -75,8 +75,9 @@ export const createMockProps = <T extends Record<string, any>>(
   overrides: Partial<T> = {}
 ): T => ({ ...defaultProps, ...overrides });
 
+import { vi } from "vitest";
+
 // Helper to mock async functions
 export const createMockAsyncFn = <T extends any[], R>(
   implementation?: (...args: T) => Promise<R>
-) =>
-  jest.fn().mockImplementation(implementation || (() => Promise.resolve({})));
+) => vi.fn().mockImplementation(implementation || (() => Promise.resolve({})));

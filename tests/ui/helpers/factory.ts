@@ -138,10 +138,14 @@ export const createFile = (
   return file;
 };
 
+import { vi } from "vitest";
+
+// ... (existing imports)
+
 // Mock event factory
 export const createMockEvent = (overrides: any = {}) => ({
-  preventDefault: jest.fn(),
-  stopPropagation: jest.fn(),
+  preventDefault: vi.fn(),
+  stopPropagation: vi.fn(),
   target: {
     value: "",
     files: [],
@@ -152,16 +156,24 @@ export const createMockEvent = (overrides: any = {}) => ({
 
 // Mock router factory
 export const createMockRouter = (overrides: any = {}) => ({
-  push: jest.fn(),
-  replace: jest.fn(),
-  prefetch: jest.fn(),
-  back: jest.fn(),
-  forward: jest.fn(),
-  refresh: jest.fn(),
+  push: vi.fn(),
+  replace: vi.fn(),
+  prefetch: vi.fn(),
+  back: vi.fn(),
+  forward: vi.fn(),
+  refresh: vi.fn(),
   pathname: "/",
   query: {},
   ...overrides,
 });
+
+// ...
+
+// Helper to reset all mocks
+export const resetAllMocks = () => {
+  vi.clearAllMocks();
+  vi.resetAllMocks();
+};
 
 // Constants for test data
 export const TEST_PAPERS = {
@@ -202,8 +214,4 @@ export const TEST_USER = {
   }),
 };
 
-// Helper to reset all mocks
-export const resetAllMocks = () => {
-  jest.clearAllMocks();
-  jest.resetAllMocks();
-};
+// End of factory.ts

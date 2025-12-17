@@ -1,28 +1,30 @@
 import { PaperCard } from "@/components/papers/PaperCard";
+import { usePaperStore } from "@/store";
+import { vi } from "vitest";
 import { TEST_PAPERS } from "../../helpers/factory";
 import { fireEvent, render, screen } from "../../helpers/render";
 
 // Mock the store
-jest.mock("@/store", () => ({
-  usePaperStore: jest.fn(() => ({
+vi.mock("@/store", () => ({
+  usePaperStore: vi.fn(() => ({
     selectedPapers: new Set<string>(),
-    togglePaperSelection: jest.fn(),
+    togglePaperSelection: vi.fn(),
   })),
-  useUIStore: jest.fn(() => ({
-    addNotification: jest.fn(),
+  useUIStore: vi.fn(() => ({
+    addNotification: vi.fn(),
   })),
 }));
 
 describe("PaperCard", () => {
   const defaultProps = {
     paper: TEST_PAPERS.ATTENTION_PAPER,
-    onSelect: jest.fn(),
-    onDelete: jest.fn(),
-    onProcess: jest.fn(),
+    onSelect: vi.fn(),
+    onDelete: vi.fn(),
+    onProcess: vi.fn(),
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it("renders paper title correctly", () => {
@@ -154,15 +156,14 @@ describe("PaperCard", () => {
 
   it("applies selected styles when paper is selected", () => {
     // Mock the store to return selected state
-    const mockUsePaperStore = require("@/store").usePaperStore as jest.Mock;
-    mockUsePaperStore.mockReturnValue({
+    (usePaperStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       selectedPapers: new Set([TEST_PAPERS.ATTENTION_PAPER.id]),
-      togglePaperSelection: jest.fn(),
+      selectPaper: vi.fn(),
+      clearSelection: vi.fn(),
     });
 
-    render(<PaperCard {...defaultProps} />);
-
-    const checkbox = screen.getByRole("checkbox") as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
+    render(<PaperCard paper={TEST_PAPERS.ATTENTION_PAPER} />);
+    const card = screen.getByRole("article");
+    expect(card.className).toContain("ring-2");
   });
 });

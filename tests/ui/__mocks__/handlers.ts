@@ -78,7 +78,7 @@ const mockPapers = [
   },
 ];
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export const handlers = [
   // GET /api/papers - List papers with pagination and filtering
@@ -100,7 +100,7 @@ export const handlers = [
       );
     }
 
-    if (status) {
+    if (status && status !== "all") {
       filteredPapers = filteredPapers.filter((p) => p.status === status);
     }
 
@@ -110,7 +110,7 @@ export const handlers = [
 
     return HttpResponse.json({
       success: true,
-      data: paginatedPapers,
+      items: paginatedPapers,
       pagination: {
         page,
         limit,
