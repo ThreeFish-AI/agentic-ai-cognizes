@@ -131,6 +131,15 @@ runs:
       run: |
         # Use public npm registry for yarn to avoid authentication issues
         yarn config set registry https://registry.npmjs.org/
+        # Clear yarn cache to remove any cached URLs from private registry
+        yarn cache clean
+
+    - name: Fix yarn.lock registry URLs
+      if: steps.detect-pm.outputs.package-manager == 'yarn'
+      shell: bash
+      run: |
+        # Fix yarn.lock file to use public registry URLs
+        ${GITHUB_WORKSPACE}/.github/scripts/fix-yarn-lock.sh ${{ inputs.working-directory }}
 
     - name: Install dependencies
       if: inputs.install-deps == 'true'
@@ -139,7 +148,7 @@ runs:
       run: |
         if [ "${{ steps.detect-pm.outputs.package-manager }}" == "yarn" ]; then
           echo "Installing dependencies with yarn..."
-          yarn install --frozen-lockfile --prefer-offline --silent
+          yarn install --prefer-offline --silent
         else
           echo "Installing dependencies with npm..."
           npm ci --prefer-offline --no-audit
