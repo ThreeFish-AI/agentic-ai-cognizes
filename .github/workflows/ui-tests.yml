@@ -29,7 +29,7 @@ on:
 
 # Environment variables
 env:
-  NODE_VERSION: "18"
+  NODE_VERSION: "20"
 
 # Concurrency control for PRs
 concurrency:
