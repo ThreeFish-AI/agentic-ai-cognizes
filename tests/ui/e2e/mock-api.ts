@@ -73,7 +73,11 @@ export async function setupMockApi(page: Page) {
       await route.fulfill({
         status: 201,
         contentType: "application/json",
-        body: JSON.stringify({ success: true, data: newPaper }),
+        body: JSON.stringify({
+          success: true,
+          data: newPaper,
+          task_id: "task-" + Date.now(),
+        }),
       });
       return;
     }

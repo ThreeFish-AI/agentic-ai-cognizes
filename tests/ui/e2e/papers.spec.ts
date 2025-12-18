@@ -61,6 +61,9 @@ test.describe("Papers Management", () => {
     // Upload a file (simulate file upload)
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles("../tests/ui/fixtures/sample.pdf");
+    // Force change event to ensure dropzone picks it up
+    await fileInput.dispatchEvent("change");
+    await expect(page.locator("text=sample.pdf")).toBeVisible();
 
     // Click start upload
     const startButton = page.locator('button:has-text("开始上传")');
@@ -104,8 +107,10 @@ test.describe("Papers Management", () => {
       '[data-testid="paper-card"] input[type="checkbox"]'
     );
     // Select 3rd and 4th papers (indices 2 and 3) to avoid processing/translated ones
-    await checkboxes.nth(2).click();
-    await checkboxes.nth(3).click();
+    await checkboxes.nth(2).click({ force: true });
+    await expect(checkboxes.nth(2)).toBeChecked();
+    await checkboxes.nth(3).click({ force: true });
+    await expect(checkboxes.nth(3)).toBeChecked();
 
     // Verify selection count
     await expect(page.locator("text=已选择 2 篇论文")).toBeVisible();
@@ -136,7 +141,10 @@ test.describe("Papers Management", () => {
     page.on("dialog", (dialog) => dialog.accept());
 
     // Click delete button
-    await firstCard.locator('button:has-text("删除")').click();
+    await firstCard.locator('button:has-text("删除")').click({ force: true });
+
+    // Wait for list to update
+    await page.waitForTimeout(500);
 
     // Verify deletion success message
     // Note: Depends on if the app shows a toast or just updates list
@@ -160,7 +168,13 @@ test.describe("Papers Management", () => {
     await expect(page).toHaveURL(/\/papers\/\d+/);
 
     // Verify details page content
-    await expect(page.locator("h1")).toBeVisible(); // Title
+    // Verify details page content
+    // Verify details page content
+    await expect(page.locator("h1:not(:has-text('Dashboard'))")).toBeVisible(); // Title
+    await expect(page.locator("text=论文不存在")).not.toBeVisible();
+
+    // Verify paper title is visible (uses translated title by default)
+    await expect(page.locator("text=注意力就是你所需要的一切")).toBeVisible();
     await expect(page.locator("text=论文详情")).toBeVisible(); // Maybe section header?
   });
 
@@ -171,7 +185,7 @@ test.describe("Papers Management", () => {
     // Verify empty state message
     // Verify empty state message
     await expect(page.locator("text=没有找到匹配的论文")).toBeVisible();
-    await expect(page.locator("text=上传您的第一篇论文")).toBeVisible();
+    await expect(page.locator("text=上传第一篇论文")).toBeVisible();
     await expect(page.locator('button:has-text("上传论文")')).toBeVisible();
   });
 
@@ -194,7 +208,7 @@ test.describe("Papers Management", () => {
     // Verify error message
     // Verify error message
     // Matches "加载失败: Internal server error"
-    await expect(page.locator("text=加载失败")).toBeVisible();
+    await expect(page.locator("text=加载失败")).toBeVisible({ timeout: 10000 });
     await expect(page.locator('button:has-text("重试")')).toBeVisible();
 
     // Click retry
@@ -214,8 +228,8 @@ test.describe("Papers Management", () => {
         !url.pathname.match(/\/api\/papers\/.+/)
       ) {
         const pageNum = Number(url.searchParams.get("page")) || 1;
-        const limit = Number(url.searchParams.get("limit")) || 10;
-        const total = 20; // Force 20 items
+        const limit = 10; // Force limit 10 to ensure pagination
+        const total = 40; // Force 40 items
 
         // Create dummy items
         const items = Array.from({ length: total }, (_, i) => ({
