@@ -90,7 +90,7 @@ export function PaperCard({
     }
   };
 
-  const isSelected = selectedPapers.has(paper.id);
+  const isSelected = selectedPapers.includes(paper.id);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (

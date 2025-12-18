@@ -185,7 +185,7 @@ export function PaperList({
 
   // Handle bulk actions
   const handleSelectAll = () => {
-    if (selectedPapers.size === filteredPapers.length) {
+    if (selectedPapers.length === filteredPapers.length) {
       clearPaperSelection();
     } else {
       selectAllPapers();
@@ -193,7 +193,7 @@ export function PaperList({
   };
 
   const handleBulkProcess = async (workflow: string) => {
-    if (selectedPapers.size === 0) {
+    if (selectedPapers.length === 0) {
       addNotification({
         type: "warning",
         title: "提示",
@@ -211,11 +211,11 @@ export function PaperList({
             ? "分析"
             : "建立索引";
 
-      await batchProcessPapers(Array.from(selectedPapers), workflow);
+      await batchProcessPapers(selectedPapers, workflow);
       addNotification({
         type: "success",
         title: "批量处理已启动",
-        message: `已提交 ${selectedPapers.size} 篇论文进行${workflowLabel}`,
+        message: `已提交 ${selectedPapers.length} 篇论文进行${workflowLabel}`,
         duration: 5000,
       });
       clearPaperSelection();
@@ -230,7 +230,7 @@ export function PaperList({
   };
 
   const handleBulkDelete = async () => {
-    if (selectedPapers.size === 0) {
+    if (selectedPapers.length === 0) {
       addNotification({
         type: "warning",
         title: "提示",
@@ -242,15 +242,15 @@ export function PaperList({
 
     if (
       window.confirm(
-        `确定要删除选中的 ${selectedPapers.size} 篇论文吗？此操作不可恢复。`,
+        `确定要删除选中的 ${selectedPapers.length} 篇论文吗？此操作不可恢复。`,
       )
     ) {
       try {
-        await batchDeletePapers(Array.from(selectedPapers));
+        await batchDeletePapers(selectedPapers);
         addNotification({
           type: "success",
           title: "删除成功",
-          message: `已删除 ${selectedPapers.size} 篇论文`,
+          message: `已删除 ${selectedPapers.length} 篇论文`,
           duration: 5000,
         });
         clearPaperSelection();
@@ -381,17 +381,17 @@ export function PaperList({
         </div>
 
         {/* Bulk Actions */}
-        {selectedPapers.size > 0 && (
+        {selectedPapers.length > 0 && (
           <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
             <div className="flex items-center space-x-4">
               <span className="text-sm text-blue-800 dark:text-blue-200">
-                已选择 {selectedPapers.size} 篇论文
+                已选择 {selectedPapers.length} 篇论文
               </span>
               <button
                 onClick={handleSelectAll}
                 className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
               >
-                {selectedPapers.size === filteredPapers.length
+                {selectedPapers.length === filteredPapers.length
                   ? "取消全选"
                   : "全选当前页"}
               </button>
