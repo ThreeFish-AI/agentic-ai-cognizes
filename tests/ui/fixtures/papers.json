@@ -13,7 +13,7 @@
       "Illia Polosukhin"
     ],
     "abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train.",
-    "status": "processed",
+    "status": "translated",
     "category": "llm-agents",
     "uploadedAt": "2024-01-01T00:00:00Z",
     "updatedAt": "2024-01-02T00:00:00Z",
@@ -110,7 +110,7 @@
       "OpenAI Team"
     ],
     "abstract": "We've trained a model called ChatGPT which interacts in a conversational way. The dialogue format makes it possible for ChatGPT to answer followup questions, admit its mistakes, challenge incorrect premises, and reject inappropriate requests. ChatGPT is a sibling model to InstructGPT, which is trained to follow an instruction in a prompt and provide a detailed response.",
-    "status": "processed",
+    "status": "translated",
     "category": "tool-use",
     "uploadedAt": "2024-01-05T00:00:00Z",
     "updatedAt": "2024-01-06T00:00:00Z",
