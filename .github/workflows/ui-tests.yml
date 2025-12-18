@@ -372,7 +372,7 @@ jobs:
         run: yarn build
 
       - name: Run accessibility tests
-        run: NODE_PATH=./node_modules npx playwright test --project=chromium tests/ui/e2e/accessibility/
+        run: NODE_PATH=./node_modules npx playwright test --project=chromium tests/ui/e2e/ --grep "accessibility"
 
       - name: Upload accessibility report
         if: always()
