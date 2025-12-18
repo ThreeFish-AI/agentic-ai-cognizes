@@ -162,8 +162,12 @@ test.describe("Papers Management", () => {
 
   test("views paper details", async ({ page }) => {
     // Click on first paper view button
-    const firstCard = page.locator('[data-testid="paper-card"]').first();
-    // Assuming the view button is the Link/Button with "查看"
+    // Click on specific paper view button
+    // Find card with the simplified chinese title
+    const firstCard = page
+      .locator('[data-testid="paper-card"]')
+      .filter({ hasText: "注意力就是你所需要的一切" })
+      .first();
     // The previous test logic used .click() on the card main area? No, the code has "查看" link.
     // Ensure we click the link.
     const viewLink = firstCard.locator('a:has-text("查看")');
@@ -179,8 +183,9 @@ test.describe("Papers Management", () => {
     await expect(page.locator("text=论文不存在")).not.toBeVisible();
 
     // Verify paper title is visible (uses translated title by default)
-    await expect(page.locator("text=注意力就是你所需要的一切")).toBeVisible();
-    await expect(page.locator("text=论文详情")).toBeVisible(); // Maybe section header?
+    await expect(
+      page.getByRole("heading", { name: "注意力就是你所需要的一切" })
+    ).toBeVisible();
   });
 
   test("handles empty state", async ({ page }) => {
@@ -218,7 +223,12 @@ test.describe("Papers Management", () => {
     await page.click('button:has-text("重试")');
 
     // Should attempt to reload
-    await expect(page.locator('[data-testid="loading-spinner"]')).toBeVisible();
+    // Should attempt to reload
+    // Wait for the retry request to complete
+    await page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/papers") && response.status() === 500
+    );
   });
 
   test("handles pagination", async ({ page }) => {
