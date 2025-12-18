@@ -203,11 +203,18 @@ export function PaperList({
     }
 
     try {
+      const workflowLabel =
+        workflow === "translate"
+          ? "翻译"
+          : workflow === "analyze"
+            ? "分析"
+            : "建立索引";
+
       await batchProcessPapers(Array.from(selectedPapers), workflow);
       addNotification({
         type: "success",
         title: "批量处理已启动",
-        message: `已提交 ${selectedPapers.size} 篇论文进行${workflow === "translate" ? "翻译" : "分析"}`,
+        message: `已提交 ${selectedPapers.size} 篇论文进行${workflowLabel}`,
         duration: 5000,
       });
       clearPaperSelection();
@@ -400,6 +407,12 @@ export function PaperList({
                 className="rounded border border-blue-300 bg-white px-3 py-1 text-sm text-blue-600 hover:bg-blue-100 dark:border-blue-700 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
               >
                 批量分析
+              </button>
+              <button
+                onClick={() => handleBulkProcess("index")}
+                className="rounded border border-blue-300 bg-white px-3 py-1 text-sm text-blue-600 hover:bg-blue-100 dark:border-blue-700 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
+              >
+                批量建立索引
               </button>
               <button
                 onClick={handleBulkDelete}

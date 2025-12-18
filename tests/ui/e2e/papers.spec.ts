@@ -3,9 +3,12 @@ import { setupMockApi } from "./mock-api";
 
 test.describe("Papers Management", () => {
   test.beforeEach(async ({ page }) => {
-    page.on("console", (msg: any) => {
+    // Handle dialogs automatically
+    page.on("dialog", (dialog) => dialog.accept());
+
+    page.on("console", (msg) => {
       if (msg.type() === "log") console.log("BROWSER:", msg.text());
-    }); // Add this line
+    });
     await setupMockApi(page);
     await page.goto("/papers");
   });
@@ -96,7 +99,7 @@ test.describe("Papers Management", () => {
 
     // Select processing type (Index is always available)
     await firstCard.getByRole("menuitem", { name: "建立索引" }).click();
-    await page.click('button:has-text("开始处理")');
+    // No more "开始处理" button in UI, it triggers immediately
 
     // Verify processing started
     await expect(page.locator("text=任务已提交")).toBeVisible();
@@ -122,14 +125,10 @@ test.describe("Papers Management", () => {
     await expect(page.locator("text=已选择 2 篇论文")).toBeVisible();
 
     // Click batch process
-    await page.click('button:has-text("批量处理")');
-
-    // Select workflow
-    await page.getByRole("menuitem", { name: "建立索引" }).first().click();
-    await page.click('button:has-text("开始批量处理")');
+    await page.click('button:has-text("批量建立索引")');
 
     // Verify processing started
-    await expect(page.locator("text=批量处理已开始")).toBeVisible();
+    await expect(page.locator("text=批量处理已启动")).toBeVisible();
   });
 
   test("deletes a paper with confirmation", async ({ page }) => {
