@@ -7,6 +7,7 @@ import "flatpickr/dist/flatpickr.min.css";
 import "jsvectormap/dist/jsvectormap.css";
 
 import { Header } from "@/components/Layouts/header";
+import { Toast } from "@/components/ui/Toast";
 import type { Metadata } from "next";
 import NextTopLoader from "nextjs-toploader";
 import type { PropsWithChildren } from "react";
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
               </main>
             </div>
           </div>
+          <Toast />
         </Providers>
       </body>
     </html>

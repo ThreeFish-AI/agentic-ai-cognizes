@@ -1,21 +1,21 @@
-import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
-import { immer } from 'zustand/middleware/immer';
-import { api } from '@/lib/api';
+import { api } from "@/lib/api";
 import type {
+  ModalState,
+  Notification,
+  Pagination,
   Paper,
+  PaperFilters,
   Task,
   TaskLog,
-  UIState,
-  PaperFilters,
-  Notification,
-  ModalState,
-  WebSocketMessage,
-  TaskUpdateMessage,
-  TaskProgressMessage,
   TaskLogMessage,
-  Pagination,
-} from '@/types';
+  TaskProgressMessage,
+  TaskUpdateMessage,
+  UIState,
+  WebSocketMessage,
+} from "@/types";
+import { create } from "zustand";
+import { devtools, persist } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
 
 // 论文状态管理
 interface PaperState {
@@ -40,10 +40,18 @@ interface PaperState {
   setPagination: (pagination: Partial<Pagination>) => void;
   fetchPapers: (params?: any) => Promise<void>;
   fetchPaper: (id: string) => Promise<void>;
-  uploadPaper: (file: File, category: string, metadata?: any) => Promise<string>;
+  uploadPaper: (
+    file: File,
+    category: string,
+    metadata?: any,
+  ) => Promise<string>;
   processPaper: (id: string, workflow: string, options?: any) => Promise<Task>;
   deletePaper: (id: string) => Promise<void>;
-  batchProcessPapers: (ids: string[], workflow: string, options?: any) => Promise<Task>;
+  batchProcessPapers: (
+    ids: string[],
+    workflow: string,
+    options?: any,
+  ) => Promise<Task>;
   batchDeletePapers: (ids: string[]) => Promise<void>;
 }
 
@@ -56,11 +64,11 @@ export const usePaperStore = create<PaperState>()(
         currentPaper: null,
         selectedPapers: new Set(),
         filters: {
-          search: '',
-          category: 'all',
-          status: 'all',
-          sortBy: 'uploadedAt',
-          sortOrder: 'desc',
+          search: "",
+          category: "all",
+          status: "all",
+          sortBy: "uploadedAt",
+          sortOrder: "desc",
         },
         pagination: {
           page: 1,
@@ -107,14 +115,17 @@ export const usePaperStore = create<PaperState>()(
             state.currentPaper = paper;
           }),
 
-        togglePaperSelection: (id) =>
+        togglePaperSelection: (id) => {
           set((state) => {
-            if (state.selectedPapers.has(id)) {
-              state.selectedPapers.delete(id);
+            const next = new Set(state.selectedPapers);
+            if (next.has(id)) {
+              next.delete(id);
             } else {
-              state.selectedPapers.add(id);
+              next.add(id);
             }
-          }),
+            state.selectedPapers = next;
+          });
+        },
 
         selectAllPapers: () =>
           set((state) => {
@@ -123,7 +134,7 @@ export const usePaperStore = create<PaperState>()(
 
         clearPaperSelection: () =>
           set((state) => {
-            state.selectedPapers.clear();
+            state.selectedPapers = new Set();
           }),
 
         setFilters: (filters) =>
@@ -161,7 +172,8 @@ export const usePaperStore = create<PaperState>()(
             });
           } catch (error) {
             set((state) => {
-              state.error = error instanceof Error ? error.message : '获取论文列表失败';
+              state.error =
+                error instanceof Error ? error.message : "获取论文列表失败";
             });
           } finally {
             set((state) => {
@@ -171,22 +183,27 @@ export const usePaperStore = create<PaperState>()(
         },
 
         fetchPaper: async (id) => {
+          set((state) => {
+            state.error = null;
+          });
           try {
-            const paper = await api.papers.get(id);
+            const response = await api.papers.get(id);
+            const paperData = (response as any)?.data || response;
             set((state) => {
-              state.currentPaper = (paper as unknown) as Paper;
+              state.currentPaper = paperData as Paper;
             });
           } catch (error) {
             set((state) => {
-              state.error = error instanceof Error ? error.message : '获取论文详情失败';
+              state.error =
+                error instanceof Error ? error.message : "获取论文详情失败";
             });
           }
         },
 
         uploadPaper: async (file, category, metadata) => {
           const formData = new FormData();
-          formData.append('file', file);
-          formData.append('category', category);
+          formData.append("file", file);
+          formData.append("category", category);
           if (metadata) {
             Object.entries(metadata).forEach(([key, value]) => {
               formData.append(key, String(value));
@@ -198,7 +215,7 @@ export const usePaperStore = create<PaperState>()(
             return (response as any)?.task_id;
           } catch (error) {
             set((state) => {
-              state.error = error instanceof Error ? error.message : '上传失败';
+              state.error = error instanceof Error ? error.message : "上传失败";
             });
             throw error;
           }
@@ -209,15 +226,15 @@ export const usePaperStore = create<PaperState>()(
             const task = await api.papers.process(id, workflow, options);
 
             // Update paper status
-            get().updatePaper(id, { status: 'processing' });
+            get().updatePaper(id, { status: "processing" });
 
             // Add task to task store
-            useTaskStore.getState().addTask((task as unknown) as Task);
+            useTaskStore.getState().addTask(task as unknown as Task);
 
-            return (task as unknown) as Task;
+            return task as unknown as Task;
           } catch (error) {
             set((state) => {
-              state.error = error instanceof Error ? error.message : '处理失败';
+              state.error = error instanceof Error ? error.message : "处理失败";
             });
             throw error;
           }
@@ -229,7 +246,7 @@ export const usePaperStore = create<PaperState>()(
             get().removePaper(id);
           } catch (error) {
             set((state) => {
-              state.error = error instanceof Error ? error.message : '删除失败';
+              state.error = error instanceof Error ? error.message : "删除失败";
             });
             throw error;
           }
@@ -241,16 +258,17 @@ export const usePaperStore = create<PaperState>()(
 
             // Update papers status
             ids.forEach((id) => {
-              get().updatePaper(id, { status: 'processing' });
+              get().updatePaper(id, { status: "processing" });
             });
 
             // Add task to task store
-            useTaskStore.getState().addTask((task as unknown) as Task);
+            useTaskStore.getState().addTask(task as unknown as Task);
 
-            return (task as unknown) as Task;
+            return task as unknown as Task;
           } catch (error) {
             set((state) => {
-              state.error = error instanceof Error ? error.message : '批量处理失败';
+              state.error =
+                error instanceof Error ? error.message : "批量处理失败";
             });
             throw error;
           }
@@ -264,24 +282,25 @@ export const usePaperStore = create<PaperState>()(
             });
           } catch (error) {
             set((state) => {
-              state.error = error instanceof Error ? error.message : '批量删除失败';
+              state.error =
+                error instanceof Error ? error.message : "批量删除失败";
             });
             throw error;
           }
         },
       })),
       {
-        name: 'paper-store',
+        name: "paper-store",
         partialize: (state) => ({
           filters: state.filters,
           pagination: state.pagination,
         }),
-      }
+      },
     ),
     {
-      name: 'paper-store',
-    }
-  )
+      name: "paper-store",
+    },
+  ),
 );
 
 // 任务状态管理
@@ -297,7 +316,9 @@ interface TaskState {
   addTask: (task: Task) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   removeTask: (id: string) => void;
-  handleTaskUpdate: (message: TaskUpdateMessage | TaskProgressMessage | TaskLogMessage) => void;
+  handleTaskUpdate: (
+    message: TaskUpdateMessage | TaskProgressMessage | TaskLogMessage,
+  ) => void;
   fetchTasks: (params?: any) => Promise<void>;
   fetchTask: (id: string) => Promise<void>;
   cancelTask: (id: string) => Promise<void>;
@@ -319,13 +340,15 @@ export const useTaskStore = create<TaskState>()(
       setTasks: (tasks) =>
         set((state) => {
           state.tasks = tasks;
-          state.activeTasks = tasks.filter((t) => t.status === 'running' || t.status === 'pending');
+          state.activeTasks = tasks.filter(
+            (t) => t.status === "running" || t.status === "pending",
+          );
         }),
 
       addTask: (task) =>
         set((state) => {
           state.tasks.unshift(task);
-          if (task.status === 'running' || task.status === 'pending') {
+          if (task.status === "running" || task.status === "pending") {
             state.activeTasks.push(task);
           }
         }),
@@ -335,11 +358,13 @@ export const useTaskStore = create<TaskState>()(
           const taskIndex = state.tasks.findIndex((t) => t.id === id);
           if (taskIndex !== -1) {
             const task = state.tasks[taskIndex];
-            Object.assign(task, updates, { updatedAt: new Date().toISOString() });
+            Object.assign(task, updates, {
+              updatedAt: new Date().toISOString(),
+            });
 
             // Update active tasks
             const activeIndex = state.activeTasks.findIndex((t) => t.id === id);
-            if (task.status === 'running' || task.status === 'pending') {
+            if (task.status === "running" || task.status === "pending") {
               if (activeIndex === -1) {
                 state.activeTasks.push(task);
               }
@@ -362,18 +387,21 @@ export const useTaskStore = create<TaskState>()(
           state.taskUpdates.set(taskId, message);
         });
 
-        if (message.type === 'task_update') {
+        if (message.type === "task_update") {
           get().updateTask(taskId, data);
-        } else if (message.type === 'task_progress') {
+        } else if (message.type === "task_progress") {
           const progressData = data as { progress: number; message?: string };
           get().updateTask(taskId, {
             progress: progressData.progress,
             ...(progressData.message && { description: progressData.message }),
           });
-        } else if (message.type === 'task_log') {
+        } else if (message.type === "task_log") {
           const logData = data as TaskLog;
           get().updateTask(taskId, {
-            logs: [...(get().tasks.find(t => t.id === taskId)?.logs || []), logData],
+            logs: [
+              ...(get().tasks.find((t) => t.id === taskId)?.logs || []),
+              logData,
+            ],
           });
         }
       },
@@ -388,11 +416,14 @@ export const useTaskStore = create<TaskState>()(
           const response = await api.tasks.list(params);
           set((state) => {
             state.tasks = (response as any)?.items || [];
-            state.activeTasks = state.tasks.filter((t) => t.status === 'running' || t.status === 'pending');
+            state.activeTasks = state.tasks.filter(
+              (t) => t.status === "running" || t.status === "pending",
+            );
           });
         } catch (error) {
           set((state) => {
-            state.error = error instanceof Error ? error.message : '获取任务列表失败';
+            state.error =
+              error instanceof Error ? error.message : "获取任务列表失败";
           });
         } finally {
           set((state) => {
@@ -404,10 +435,11 @@ export const useTaskStore = create<TaskState>()(
       fetchTask: async (id) => {
         try {
           const task = await api.tasks.get(id);
-          get().updateTask(id, (task as unknown) as Partial<Task>);
+          get().updateTask(id, task as unknown as Partial<Task>);
         } catch (error) {
           set((state) => {
-            state.error = error instanceof Error ? error.message : '获取任务详情失败';
+            state.error =
+              error instanceof Error ? error.message : "获取任务详情失败";
           });
         }
       },
@@ -415,10 +447,11 @@ export const useTaskStore = create<TaskState>()(
       cancelTask: async (id) => {
         try {
           await api.tasks.cancel(id);
-          get().updateTask(id, { status: 'cancelled' });
+          get().updateTask(id, { status: "cancelled" });
         } catch (error) {
           set((state) => {
-            state.error = error instanceof Error ? error.message : '取消任务失败';
+            state.error =
+              error instanceof Error ? error.message : "取消任务失败";
           });
         }
       },
@@ -426,10 +459,11 @@ export const useTaskStore = create<TaskState>()(
       retryTask: async (id) => {
         try {
           await api.tasks.retry(id);
-          get().updateTask(id, { status: 'pending', progress: 0 });
+          get().updateTask(id, { status: "pending", progress: 0 });
         } catch (error) {
           set((state) => {
-            state.error = error instanceof Error ? error.message : '重试任务失败';
+            state.error =
+              error instanceof Error ? error.message : "重试任务失败";
           });
         }
       },
@@ -438,36 +472,39 @@ export const useTaskStore = create<TaskState>()(
         try {
           await api.tasks.cleanup();
           set((state) => {
-            state.tasks = state.tasks.filter((t) => t.status !== 'completed');
+            state.tasks = state.tasks.filter((t) => t.status !== "completed");
           });
         } catch (error) {
           set((state) => {
-            state.error = error instanceof Error ? error.message : '清理任务失败';
+            state.error =
+              error instanceof Error ? error.message : "清理任务失败";
           });
         }
       },
     })),
     {
-      name: 'task-store',
-    }
-  )
+      name: "task-store",
+    },
+  ),
 );
 
 // UI 状态管理
 interface UIStateStore extends UIState {
   // Actions
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
-  setLanguage: (language: 'zh' | 'en') => void;
+  setTheme: (theme: "light" | "dark" | "system") => void;
+  setLanguage: (language: "zh" | "en") => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+  addNotification: (
+    notification: Omit<Notification, "id" | "timestamp" | "read">,
+  ) => void;
   removeNotification: (id: string) => void;
   markNotificationRead: (id: string) => void;
   clearAllNotifications: () => void;
   setModal: (modal: keyof ModalState, open: boolean) => void;
-  setLoading: (key: keyof UIState['loading'], value: boolean) => void;
-  setError: (key: keyof UIState['errors'], error: string | null) => void;
+  setLoading: (key: keyof UIState["loading"], value: boolean) => void;
+  setError: (key: keyof UIState["errors"], error: string | null) => void;
   clearErrors: () => void;
 }
 
@@ -476,10 +513,10 @@ export const useUIStore = create<UIStateStore>()(
     persist(
       immer((set) => ({
         // Initial state
-        theme: 'system',
+        theme: "system",
         sidebarOpen: true,
         sidebarCollapsed: false,
-        language: 'zh',
+        language: "zh",
         notifications: [],
         modals: {
           uploadPaper: false,
@@ -544,7 +581,9 @@ export const useUIStore = create<UIStateStore>()(
 
         removeNotification: (id) =>
           set((state) => {
-            state.notifications = state.notifications.filter((n) => n.id !== id);
+            state.notifications = state.notifications.filter(
+              (n) => n.id !== id,
+            );
           }),
 
         markNotificationRead: (id) =>
@@ -585,19 +624,19 @@ export const useUIStore = create<UIStateStore>()(
           }),
       })),
       {
-        name: 'ui-store',
+        name: "ui-store",
         partialize: (state) => ({
           theme: state.theme,
           language: state.language,
           sidebarOpen: state.sidebarOpen,
           sidebarCollapsed: state.sidebarCollapsed,
         }),
-      }
+      },
     ),
     {
-      name: 'ui-store',
-    }
-  )
+      name: "ui-store",
+    },
+  ),
 );
 
 // 导出所有 store

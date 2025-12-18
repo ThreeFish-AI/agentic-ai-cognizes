@@ -41,7 +41,7 @@ class TestSettings:
             "REDIS_URL": "redis://localhost:6379",
             "SECRET_KEY": "test-secret-key",
             "ACCESS_TOKEN_EXPIRE_MINUTES": "60",
-            "CORS_ORIGINS": "http://localhost:3000,http://localhost:8080",
+            "CORS_ORIGINS": "http://localhost:9003,http://localhost:8080",
             "LOG_DIR": "test_logs",
             "LOG_MAX_SIZE": "20",
             "LOG_BACKUP_COUNT": "10",
@@ -105,7 +105,7 @@ class TestSettings:
         assert s.SECRET_KEY == "your-secret-key-change-this"
         assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 30
         assert isinstance(s.CORS_ORIGINS, list)
-        assert "http://localhost:3000" in s.CORS_ORIGINS
+        assert "http://localhost:9003" in s.CORS_ORIGINS
         assert s.LOG_DIR == "logs"
         assert s.LOG_FILE == "logs/app.log"
         assert s.LOG_MAX_SIZE == 10 * 1024 * 1024
@@ -143,7 +143,7 @@ class TestSettings:
             assert s.REDIS_URL == "redis://localhost:6379"
             assert s.SECRET_KEY == "test-secret-key"
             assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 60
-            assert s.CORS_ORIGINS == ["http://localhost:3000", "http://localhost:8080"]
+            assert s.CORS_ORIGINS == ["http://localhost:9003", "http://localhost:8080"]
             assert s.LOG_DIR == "test_logs"
             assert s.LOG_FILE == "test_logs/app.log"
             assert s.LOG_MAX_SIZE == 20 * 1024 * 1024
@@ -290,7 +290,7 @@ class TestSettings:
 
     def test_cors_origins_multiple_values(self):
         """Test CORS_ORIGINS with multiple values."""
-        origins = "http://localhost:3000,https://example.com,http://test.com"
+        origins = "http://localhost:9003,https://example.com,http://test.com"
         with patch.dict(os.environ, {"CORS_ORIGINS": origins}):
             from importlib import reload
 
@@ -300,14 +300,14 @@ class TestSettings:
 
             s = Settings()
             assert s.CORS_ORIGINS == [
-                "http://localhost:3000",
+                "http://localhost:9003",
                 "https://example.com",
                 "http://test.com",
             ]
 
     def test_cors_origins_with_whitespace(self):
         """Test CORS_ORIGINS with whitespace."""
-        origins = " http://localhost:3000 , https://example.com "
+        origins = " http://localhost:9003 , https://example.com "
         with patch.dict(os.environ, {"CORS_ORIGINS": origins}):
             from importlib import reload
 
@@ -318,7 +318,7 @@ class TestSettings:
             s = Settings()
             # Note: The current implementation doesn't strip whitespace
             assert s.CORS_ORIGINS == [
-                " http://localhost:3000 ",
+                " http://localhost:9003 ",
                 " https://example.com ",
             ]
 

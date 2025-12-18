@@ -3,19 +3,19 @@ name: Performance Benchmark
 on:
   pull_request:
     paths:
-      - '.github/workflows/**'
-      - '.github/scripts/**'
+      - ".github/workflows/**"
+      - ".github/scripts/**"
   push:
     branches:
       - main
       - master
-      - 'release/**'
+      - "release/**"
   workflow_dispatch:
     inputs:
       test_type:
-        description: 'Type of performance test to run'
+        description: "Type of performance test to run"
         required: true
-        default: 'comparison'
+        default: "comparison"
         type: choice
         options:
           - comparison
@@ -302,7 +302,7 @@ jobs:
           echo "|-------------|-------------|---------------|-------------|" >> $GITHUB_STEP_SUMMARY
 
           # Parse job times and generate comparison
-          python << 'EOF'
+          python << 'EOF' >> $GITHUB_STEP_SUMMARY
           import json
 
           try:
@@ -323,7 +323,7 @@ jobs:
 
           except Exception as e:
               print(f"| Error loading job data | N/A | N/A | N/A |")
-          EOF >> $GITHUB_STEP_SUMMARY
+          EOF
 
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -383,34 +383,12 @@ jobs:
             "moderate")
               # Simulate moderate load: 3 concurrent workflows
               echo "Simulating moderate load (3 workflows)..."
-              python -c "
-              import concurrent.futures
-              import time
-
-              def simulate_workflow():
-                  time.sleep(60)
-
-              with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-                  futures = [executor.submit(simulate_workflow) for _ in range(3)]
-                  for f in concurrent.futures.as_completed(futures):
-                      f.result()
-              "
+              python3 -c "import concurrent.futures, time; executor = concurrent.futures.ThreadPoolExecutor(max_workers=3); futures = [executor.submit(lambda: time.sleep(60)) for _ in range(3)]; [f.result() for f in futures]"
               ;;
             "heavy")
               # Simulate heavy load: 5 concurrent workflows
               echo "Simulating heavy load (5 workflows)..."
-              python -c "
-              import concurrent.futures
-              import time
-
-              def simulate_workflow():
-                  time.sleep(90)
-
-              with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-                  futures = [executor.submit(simulate_workflow) for _ in range(5)]
-                  for f in concurrent.futures.as_completed(futures):
-                      f.result()
-              "
+              python3 -c "import concurrent.futures, time; executor = concurrent.futures.ThreadPoolExecutor(max_workers=5); futures = [executor.submit(lambda: time.sleep(90)) for _ in range(5)]; [f.result() for f in futures]"
               ;;
           esac
 

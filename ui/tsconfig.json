@@ -21,21 +21,66 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "vitest": [
+        "./node_modules/vitest"
+      ],
+      "@testing-library/react": [
+        "./node_modules/@testing-library/react"
+      ],
+      "msw": [
+        "./node_modules/msw"
+      ],
+      "msw/*": [
+        "./node_modules/msw/*"
+      ],
+      "react": [
+        "./node_modules/@types/react"
+      ],
+      "react/*": [
+        "./node_modules/@types/react/*"
+      ],
+      "react-dom": [
+        "./node_modules/@types/react-dom"
+      ],
+      "react-dom/*": [
+        "./node_modules/@types/react-dom/*"
+      ],
+      "@playwright/test": [
+        "./node_modules/@playwright/test"
+      ],
+      "@faker-js/faker": [
+        "./node_modules/@faker-js/faker"
+      ],
+      "next-themes": [
+        "./node_modules/next-themes"
+      ],
+      "swr": [
+        "./node_modules/swr"
+      ],
+      "@testing-library/user-event": [
+        "./node_modules/@testing-library/user-event"
       ]
     },
-    "target": "ES2017"
+    "target": "ES2019"
   },
   "include": [
     "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "../tests/**/*.ts",
+    "../tests/**/*.tsx",
+    "../tests/**/*.tsx",
+    "./test/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "../tests/ui/e2e"
   ]
 }

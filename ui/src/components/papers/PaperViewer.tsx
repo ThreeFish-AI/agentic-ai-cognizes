@@ -1,13 +1,12 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism';
-import { usePaperStore, useUIStore } from '@/store';
-import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
-import type { Paper } from '@/types';
+import { usePaperStore, useUIStore } from "@/store";
+import type { Paper } from "@/types";
+import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import { useCallback, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import { Document, Page, pdfjs } from "react-pdf";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
@@ -17,8 +16,10 @@ interface PaperViewerProps {
   className?: string;
 }
 
-export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
-  const [activeTab, setActiveTab] = useState<'original' | 'translation' | 'analysis'>('original');
+export function PaperViewer({ paper, className = "" }: PaperViewerProps) {
+  const [activeTab, setActiveTab] = useState<
+    "original" | "translation" | "analysis"
+  >(paper.translation ? "translation" : "original");
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);
@@ -31,26 +32,32 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
   const pdfContainerRef = useRef<HTMLDivElement>(null);
 
   // PDF load success handler
-  const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-    setIsLoading(false);
-  }, []);
+  const onDocumentLoadSuccess = useCallback(
+    ({ numPages }: { numPages: number }) => {
+      setNumPages(numPages);
+      setIsLoading(false);
+    },
+    [],
+  );
 
   // Change page
-  const changePage = useCallback((offset: number) => {
-    setPageNumber((prevPageNumber) => {
-      const newPageNumber = prevPageNumber + offset;
-      return Math.max(1, Math.min(newPageNumber || 1, numPages || 1));
-    });
-  }, [numPages]);
+  const changePage = useCallback(
+    (offset: number) => {
+      setPageNumber((prevPageNumber) => {
+        const newPageNumber = prevPageNumber + offset;
+        return Math.max(1, Math.min(newPageNumber || 1, numPages || 1));
+      });
+    },
+    [numPages],
+  );
 
   // Handle process action
   const handleProcess = async (workflow: string) => {
-    if (paper.status === 'processing') {
+    if (paper.status === "processing") {
       addNotification({
-        type: 'warning',
-        title: '提示',
-        message: '论文正在处理中，请稍候',
+        type: "warning",
+        title: "提示",
+        message: "论文正在处理中，请稍候",
         duration: 3000,
       });
       return;
@@ -59,19 +66,19 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
     try {
       await processPaper(paper.id, workflow);
       addNotification({
-        type: 'success',
-        title: '处理已启动',
-        message: `${workflow === 'translate' ? '翻译' : '分析'}任务已添加到队列`,
+        type: "success",
+        title: "处理已启动",
+        message: `${workflow === "translate" ? "翻译" : "分析"}任务已添加到队列`,
         duration: 5000,
       });
 
       // Update paper status in store
-      updatePaper(paper.id, { status: 'processing' });
+      updatePaper(paper.id, { status: "processing" });
     } catch (error) {
       addNotification({
-        type: 'error',
-        title: '处理失败',
-        message: error instanceof Error ? error.message : '未知错误',
+        type: "error",
+        title: "处理失败",
+        message: error instanceof Error ? error.message : "未知错误",
         duration: 5000,
       });
     }
@@ -84,7 +91,7 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
   // Markdown components
   const markdownComponents = {
     code({ node, inline, className, children, ...props }: any) {
-      const match = /language-(\w+)/.exec(className || '');
+      const match = /language-(\w+)/.exec(className || "");
       return !inline && match ? (
         <SyntaxHighlighter
           style={oneDark}
@@ -93,7 +100,7 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
           className="rounded-lg"
           {...props}
         >
-          {String(children).replace(/\n$/, '')}
+          {String(children).replace(/\n$/, "")}
         </SyntaxHighlighter>
       ) : (
         <code className={className} {...props}>
@@ -102,42 +109,42 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
       );
     },
     h1: ({ children }: any) => (
-      <h1 className="text-2xl font-bold mt-8 mb-4">{children}</h1>
+      <h1 className="mb-4 mt-8 text-2xl font-bold">{children}</h1>
     ),
     h2: ({ children }: any) => (
-      <h2 className="text-xl font-semibold mt-6 mb-3">{children}</h2>
+      <h2 className="mb-3 mt-6 text-xl font-semibold">{children}</h2>
     ),
     h3: ({ children }: any) => (
-      <h3 className="text-lg font-medium mt-4 mb-2">{children}</h3>
+      <h3 className="mb-2 mt-4 text-lg font-medium">{children}</h3>
     ),
     p: ({ children }: any) => (
       <p className="mb-4 leading-relaxed">{children}</p>
     ),
     ul: ({ children }: any) => (
-      <ul className="list-disc list-inside mb-4 space-y-1">{children}</ul>
+      <ul className="mb-4 list-inside list-disc space-y-1">{children}</ul>
     ),
     ol: ({ children }: any) => (
-      <ol className="list-decimal list-inside mb-4 space-y-1">{children}</ol>
+      <ol className="mb-4 list-inside list-decimal space-y-1">{children}</ol>
     ),
     blockquote: ({ children }: any) => (
-      <blockquote className="border-l-4 border-gray-300 pl-4 italic my-4">
+      <blockquote className="my-4 border-l-4 border-gray-300 pl-4 italic">
         {children}
       </blockquote>
     ),
     table: ({ children }: any) => (
-      <div className="overflow-x-auto my-4">
+      <div className="my-4 overflow-x-auto">
         <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-600">
           {children}
         </table>
       </div>
     ),
     th: ({ children }: any) => (
-      <th className="border border-gray-300 dark:border-gray-600 px-4 py-2 bg-gray-100 dark:bg-gray-800">
+      <th className="border border-gray-300 bg-gray-100 px-4 py-2 dark:border-gray-600 dark:bg-gray-800">
         {children}
       </th>
     ),
     td: ({ children }: any) => (
-      <td className="border border-gray-300 dark:border-gray-600 px-4 py-2">
+      <td className="border border-gray-300 px-4 py-2 dark:border-gray-600">
         {children}
       </td>
     ),
@@ -146,94 +153,87 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
   return (
     <div className={`paper-viewer ${className}`}>
       {/* Header */}
-      <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="mb-6 border-b border-gray-200 pb-6 dark:border-gray-700">
         {/* Title and Authors */}
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-          {activeTab === 'translation' && paper.translation?.title
+        <h1 className="mb-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+          {activeTab === "translation" && paper.translation?.title
             ? paper.translation.title
             : paper.title}
         </h1>
 
-        <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
-          {paper.authors.join(', ')}
+        <p className="mb-4 text-lg text-gray-600 dark:text-gray-400">
+          {paper.authors.join(", ")}
         </p>
 
         {/* Metadata */}
         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-500">
-          {paper.metadata?.year && (
-            <span>发表年份: {paper.metadata.year}</span>
-          )}
+          {paper.metadata?.year && <span>发表年份: {paper.metadata.year}</span>}
           {paper.metadata?.journal && (
             <span>期刊: {paper.metadata.journal}</span>
           )}
-          {paper.metadata?.pages && (
-            <span>页码: {paper.metadata.pages}</span>
-          )}
-          <span>上传时间: {format(new Date(paper.uploadedAt), 'yyyy-MM-dd HH:mm', { locale: zhCN })}</span>
+          {paper.metadata?.pages && <span>页码: {paper.metadata.pages}</span>}
+          <span>
+            上传时间:{" "}
+            {format(new Date(paper.uploadedAt), "yyyy-MM-dd HH:mm", {
+              locale: zhCN,
+            })}
+          </span>
           <span>文件大小: {(paper.fileSize / 1024 / 1024).toFixed(2)} MB</span>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
+      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav className="flex space-x-8">
           <button
-            onClick={() => setActiveTab('original')}
-            className={`
-              py-2 px-1 border-b-2 font-medium text-sm
-              ${activeTab === 'original'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }
-            `}
+            onClick={() => setActiveTab("original")}
+            className={`border-b-2 px-1 py-2 text-sm font-medium ${
+              activeTab === "original"
+                ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            } `}
           >
             原文
           </button>
           <button
-            onClick={() => setActiveTab('translation')}
+            onClick={() => setActiveTab("translation")}
             disabled={!paper.translation}
-            className={`
-              py-2 px-1 border-b-2 font-medium text-sm
-              ${activeTab === 'translation'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }
-              ${!paper.translation ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
+            className={`border-b-2 px-1 py-2 text-sm font-medium ${
+              activeTab === "translation"
+                ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            } ${!paper.translation ? "cursor-not-allowed opacity-50" : ""} `}
           >
             翻译
-            {!paper.translation && paper.status !== 'processing' && (
+            {!paper.translation && paper.status !== "processing" && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleProcess('translate');
+                  handleProcess("translate");
                 }}
-                className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600"
+                className="ml-2 rounded bg-blue-500 px-2 py-0.5 text-xs text-white hover:bg-blue-600"
               >
                 生成
               </button>
             )}
           </button>
           <button
-            onClick={() => setActiveTab('analysis')}
+            onClick={() => setActiveTab("analysis")}
             disabled={!paper.analysis}
-            className={`
-              py-2 px-1 border-b-2 font-medium text-sm
-              ${activeTab === 'analysis'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }
-              ${!paper.analysis ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
+            className={`border-b-2 px-1 py-2 text-sm font-medium ${
+              activeTab === "analysis"
+                ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            } ${!paper.analysis ? "cursor-not-allowed opacity-50" : ""} `}
           >
             分析
-            {!paper.analysis && paper.status !== 'processing' && (
+            {!paper.analysis && paper.status !== "processing" && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleProcess('analyze');
+                  handleProcess("analyze");
                 }}
-                className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded hover:bg-blue-600"
+                className="ml-2 rounded bg-blue-500 px-2 py-0.5 text-xs text-white hover:bg-blue-600"
               >
                 生成
               </button>
@@ -244,7 +244,7 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
 
       {/* Content */}
       <div className="min-h-screen">
-        {activeTab === 'original' && (
+        {activeTab === "original" && (
           <div>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
@@ -255,7 +255,7 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
                   href={paper.filePath}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-500 hover:text-blue-600 text-sm"
+                  className="text-sm text-blue-500 hover:text-blue-600"
                 >
                   在新窗口打开
                 </a>
@@ -263,12 +263,12 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
             </div>
 
             {/* PDF Viewer Controls */}
-            <div className="mb-4 flex items-center justify-between bg-gray-100 dark:bg-gray-800 p-2 rounded">
+            <div className="mb-4 flex items-center justify-between rounded bg-gray-100 p-2 dark:bg-gray-800">
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => changePage(-1)}
                   disabled={pageNumber <= 1}
-                  className="px-3 py-1 text-sm bg-white dark:bg-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                  className="rounded bg-white px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                   上一页
                 </button>
@@ -278,7 +278,7 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
                 <button
                   onClick={() => changePage(1)}
                   disabled={pageNumber >= (numPages || 0)}
-                  className="px-3 py-1 text-sm bg-white dark:bg-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                  className="rounded bg-white px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                   下一页
                 </button>
@@ -286,14 +286,14 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
               <div className="flex items-center space-x-2">
                 <button
                   onClick={zoomOut}
-                  className="px-3 py-1 text-sm bg-white dark:bg-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-600"
+                  className="rounded bg-white px-3 py-1 text-sm hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                   缩小
                 </button>
                 <span className="text-sm">{Math.round(scale * 100)}%</span>
                 <button
                   onClick={zoomIn}
-                  className="px-3 py-1 text-sm bg-white dark:bg-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-600"
+                  className="rounded bg-white px-3 py-1 text-sm hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                   放大
                 </button>
@@ -301,17 +301,21 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
             </div>
 
             {/* PDF Document */}
-            <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto">
+            <div className="overflow-auto rounded-lg bg-gray-100 p-4 dark:bg-gray-900">
               {isLoading && (
-                <div className="flex items-center justify-center h-96">
+                <div className="flex h-96 items-center justify-center">
                   <div className="text-gray-500">加载 PDF 中...</div>
                 </div>
               )}
               <Document
                 file={paper.filePath}
                 onLoadSuccess={onDocumentLoadSuccess}
-                loading={<div className="text-center p-8">加载 PDF 中...</div>}
-                error={<div className="text-center p-8 text-red-500">PDF 加载失败</div>}
+                loading={<div className="p-8 text-center">加载 PDF 中...</div>}
+                error={
+                  <div className="p-8 text-center text-red-500">
+                    PDF 加载失败
+                  </div>
+                }
                 renderMode="canvas"
               >
                 <Page
@@ -326,14 +330,14 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
           </div>
         )}
 
-        {activeTab === 'translation' && paper.translation && (
+        {activeTab === "translation" && paper.translation && (
           <div className="prose prose-lg dark:prose-invert max-w-none">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
               中文翻译
             </h2>
             {paper.translation.abstract && (
-              <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <h3 className="font-semibold mb-2">摘要</h3>
+              <div className="mb-6 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+                <h3 className="mb-2 font-semibold">摘要</h3>
                 <ReactMarkdown components={markdownComponents}>
                   {paper.translation.abstract}
                 </ReactMarkdown>
@@ -345,7 +349,7 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
           </div>
         )}
 
-        {activeTab === 'analysis' && paper.analysis && (
+        {activeTab === "analysis" && paper.analysis && (
           <div className="space-y-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               论文分析
@@ -353,8 +357,8 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
 
             {/* Summary */}
             {paper.analysis.summary && (
-              <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <h3 className="font-semibold mb-2">内容摘要</h3>
+              <div className="rounded-lg bg-purple-50 p-4 dark:bg-purple-900/20">
+                <h3 className="mb-2 font-semibold">内容摘要</h3>
                 <ReactMarkdown components={markdownComponents}>
                   {paper.analysis.summary}
                 </ReactMarkdown>
@@ -362,31 +366,32 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
             )}
 
             {/* Key Points */}
-            {paper.analysis.keyPoints && paper.analysis.keyPoints.length > 0 && (
-              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <h3 className="font-semibold mb-2">关键要点</h3>
-                <ul className="space-y-2">
-                  {paper.analysis.keyPoints.map((point, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="inline-block w-6 h-6 bg-green-500 text-white rounded-full text-sm text-center mr-2 flex-shrink-0">
-                        {index + 1}
-                      </span>
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {paper.analysis.keyPoints &&
+              paper.analysis.keyPoints.length > 0 && (
+                <div className="rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
+                  <h3 className="mb-2 font-semibold">关键要点</h3>
+                  <ul className="space-y-2">
+                    {paper.analysis.keyPoints.map((point, index) => (
+                      <li key={index} className="flex items-start">
+                        <span className="mr-2 inline-block h-6 w-6 flex-shrink-0 rounded-full bg-green-500 text-center text-sm text-white">
+                          {index + 1}
+                        </span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
             {/* Insights */}
             {paper.analysis.insights && paper.analysis.insights.length > 0 && (
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <h3 className="font-semibold mb-2">深入洞察</h3>
+              <div className="rounded-lg bg-yellow-50 p-4 dark:bg-yellow-900/20">
+                <h3 className="mb-2 font-semibold">深入洞察</h3>
                 <ul className="space-y-2">
                   {paper.analysis.insights.map((insight, index) => (
                     <li key={index} className="flex items-start">
                       <svg
-                        className="w-5 h-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5"
+                        className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-500"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
@@ -406,11 +411,11 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
         )}
 
         {/* Empty States */}
-        {activeTab === 'translation' && !paper.translation && (
-          <div className="text-center py-12">
-            <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+        {activeTab === "translation" && !paper.translation && (
+          <div className="py-12 text-center">
+            <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
               <svg
-                className="w-12 h-12 text-gray-400"
+                className="h-12 w-12 text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -423,24 +428,24 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
                 />
               </svg>
             </div>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+            <p className="mb-4 text-gray-500 dark:text-gray-400">
               暂无翻译内容
             </p>
             <button
-              onClick={() => handleProcess('translate')}
-              disabled={paper.status === 'processing'}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+              onClick={() => handleProcess("translate")}
+              disabled={paper.status === "processing"}
+              className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
             >
               生成翻译
             </button>
           </div>
         )}
 
-        {activeTab === 'analysis' && !paper.analysis && (
-          <div className="text-center py-12">
-            <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+        {activeTab === "analysis" && !paper.analysis && (
+          <div className="py-12 text-center">
+            <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
               <svg
-                className="w-12 h-12 text-gray-400"
+                className="h-12 w-12 text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -453,13 +458,13 @@ export function PaperViewer({ paper, className = '' }: PaperViewerProps) {
                 />
               </svg>
             </div>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+            <p className="mb-4 text-gray-500 dark:text-gray-400">
               暂无分析内容
             </p>
             <button
-              onClick={() => handleProcess('analyze')}
-              disabled={paper.status === 'processing'}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+              onClick={() => handleProcess("analyze")}
+              disabled={paper.status === "processing"}
+              className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
             >
               生成分析
             </button>

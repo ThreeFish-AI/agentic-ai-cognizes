@@ -1,51 +1,51 @@
-name: 'Setup Python Environment'
-description: 'Setup Python with caching and dependency installation'
-author: 'workflow-optimizer-2'
+name: "Setup Python Environment"
+description: "Setup Python with caching and dependency installation"
+author: "threefish.ai"
 
 inputs:
   python-version:
-    description: 'Python version to use'
+    description: "Python version to use"
     required: false
-    default: '3.12'
+    default: "3.12"
   cache-key-suffix:
-    description: 'Additional suffix for cache key'
+    description: "Additional suffix for cache key"
     required: false
-    default: ''
+    default: ""
   install-deps:
-    description: 'Whether to install dependencies'
+    description: "Whether to install dependencies"
     required: false
-    default: 'true'
+    default: "true"
   cache-dependency-path:
-    description: 'Path to dependency files'
+    description: "Path to dependency files"
     required: false
     default: |
       **/pyproject.toml
       **/requirements*.txt
       **/setup.py
   pre-commit:
-    description: 'Whether to setup pre-commit cache'
+    description: "Whether to setup pre-commit cache"
     required: false
-    default: 'false'
+    default: "false"
 
 outputs:
   cache-key:
-    description: 'Generated cache key'
+    description: "Generated cache key"
     value: ${{ steps.cache-key.outputs.key }}
   python-hash:
-    description: 'Hash of Python dependencies'
+    description: "Hash of Python dependencies"
     value: ${{ steps.cache-key.outputs.python-hash }}
   cache-hit:
-    description: 'Whether cache was hit'
+    description: "Whether cache was hit"
     value: ${{ steps.cache.outputs.cache-hit }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
-        cache: 'pip'
+        cache: "pip"
         cache-dependency-path: ${{ inputs.cache-dependency-path }}
 
     - name: Generate cache keys

@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { useTaskStore } from '@/store';
-import { useUIStore } from '@/store';
+import { useTaskStore, useUIStore } from "@/store";
 import type {
-  WebSocketMessage,
-  TaskUpdateMessage,
-  TaskProgressMessage,
   TaskLogMessage,
-} from '@/types';
+  TaskProgressMessage,
+  TaskUpdateMessage,
+  WebSocketMessage,
+} from "@/types";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UseWebSocketOptions {
   autoConnect?: boolean;
@@ -17,7 +16,7 @@ interface UseWebSocketOptions {
 
 export const useWebSocket = (
   url: string,
-  options: UseWebSocketOptions = {}
+  options: UseWebSocketOptions = {},
 ) => {
   const {
     autoConnect = true,
@@ -58,7 +57,9 @@ export const useWebSocket = (
 
     heartbeatTimerRef.current = setInterval(() => {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'ping', timestamp: new Date().toISOString() }));
+        wsRef.current.send(
+          JSON.stringify({ type: "ping", timestamp: new Date().toISOString() }),
+        );
       }
     }, heartbeatInterval);
   }, [heartbeatInterval]);
@@ -72,38 +73,43 @@ export const useWebSocket = (
   }, []);
 
   // 处理 WebSocket 消息
-  const handleMessage = useCallback((event: MessageEvent) => {
-    try {
-      const message: WebSocketMessage = JSON.parse(event.data);
-      console.log('[WebSocket] Received:', message);
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      try {
+        const message: WebSocketMessage = JSON.parse(event.data);
+        console.log("[WebSocket] Received:", message);
 
-      // 处理心跳响应
-      if (message.type === 'pong') {
-        return;
-      }
+        // 处理心跳响应
+        if (message.type === "pong") {
+          return;
+        }
 
-      // 处理任务更新
-      if (
-        message.type === 'task_update' ||
-        message.type === 'task_progress' ||
-        message.type === 'task_log'
-      ) {
-        handleTaskUpdate(message as TaskUpdateMessage | TaskProgressMessage | TaskLogMessage);
-      }
+        // 处理任务更新
+        if (
+          message.type === "task_update" ||
+          message.type === "task_progress" ||
+          message.type === "task_log"
+        ) {
+          handleTaskUpdate(
+            message as TaskUpdateMessage | TaskProgressMessage | TaskLogMessage,
+          );
+        }
 
-      // 处理系统通知
-      if (message.type === 'system_notification') {
-        addNotification({
-          type: 'info',
-          title: '系统通知',
-          message: message.data?.message || '收到系统通知',
-          duration: 5000,
-        });
+        // 处理系统通知
+        if (message.type === "system_notification") {
+          addNotification({
+            type: "info",
+            title: "系统通知",
+            message: message.data?.message || "收到系统通知",
+            duration: 5000,
+          });
+        }
+      } catch (error) {
+        console.error("[WebSocket] Failed to parse message:", error);
       }
-    } catch (error) {
-      console.error('[WebSocket] Failed to parse message:', error);
-    }
-  }, [handleTaskUpdate, addNotification]);
+    },
+    [handleTaskUpdate, addNotification],
+  );
 
   // 连接 WebSocket
   const connect = useCallback(() => {
@@ -112,12 +118,12 @@ export const useWebSocket = (
     }
 
     try {
-      console.log('[WebSocket] Connecting to:', urlState);
+      console.log("[WebSocket] Connecting to:", urlState);
       const ws = new WebSocket(urlState);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[WebSocket] Connected');
+        console.log("[WebSocket] Connected");
         setIsConnected(true);
         setConnectionError(null);
         reconnectAttemptsRef.current = 0;
@@ -127,39 +133,53 @@ export const useWebSocket = (
       ws.onmessage = handleMessage;
 
       ws.onclose = (event) => {
-        console.log('[WebSocket] Disconnected:', event.code, event.reason);
+        console.log("[WebSocket] Disconnected:", event.code, event.reason);
         setIsConnected(false);
         stopHeartbeat();
         clearTimers();
 
         // 如果不是主动关闭，尝试重连
-        if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        if (
+          event.code !== 1000 &&
+          reconnectAttemptsRef.current < maxReconnectAttempts
+        ) {
           reconnectAttemptsRef.current++;
-          console.log(`[WebSocket] Reconnecting... Attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
+          console.log(
+            `[WebSocket] Reconnecting... Attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`,
+          );
 
           reconnectTimerRef.current = setTimeout(() => {
             connect();
           }, reconnectInterval);
         } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-          setConnectionError('达到最大重连次数，连接失败');
+          setConnectionError("达到最大重连次数，连接失败");
           addNotification({
-            type: 'error',
-            title: '连接失败',
-            message: 'WebSocket 连接失败，请刷新页面重试',
+            type: "error",
+            title: "连接失败",
+            message: "WebSocket 连接失败，请刷新页面重试",
             duration: 10000,
           });
         }
       };
 
       ws.onerror = (event) => {
-        console.error('[WebSocket] Error:', event);
-        setConnectionError('连接错误');
+        console.error("[WebSocket] Error:", event);
+        setConnectionError("连接错误");
       };
     } catch (error) {
-      console.error('[WebSocket] Failed to create connection:', error);
-      setConnectionError('无法创建连接');
+      console.error("[WebSocket] Failed to create connection:", error);
+      setConnectionError("无法创建连接");
     }
-  }, [urlState, handleMessage, startHeartbeat, stopHeartbeat, clearTimers, maxReconnectAttempts, reconnectInterval, addNotification]);
+  }, [
+    urlState,
+    handleMessage,
+    startHeartbeat,
+    stopHeartbeat,
+    clearTimers,
+    maxReconnectAttempts,
+    reconnectInterval,
+    addNotification,
+  ]);
 
   // 断开连接
   const disconnect = useCallback(() => {
@@ -167,7 +187,7 @@ export const useWebSocket = (
     stopHeartbeat();
 
     if (wsRef.current) {
-      wsRef.current.close(1000, 'User disconnected');
+      wsRef.current.close(1000, "User disconnected");
       wsRef.current = null;
     }
 
@@ -184,26 +204,32 @@ export const useWebSocket = (
       wsRef.current.send(JSON.stringify(messageToSend));
       return true;
     } else {
-      console.warn('[WebSocket] Cannot send message, connection not open');
+      console.warn("[WebSocket] Cannot send message, connection not open");
       return false;
     }
   }, []);
 
   // 订阅任务更新
-  const subscribeToTask = useCallback((taskId: string) => {
-    return sendMessage({
-      type: 'subscribe',
-      taskId,
-    });
-  }, [sendMessage]);
+  const subscribeToTask = useCallback(
+    (taskId: string) => {
+      return sendMessage({
+        type: "subscribe",
+        taskId,
+      });
+    },
+    [sendMessage],
+  );
 
   // 取消订阅任务更新
-  const unsubscribeFromTask = useCallback((taskId: string) => {
-    return sendMessage({
-      type: 'unsubscribe',
-      taskId,
-    });
-  }, [sendMessage]);
+  const unsubscribeFromTask = useCallback(
+    (taskId: string) => {
+      return sendMessage({
+        type: "unsubscribe",
+        taskId,
+      });
+    },
+    [sendMessage],
+  );
 
   // 重连
   const reconnect = useCallback(() => {
@@ -249,8 +275,8 @@ export const useWebSocket = (
 // 管理任务订阅的 hook
 export const useTaskSubscription = (taskIds: string[] | null) => {
   const { subscribeToTask, unsubscribeFromTask, isConnected } = useWebSocket(
-    process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws',
-    { autoConnect: true }
+    process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws",
+    { autoConnect: true },
   );
 
   const subscribedTasksRef = useRef<Set<string>>(new Set());
@@ -278,12 +304,14 @@ export const useTaskSubscription = (taskIds: string[] | null) => {
   }, [taskIds, isConnected, subscribeToTask, unsubscribeFromTask]);
 
   useEffect(() => {
+    const currentSubscribedTasks = subscribedTasksRef.current;
+
     // 清理所有订阅
     return () => {
-      subscribedTasksRef.current.forEach((taskId) => {
+      currentSubscribedTasks.forEach((taskId) => {
         unsubscribeFromTask(taskId);
       });
-      subscribedTasksRef.current.clear();
+      currentSubscribedTasks.clear();
     };
   }, [unsubscribeFromTask]);
 };

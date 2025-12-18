@@ -1,4 +1,4 @@
-name: Auto-fix Ruff Issues
+name: Ruff Auto-fix
 
 on:
   push:

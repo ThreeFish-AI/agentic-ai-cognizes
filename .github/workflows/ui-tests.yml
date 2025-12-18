@@ -3,33 +3,33 @@ name: UI Tests
 on:
   pull_request:
     paths:
-      - 'ui/**'
-      - 'tests/ui/**'
+      - "ui/**"
+      - "tests/ui/**"
     branches:
       - main
       - master
-      - 'release/**'
+      - "release/**"
   push:
     paths:
-      - 'ui/**'
-      - 'tests/ui/**'
+      - "ui/**"
+      - "tests/ui/**"
     branches:
       - main
       - master
-      - 'release/**'
+      - "release/**"
   workflow_dispatch:
     inputs:
       triggered_by:
-        description: 'Which workflow triggered this run'
+        description: "Which workflow triggered this run"
         required: false
-        default: 'manual'
+        default: "manual"
       commit_sha:
-        description: 'Commit SHA to test'
+        description: "Commit SHA to test"
         required: false
 
 # Environment variables
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: "20"
 
 # Concurrency control for PRs
 concurrency:
@@ -53,7 +53,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Configure npm for CI
@@ -88,7 +88,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Configure npm for CI
@@ -145,7 +145,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Configure npm for CI
@@ -162,10 +162,10 @@ jobs:
         run: yarn build
 
       - name: Run E2E tests
-        run: npx playwright test --project=chromium
+        run: yarn test:e2e --project=chromium
         env:
           CI: true
-          E2E_BASE_URL: http://localhost:3000
+          E2E_BASE_URL: http://localhost:9003
 
       - name: Upload E2E test results
         if: always()
@@ -207,7 +207,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Configure npm for CI
@@ -224,10 +224,10 @@ jobs:
         run: yarn build
 
       - name: Run E2E tests
-        run: npx playwright test --project=${{ matrix.browser }}
+        run: yarn test:e2e --project=${{ matrix.browser }}
         env:
           CI: true
-          E2E_BASE_URL: http://localhost:3000
+          E2E_BASE_URL: http://localhost:9003
 
       - name: Upload E2E test results
         if: always()
@@ -264,7 +264,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Configure npm for CI
@@ -308,7 +308,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Configure npm for CI
@@ -355,7 +355,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Configure npm for CI
@@ -372,7 +372,7 @@ jobs:
         run: yarn build
 
       - name: Run accessibility tests
-        run: npx playwright test --project=chromium tests/ui/e2e/accessibility/
+        run: NODE_PATH=./node_modules npx playwright test --project=chromium tests/ui/e2e/ --grep "accessibility"
 
       - name: Upload accessibility report
         if: always()
@@ -400,7 +400,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: ui/yarn.lock
 
       - name: Configure npm for CI

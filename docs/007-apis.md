@@ -132,7 +132,7 @@ const processResponse = await fetch(
 
 ### 当前状态
 
-- ✅ **CORS 已启用**：支持 `http://localhost:3000` 和 `http://127.0.0.1:3000`
+- ✅ **CORS 已启用**：支持 `http://localhost:9003` 和 `http://127.0.0.1:9003`
 - ⚠️ **无需认证**：当前版本暂未实现认证机制
 - 📋 **未来计划**：将支持 API Key 和 OAuth 2.0
 

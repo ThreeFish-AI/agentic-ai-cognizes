@@ -1,13 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { PaperFilters, SearchFilters } from '@/types';
+import type { PaperFilters } from "@/types";
+import { useCallback, useEffect, useState } from "react";
 
 // 通用 localStorage hook
 export function useLocalStorage<T>(
   key: string,
-  initialValue: T
+  initialValue: T,
 ): [T, (value: T | ((val: T) => T)) => void, () => void] {
   // 从 localStorage 获取初始值
   const readValue = useCallback((): T => {
+    if (typeof window === "undefined") {
+      return initialValue;
+    }
     try {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
@@ -23,6 +26,9 @@ export function useLocalStorage<T>(
   const setValue = useCallback(
     (value: T | ((val: T) => T)) => {
       try {
+        if (typeof window === "undefined") {
+          return;
+        }
         const newValue = value instanceof Function ? value(storedValue) : value;
         window.localStorage.setItem(key, JSON.stringify(newValue));
         setStoredValue(newValue);
@@ -30,12 +36,15 @@ export function useLocalStorage<T>(
         console.warn(`Error setting localStorage key "${key}":`, error);
       }
     },
-    [key, storedValue]
+    [key, storedValue],
   );
 
   // 删除值的函数
   const removeValue = useCallback(() => {
     try {
+      if (typeof window === "undefined") {
+        return;
+      }
       window.localStorage.removeItem(key);
       setStoredValue(initialValue);
     } catch (error) {
@@ -55,8 +64,8 @@ export function useLocalStorage<T>(
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, [key]);
 
   return [storedValue, setValue, removeValue];
@@ -64,20 +73,20 @@ export function useLocalStorage<T>(
 
 // 论文筛选器 hook
 export function usePaperFilters() {
-  return useLocalStorage<PaperFilters>('paper-filters', {
-    search: '',
-    category: 'all',
-    status: 'all',
-    sortBy: 'uploadedAt',
-    sortOrder: 'desc',
+  return useLocalStorage<PaperFilters>("paper-filters", {
+    search: "",
+    category: "all",
+    status: "all",
+    sortBy: "uploadedAt",
+    sortOrder: "desc",
   });
 }
 
 // 搜索历史 hook
 export function useSearchHistory() {
   const [history, setHistory, clearHistory] = useLocalStorage<string[]>(
-    'search-history',
-    []
+    "search-history",
+    [],
   );
 
   const addToHistory = useCallback(
@@ -92,16 +101,14 @@ export function useSearchHistory() {
         return newHistory.slice(0, 20);
       });
     },
-    [setHistory]
+    [setHistory],
   );
 
   const removeFromHistory = useCallback(
     (query: string) => {
-      setHistory((prevHistory) =>
-        prevHistory.filter((item) => item !== query)
-      );
+      setHistory((prevHistory) => prevHistory.filter((item) => item !== query));
     },
-    [setHistory]
+    [setHistory],
   );
 
   return {
@@ -115,8 +122,8 @@ export function useSearchHistory() {
 // 最近查看的论文 hook
 export function useRecentPapers() {
   const [recentPapers, setRecentPapers] = useLocalStorage<string[]>(
-    'recent-papers',
-    []
+    "recent-papers",
+    [],
   );
 
   const addRecentPaper = useCallback(
@@ -129,14 +136,14 @@ export function useRecentPapers() {
         return newRecent.slice(0, 10);
       });
     },
-    [setRecentPapers]
+    [setRecentPapers],
   );
 
   const removeRecentPaper = useCallback(
     (paperId: string) => {
       setRecentPapers((prev) => prev.filter((id) => id !== paperId));
     },
-    [setRecentPapers]
+    [setRecentPapers],
   );
 
   return {
@@ -148,9 +155,9 @@ export function useRecentPapers() {
 
 // 用户偏好设置 hook
 export function useUserPreferences() {
-  const [preferences, setPreferences] = useLocalStorage('user-preferences', {
-    language: 'zh' as 'zh' | 'en',
-    theme: 'system' as 'light' | 'dark' | 'system',
+  const [preferences, setPreferences] = useLocalStorage("user-preferences", {
+    language: "zh" as "zh" | "en",
+    theme: "system" as "light" | "dark" | "system",
     pageSize: 20 as number,
     autoSave: true as boolean,
     showNotifications: true as boolean,
@@ -160,14 +167,14 @@ export function useUserPreferences() {
   const updatePreference = useCallback(
     <K extends keyof typeof preferences>(
       key: K,
-      value: typeof preferences[K]
+      value: (typeof preferences)[K],
     ) => {
       setPreferences((prev) => ({
         ...prev,
         [key]: value,
       }));
     },
-    [setPreferences]
+    [setPreferences],
   );
 
   return {
@@ -195,7 +202,7 @@ export function useTableColumns(tableId: string) {
         },
       }));
     },
-    [setColumns]
+    [setColumns],
   );
 
   const setColumnOrder = useCallback(
@@ -205,7 +212,7 @@ export function useTableColumns(tableId: string) {
         order,
       }));
     },
-    [setColumns]
+    [setColumns],
   );
 
   const setColumnWidth = useCallback(
@@ -218,7 +225,7 @@ export function useTableColumns(tableId: string) {
         },
       }));
     },
-    [setColumns]
+    [setColumns],
   );
 
   return {
@@ -234,40 +241,40 @@ export function useDownloadQueue() {
   const [queue, setQueue] = useLocalStorage<{
     items: Array<{
       id: string;
-      type: 'paper' | 'batch';
-      status: 'pending' | 'downloading' | 'completed' | 'failed';
+      type: "paper" | "batch";
+      status: "pending" | "downloading" | "completed" | "failed";
       progress: number;
       url?: string;
       error?: string;
     }>;
-  }>('download-queue', { items: [] });
+  }>("download-queue", { items: [] });
 
   const addToQueue = useCallback(
-    (id: string, type: 'paper' | 'batch') => {
+    (id: string, type: "paper" | "batch") => {
       setQueue((prev) => ({
         items: [
           ...prev.items,
           {
             id,
             type,
-            status: 'pending',
+            status: "pending",
             progress: 0,
           },
         ],
       }));
     },
-    [setQueue]
+    [setQueue],
   );
 
   const updateItem = useCallback(
-    (id: string, updates: Partial<typeof queue.items[0]>) => {
+    (id: string, updates: Partial<(typeof queue.items)[0]>) => {
       setQueue((prev) => ({
         items: prev.items.map((item) =>
-          item.id === id ? { ...item, ...updates } : item
+          item.id === id ? { ...item, ...updates } : item,
         ),
       }));
     },
-    [setQueue]
+    [setQueue, queue],
   );
 
   const removeFromQueue = useCallback(
@@ -276,7 +283,7 @@ export function useDownloadQueue() {
         items: prev.items.filter((item) => item.id !== id),
       }));
     },
-    [setQueue]
+    [setQueue],
   );
 
   const clearQueue = useCallback(() => {
@@ -296,6 +303,9 @@ export function useDownloadQueue() {
 export function useCache() {
   const getCached = useCallback(<T>(key: string): T | null => {
     try {
+      if (typeof window === "undefined") {
+        return null;
+      }
       const item = window.localStorage.getItem(`cache-${key}`);
       if (!item) return null;
 
@@ -314,30 +324,35 @@ export function useCache() {
     }
   }, []);
 
-  const setCached = useCallback(
-    <T>(key: string, data: T, ttl?: number) => {
-      try {
-        const item = {
-          data,
-          timestamp: Date.now(),
-          ttl,
-        };
-        window.localStorage.setItem(`cache-${key}`, JSON.stringify(item));
-      } catch (error) {
-        console.warn(`Error caching data for key "${key}":`, error);
+  const setCached = useCallback(<T>(key: string, data: T, ttl?: number) => {
+    try {
+      if (typeof window === "undefined") {
+        return;
       }
-    },
-    []
-  );
+      const item = {
+        data,
+        timestamp: Date.now(),
+        ttl,
+      };
+      window.localStorage.setItem(`cache-${key}`, JSON.stringify(item));
+    } catch (error) {
+      console.warn(`Error caching data for key "${key}":`, error);
+    }
+  }, []);
 
   const removeCached = useCallback((key: string) => {
-    window.localStorage.removeItem(`cache-${key}`);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(`cache-${key}`);
+    }
   }, []);
 
   const clearCache = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
     const keys = Object.keys(window.localStorage);
     keys.forEach((key) => {
-      if (key.startsWith('cache-')) {
+      if (key.startsWith("cache-")) {
         window.localStorage.removeItem(key);
       }
     });
@@ -352,6 +367,4 @@ export function useCache() {
 }
 
 // 导出所有 hooks
-export {
-  useLocalStorage as default,
-};
+export { useLocalStorage as default };

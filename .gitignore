@@ -109,3 +109,5 @@ next-env.d.ts
 # Papers and metadata
 papers/source/general/general_**_test.pdf
 papers/.metadata/general_**_test.pdf.json
+ui/playwright-report/**
+ui/test-results/**
