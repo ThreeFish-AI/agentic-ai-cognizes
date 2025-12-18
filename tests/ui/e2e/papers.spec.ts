@@ -3,6 +3,9 @@ import { setupMockApi } from "./mock-api";
 
 test.describe("Papers Management", () => {
   test.beforeEach(async ({ page }) => {
+    page.on("console", (msg: any) => {
+      if (msg.type() === "log") console.log("BROWSER:", msg.text());
+    }); // Add this line
     await setupMockApi(page);
     await page.goto("/papers");
   });
@@ -71,7 +74,10 @@ test.describe("Papers Management", () => {
     await startButton.click();
 
     // Wait for upload to complete
-    await expect(page.locator("text=上传成功")).toBeVisible();
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "上传成功",
+      { timeout: 10000 }
+    );
 
     // Close modal
     await page.click('[data-testid="upload-modal"] button[aria-label="Close"]');
@@ -138,7 +144,7 @@ test.describe("Papers Management", () => {
     await firstCard.hover();
 
     // Prepare to accept dialog
-    page.on("dialog", (dialog) => dialog.accept());
+    // page.on("dialog", (dialog) => dialog.accept()); // Handled in beforeEach
 
     // Click delete button
     await firstCard.locator('button:has-text("删除")').click({ force: true });
@@ -191,19 +197,17 @@ test.describe("Papers Management", () => {
 
   test("handles error state", async ({ page }) => {
     // Intercept and mock error response
-    await page.route("/api/papers", (route) => {
+    // Use wildcard to match query parameters
+    await page.route("**/api/papers*", (route) =>
       route.fulfill({
         status: 500,
         contentType: "application/json",
-        body: JSON.stringify({
-          success: false,
-          message: "Internal server error",
-        }),
-      });
-    });
+        body: JSON.stringify({ detail: "Internal server error" }),
+      })
+    );
 
     // Reload page to trigger error
-    await page.reload();
+    await page.goto("/papers");
 
     // Verify error message
     // Verify error message
@@ -219,45 +223,36 @@ test.describe("Papers Management", () => {
   });
 
   test("handles pagination", async ({ page }) => {
-    // Override API to return many papers for this test only
-    await page.route("**/api/papers*", async (route) => {
-      const request = route.request();
-      const url = new URL(request.url());
-      if (
-        request.method() === "GET" &&
-        !url.pathname.match(/\/api\/papers\/.+/)
-      ) {
-        const pageNum = Number(url.searchParams.get("page")) || 1;
-        const limit = 10; // Force limit 10 to ensure pagination
-        const total = 40; // Force 40 items
+    const totalCount = 40;
+    const itemsPerPage = 10;
 
-        // Create dummy items
-        const items = Array.from({ length: total }, (_, i) => ({
-          id: `p-${i}`,
-          title: `Paper ${i + 1}`,
-          authors: ["Author"],
-          status: "saved",
-          uploadedAt: new Date().toISOString(),
-          fileSize: 1000,
-        })).slice((pageNum - 1) * limit, pageNum * limit);
+    // Mock the pagination response
+    await page.route("**/api/papers*", (route) => {
+      const url = new URL(route.request().url());
+      const pageNum = Number(url.searchParams.get("page")) || 1;
 
-        await route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            success: true,
-            items: items,
-            pagination: {
-              page: pageNum,
-              limit,
-              total,
-              totalPages: Math.ceil(total / limit),
-            },
-          }),
-        });
-        return;
-      }
-      await route.continue();
+      // Create dummy items for the current page
+      const items = Array.from({ length: itemsPerPage }, (_, i) => ({
+        id: `p-${pageNum}-${i}`,
+        title: `Paper ${(pageNum - 1) * itemsPerPage + i + 1}`,
+        authors: ["Author"],
+        status: "saved",
+        uploadedAt: new Date().toISOString(),
+        fileSize: 1000,
+      }));
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          items: items,
+          total: totalCount,
+          page: pageNum,
+          limit: itemsPerPage,
+          totalPages: Math.ceil(totalCount / itemsPerPage),
+        }),
+      });
     });
 
     // Reload to fetch with new mock
