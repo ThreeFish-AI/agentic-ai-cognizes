@@ -1,13 +1,12 @@
-import React, { useState, useRef, useCallback } from "react";
-import { Document, Page, pdfjs } from "react-pdf";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { usePaperStore, useUIStore } from "@/store";
+import type { Paper } from "@/types";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import type { Paper } from "@/types";
+import { useCallback, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import { Document, Page, pdfjs } from "react-pdf";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
 
 // Configure PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
@@ -20,7 +19,7 @@ interface PaperViewerProps {
 export function PaperViewer({ paper, className = "" }: PaperViewerProps) {
   const [activeTab, setActiveTab] = useState<
     "original" | "translation" | "analysis"
-  >("original");
+  >(paper.translation ? "translation" : "original");
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1.0);

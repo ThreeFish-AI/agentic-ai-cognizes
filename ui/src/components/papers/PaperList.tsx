@@ -171,6 +171,7 @@ export function PaperList({
 
     if (hasChanged) {
       setFilters(newFilters);
+      fetchPapers();
     }
   }, [
     searchQuery,
