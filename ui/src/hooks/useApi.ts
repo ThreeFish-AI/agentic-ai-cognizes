@@ -1,8 +1,14 @@
-import { useCallback } from 'react';
-import useSWR, { SWRConfiguration, SWRResponse } from 'swr';
-import api, { apiClient } from '@/lib/api';
-import type { ApiResponse, PaginationParams } from '@/lib/api';
-import type { Paper, Task, SearchResult, DashboardStats, TaskLog } from '@/types';
+import { useCallback } from "react";
+import useSWR, { SWRConfiguration, SWRResponse } from "swr";
+import api, { apiClient } from "@/lib/api";
+import type { ApiResponse, PaginationParams } from "@/lib/api";
+import type {
+  Paper,
+  Task,
+  SearchResult,
+  DashboardStats,
+  TaskLog,
+} from "@/types";
 
 // Extend api type to include all methods
 const typedApi = api as typeof api & {
@@ -12,7 +18,11 @@ const typedApi = api as typeof api & {
     upload: (formData: FormData) => Promise<string>;
     process: (id: string, workflow: string, options?: any) => Promise<Task>;
     delete: (id: string) => Promise<void>;
-    batchProcess: (ids: string[], workflow: string, options?: any) => Promise<Task>;
+    batchProcess: (
+      ids: string[],
+      workflow: string,
+      options?: any,
+    ) => Promise<Task>;
     batchDelete: (ids: string[]) => Promise<void>;
   };
   tasks: {
@@ -24,7 +34,10 @@ const typedApi = api as typeof api & {
     cleanup: () => Promise<void>;
   };
   search: {
-    papers: (query: string, filters?: any) => Promise<{ items: SearchResult[]; total: number }>;
+    papers: (
+      query: string,
+      filters?: any,
+    ) => Promise<{ items: SearchResult[]; total: number }>;
     suggestions: (query: string) => Promise<string[]>;
     history: () => Promise<string[]>;
     clearHistory: () => Promise<void>;
@@ -56,11 +69,18 @@ const swrConfig: SWRConfiguration = {
 };
 
 // 论文相关的 hooks
-export const usePapers = (params?: PaginationParams & {
-  category?: string;
-  status?: string;
-  search?: string;
-}): SWRResponse<{ items: Paper[]; total: number; page: number; limit: number }> => {
+export const usePapers = (
+  params?: PaginationParams & {
+    category?: string;
+    status?: string;
+    search?: string;
+  },
+): SWRResponse<{
+  items: Paper[];
+  total: number;
+  page: number;
+  limit: number;
+}> => {
   const queryParams = new URLSearchParams();
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -70,7 +90,9 @@ export const usePapers = (params?: PaginationParams & {
     });
   }
 
-  const url = queryParams.toString() ? `/api/papers?${queryParams}` : '/api/papers';
+  const url = queryParams.toString()
+    ? `/api/papers?${queryParams}`
+    : "/api/papers";
 
   return useSWR(
     url,
@@ -78,7 +100,7 @@ export const usePapers = (params?: PaginationParams & {
       const response = await typedApi.papers.list(params);
       return response;
     },
-    swrConfig
+    swrConfig,
   );
 };
 
@@ -92,15 +114,22 @@ export const usePaper = (id: string): SWRResponse<Paper> => {
     {
       ...swrConfig,
       revalidateOnMount: true,
-    }
+    },
   );
 };
 
 // 任务相关的 hooks
-export const useTasks = (params?: PaginationParams & {
-  status?: string;
-  type?: string;
-}): SWRResponse<{ items: Task[]; total: number; page: number; limit: number }> => {
+export const useTasks = (
+  params?: PaginationParams & {
+    status?: string;
+    type?: string;
+  },
+): SWRResponse<{
+  items: Task[];
+  total: number;
+  page: number;
+  limit: number;
+}> => {
   const queryParams = new URLSearchParams();
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -110,7 +139,9 @@ export const useTasks = (params?: PaginationParams & {
     });
   }
 
-  const url = queryParams.toString() ? `/api/tasks?${queryParams}` : '/api/tasks';
+  const url = queryParams.toString()
+    ? `/api/tasks?${queryParams}`
+    : "/api/tasks";
 
   return useSWR(
     url,
@@ -118,7 +149,7 @@ export const useTasks = (params?: PaginationParams & {
       const response = await typedApi.tasks.list(params);
       return response;
     },
-    swrConfig
+    swrConfig,
   );
 };
 
@@ -132,7 +163,7 @@ export const useTask = (id: string): SWRResponse<Task> => {
     {
       ...swrConfig,
       refreshInterval: 3000, // 每3秒刷新一次运行中的任务
-    }
+    },
   );
 };
 
@@ -146,7 +177,7 @@ export const useTaskLogs = (id: string): SWRResponse<TaskLog[]> => {
     {
       ...swrConfig,
       refreshInterval: 2000, // 每2秒刷新日志
-    }
+    },
   );
 };
 
@@ -159,10 +190,10 @@ export const useSearch = (
     dateFrom?: string;
     dateTo?: string;
     author?: string;
-  }
+  },
 ): SWRResponse<{ items: SearchResult[]; total: number; query: string }> => {
   const params = new URLSearchParams();
-  params.append('q', query);
+  params.append("q", query);
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -184,13 +215,15 @@ export const useSearch = (
     {
       ...swrConfig,
       revalidateOnMount: false, // 避免重复请求
-    }
+    },
   );
 };
 
 export const useSearchSuggestions = (query: string): SWRResponse<string[]> => {
   return useSWR(
-    query && query.length > 2 ? `/api/search/suggestions?q=${encodeURIComponent(query)}` : null,
+    query && query.length > 2
+      ? `/api/search/suggestions?q=${encodeURIComponent(query)}`
+      : null,
     async () => {
       const response = await typedApi.search.suggestions(query);
       return response;
@@ -198,14 +231,14 @@ export const useSearchSuggestions = (query: string): SWRResponse<string[]> => {
     {
       ...swrConfig,
       revalidateOnMount: false,
-    }
+    },
   );
 };
 
 // 统计相关的 hooks
 export const useDashboardStats = (): SWRResponse<DashboardStats> => {
   return useSWR(
-    '/api/stats/dashboard',
+    "/api/stats/dashboard",
     async () => {
       const response = await typedApi.stats.dashboard();
       return response;
@@ -213,17 +246,17 @@ export const useDashboardStats = (): SWRResponse<DashboardStats> => {
     {
       ...swrConfig,
       refreshInterval: 30000, // 每30秒刷新统计数据
-    }
+    },
   );
 };
 
 // 系统相关的 hooks
 export const useSystemHealth = (): SWRResponse<{
-  status: 'healthy' | 'degraded' | 'down';
+  status: "healthy" | "degraded" | "down";
   services: Record<string, boolean>;
 }> => {
   return useSWR(
-    '/api/system/health',
+    "/api/system/health",
     async () => {
       const response = await typedApi.system.health();
       return response;
@@ -231,47 +264,44 @@ export const useSystemHealth = (): SWRResponse<{
     {
       ...swrConfig,
       refreshInterval: 10000, // 每10秒检查健康状态
-    }
+    },
   );
 };
 
 // 通用 API 请求 hook
 export const useApiRequest = () => {
   // 上传论文
-  const uploadPaper = useCallback(async (
-    file: File,
-    category: string,
-    metadata?: Record<string, any>
-  ) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('category', category);
-    if (metadata) {
-      Object.entries(metadata).forEach(([key, value]) => {
-        formData.append(key, String(value));
-      });
-    }
+  const uploadPaper = useCallback(
+    async (file: File, category: string, metadata?: Record<string, any>) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("category", category);
+      if (metadata) {
+        Object.entries(metadata).forEach(([key, value]) => {
+          formData.append(key, String(value));
+        });
+      }
 
-    return typedApi.papers.upload(formData);
-  }, []);
+      return typedApi.papers.upload(formData);
+    },
+    [],
+  );
 
   // 处理论文
-  const processPaper = useCallback(async (
-    id: string,
-    workflow: string,
-    options?: Record<string, any>
-  ) => {
-    return typedApi.papers.process(id, workflow, options);
-  }, []);
+  const processPaper = useCallback(
+    async (id: string, workflow: string, options?: Record<string, any>) => {
+      return typedApi.papers.process(id, workflow, options);
+    },
+    [],
+  );
 
   // 批量处理论文
-  const batchProcessPapers = useCallback(async (
-    ids: string[],
-    workflow: string,
-    options?: Record<string, any>
-  ) => {
-    return typedApi.papers.batchProcess(ids, workflow, options);
-  }, []);
+  const batchProcessPapers = useCallback(
+    async (ids: string[], workflow: string, options?: Record<string, any>) => {
+      return typedApi.papers.batchProcess(ids, workflow, options);
+    },
+    [],
+  );
 
   // 删除论文
   const deletePaper = useCallback(async (id: string) => {
@@ -317,31 +347,25 @@ export const useApiRequest = () => {
 export const useApiError = () => {
   const handleError = useCallback((error: unknown) => {
     if (error instanceof Error) {
-      console.error('API Error:', error.message);
+      console.error("API Error:", error.message);
       return error.message;
     }
 
-    if (typeof error === 'object' && error !== null && 'response' in error) {
+    if (typeof error === "object" && error !== null && "response" in error) {
       const axiosError = error as any;
-      const message = axiosError.response?.data?.detail || '请求失败';
-      console.error('API Error:', message);
+      const message = axiosError.response?.data?.detail || "请求失败";
+      console.error("API Error:", message);
       return message;
     }
 
-    console.error('Unknown Error:', error);
-    return '未知错误';
+    console.error("Unknown Error:", error);
+    return "未知错误";
   }, []);
 
   return { handleError };
 };
 
 // 导出所有 hooks
-export {
-  api,
-  apiClient,
-};
+export { api, apiClient };
 
-export type {
-  ApiResponse,
-  PaginationParams,
-};
+export type { ApiResponse, PaginationParams };

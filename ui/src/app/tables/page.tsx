@@ -21,7 +21,7 @@ const TablesPage = () => {
         <Suspense fallback={<TopChannelsSkeleton />}>
           <TopChannels />
         </Suspense>
-        
+
         <Suspense fallback={<TopProductsSkeleton />}>
           <TopProducts />
         </Suspense>

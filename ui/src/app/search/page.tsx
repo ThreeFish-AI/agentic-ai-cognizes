@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSearch } from '@/hooks/useApi';
-import SearchForm from '@/components/search/SearchForm';
-import SearchResults from '@/components/search/SearchResults';
-import SearchFilters from '@/components/search/SearchFilters';
-import type { PaperCategory, PaperStatus } from '@/types';
+import React, { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useSearch } from "@/hooks/useApi";
+import SearchForm from "@/components/search/SearchForm";
+import SearchResults from "@/components/search/SearchResults";
+import SearchFilters from "@/components/search/SearchFilters";
+import type { PaperCategory, PaperStatus } from "@/types";
 
 export default function SearchPage() {
   const router = useRouter();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<{
     categories: PaperCategory[];
     statuses: PaperStatus[];
@@ -30,20 +30,25 @@ export default function SearchPage() {
     };
 
     if (filters.categories.length > 0) {
-      params.category = filters.categories.join(',');
+      params.category = filters.categories.join(",");
     }
 
     if (filters.statuses.length > 0) {
-      params.status = filters.statuses.join(',');
+      params.status = filters.statuses.join(",");
     }
 
     return params;
   }, [query, filters.categories, filters.statuses, page]);
 
   // Fetch search results
-  const { data: searchResults, error, isLoading, mutate } = useSearch(query, {
-    category: filters.categories.join(','),
-    status: filters.statuses.join(','),
+  const {
+    data: searchResults,
+    error,
+    isLoading,
+    mutate,
+  } = useSearch(query, {
+    category: filters.categories.join(","),
+    status: filters.statuses.join(","),
   });
 
   // Handle search submission
@@ -60,17 +65,17 @@ export default function SearchPage() {
   }, []);
 
   // Handle filters change
-  const handleFiltersChange = useCallback((newFilters: {
-    categories: PaperCategory[];
-    statuses: PaperStatus[];
-  }) => {
-    setFilters(newFilters);
-    setPage(1);
-    // Re-trigger search
-    if (query) {
-      mutate();
-    }
-  }, [query, mutate]);
+  const handleFiltersChange = useCallback(
+    (newFilters: { categories: PaperCategory[]; statuses: PaperStatus[] }) => {
+      setFilters(newFilters);
+      setPage(1);
+      // Re-trigger search
+      if (query) {
+        mutate();
+      }
+    },
+    [query, mutate],
+  );
 
   // Handle load more
   const handleLoadMore = useCallback(() => {
@@ -78,9 +83,12 @@ export default function SearchPage() {
   }, []);
 
   // Handle result click
-  const handleResultClick = useCallback((paperId: string) => {
-    router.push(`/papers/${paperId}`);
-  }, [router]);
+  const handleResultClick = useCallback(
+    (paperId: string) => {
+      router.push(`/papers/${paperId}`);
+    },
+    [router],
+  );
 
   // Extract results and pagination info
   const results = searchResults?.items || [];
@@ -99,7 +107,7 @@ export default function SearchPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
         {/* Sidebar Filters */}
         <div className="lg:col-span-1">
           <div className="sticky top-4">
@@ -107,7 +115,7 @@ export default function SearchPage() {
               categories={filters.categories}
               statuses={filters.statuses}
               onFiltersChange={handleFiltersChange}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+              className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
             />
           </div>
         </div>
@@ -119,7 +127,7 @@ export default function SearchPage() {
             <SearchForm
               onSearch={handleSearch}
               loading={isLoading}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700"
+              className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
             />
           </div>
 
@@ -138,8 +146,8 @@ export default function SearchPage() {
 
       {/* Search Tips */}
       {query && results.length === 0 && !isLoading && !error && (
-        <div className="mt-12 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">
+        <div className="mt-12 rounded-lg bg-blue-50 p-6 dark:bg-blue-900/20">
+          <h3 className="mb-4 text-lg font-semibold text-blue-900 dark:text-blue-100">
             搜索技巧
           </h3>
           <ul className="space-y-2 text-blue-800 dark:text-blue-200">

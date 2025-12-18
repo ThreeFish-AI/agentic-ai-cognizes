@@ -1,44 +1,44 @@
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 
 interface StatsCardProps {
   title: string;
   value: string | number;
   change?: {
     value: number;
-    type: 'increase' | 'decrease';
+    type: "increase" | "decrease";
   };
   icon: React.ReactNode;
   href?: string;
-  color?: 'blue' | 'green' | 'yellow' | 'red' | 'purple';
+  color?: "blue" | "green" | "yellow" | "red" | "purple";
   className?: string;
 }
 
 const colorClasses = {
   blue: {
-    bg: 'bg-blue-100 dark:bg-blue-900',
-    text: 'text-blue-600 dark:text-blue-400',
-    icon: 'text-blue-500',
+    bg: "bg-blue-100 dark:bg-blue-900",
+    text: "text-blue-600 dark:text-blue-400",
+    icon: "text-blue-500",
   },
   green: {
-    bg: 'bg-green-100 dark:bg-green-900',
-    text: 'text-green-600 dark:text-green-400',
-    icon: 'text-green-500',
+    bg: "bg-green-100 dark:bg-green-900",
+    text: "text-green-600 dark:text-green-400",
+    icon: "text-green-500",
   },
   yellow: {
-    bg: 'bg-yellow-100 dark:bg-yellow-900',
-    text: 'text-yellow-600 dark:text-yellow-400',
-    icon: 'text-yellow-500',
+    bg: "bg-yellow-100 dark:bg-yellow-900",
+    text: "text-yellow-600 dark:text-yellow-400",
+    icon: "text-yellow-500",
   },
   red: {
-    bg: 'bg-red-100 dark:bg-red-900',
-    text: 'text-red-600 dark:text-red-400',
-    icon: 'text-red-500',
+    bg: "bg-red-100 dark:bg-red-900",
+    text: "text-red-600 dark:text-red-400",
+    icon: "text-red-500",
   },
   purple: {
-    bg: 'bg-purple-100 dark:bg-purple-900',
-    text: 'text-purple-600 dark:text-purple-400',
-    icon: 'text-purple-500',
+    bg: "bg-purple-100 dark:bg-purple-900",
+    text: "text-purple-600 dark:text-purple-400",
+    icon: "text-purple-500",
   },
 };
 
@@ -48,14 +48,14 @@ export function StatsCard({
   change,
   icon,
   href,
-  color = 'blue',
-  className = '',
+  color = "blue",
+  className = "",
 }: StatsCardProps) {
   const colors = colorClasses[color];
   const CardContent = (
     <>
       <div className="flex items-center">
-        <div className={`p-3 rounded-lg ${colors.bg}`}>{icon}</div>
+        <div className={`rounded-lg p-3 ${colors.bg}`}>{icon}</div>
         <div className="ml-4 w-0 flex-1">
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
             {title}
@@ -68,12 +68,9 @@ export function StatsCard({
       {change && (
         <div className="mt-4 flex items-center">
           <p
-            className={`
-              text-sm font-medium
-              ${change.type === 'increase' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
-            `}
+            className={`text-sm font-medium ${change.type === "increase" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} `}
           >
-            {change.type === 'increase' ? '+' : ''}
+            {change.type === "increase" ? "+" : ""}
             {change.value}%
           </p>
           <p className="ml-2 text-sm text-gray-500 dark:text-gray-400">
@@ -87,7 +84,7 @@ export function StatsCard({
   const cardClass = `
     relative bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6
     hover:shadow-md transition-shadow duration-200
-    ${href ? 'cursor-pointer' : ''}
+    ${href ? "cursor-pointer" : ""}
     ${className}
   `;
 
@@ -104,7 +101,12 @@ export function StatsCard({
 
 // Predefined icon components
 export const PaperIcon = ({ className }: { className?: string }) => (
-  <svg className={`w-6 h-6 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className={`h-6 w-6 ${className}`}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -115,7 +117,12 @@ export const PaperIcon = ({ className }: { className?: string }) => (
 );
 
 export const TaskIcon = ({ className }: { className?: string }) => (
-  <svg className={`w-6 h-6 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className={`h-6 w-6 ${className}`}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -126,7 +133,12 @@ export const TaskIcon = ({ className }: { className?: string }) => (
 );
 
 export const TranslatedIcon = ({ className }: { className?: string }) => (
-  <svg className={`w-6 h-6 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className={`h-6 w-6 ${className}`}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -137,7 +149,12 @@ export const TranslatedIcon = ({ className }: { className?: string }) => (
 );
 
 export const ProcessingIcon = ({ className }: { className?: string }) => (
-  <svg className={`w-6 h-6 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg
+    className={`h-6 w-6 ${className}`}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
     <path
       strokeLinecap="round"
       strokeLinejoin="round"

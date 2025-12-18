@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchHistory } from '@/hooks/useLocalStorage';
-import type { PaperCategory, PaperStatus } from '@/types';
+import React, { useState, useEffect, useCallback } from "react";
+import { useSearchHistory } from "@/hooks/useLocalStorage";
+import type { PaperCategory, PaperStatus } from "@/types";
 
 interface SearchFormProps {
   onSearch: (query: string, filters: SearchFilters) => void;
@@ -16,30 +16,34 @@ interface SearchFilters {
   author?: string;
 }
 
-const categories: { value: PaperCategory | ''; label: string }[] = [
-  { value: '', label: '全部分类' },
-  { value: 'llm-agents', label: 'LLM Agents' },
-  { value: 'context-engineering', label: 'Context Engineering' },
-  { value: 'reasoning', label: 'Reasoning' },
-  { value: 'tool-use', label: 'Tool Use' },
-  { value: 'planning', label: 'Planning' },
-  { value: 'memory', label: 'Memory' },
-  { value: 'multi-agent', label: 'Multi-Agent' },
-  { value: 'evaluation', label: 'Evaluation' },
-  { value: 'other', label: '其他' },
+const categories: { value: PaperCategory | ""; label: string }[] = [
+  { value: "", label: "全部分类" },
+  { value: "llm-agents", label: "LLM Agents" },
+  { value: "context-engineering", label: "Context Engineering" },
+  { value: "reasoning", label: "Reasoning" },
+  { value: "tool-use", label: "Tool Use" },
+  { value: "planning", label: "Planning" },
+  { value: "memory", label: "Memory" },
+  { value: "multi-agent", label: "Multi-Agent" },
+  { value: "evaluation", label: "Evaluation" },
+  { value: "other", label: "其他" },
 ];
 
-const statuses: { value: PaperStatus | ''; label: string }[] = [
-  { value: '', label: '全部状态' },
-  { value: 'uploaded', label: '已上传' },
-  { value: 'processing', label: '处理中' },
-  { value: 'translated', label: '已翻译' },
-  { value: 'analyzed', label: '已分析' },
-  { value: 'failed', label: '失败' },
+const statuses: { value: PaperStatus | ""; label: string }[] = [
+  { value: "", label: "全部状态" },
+  { value: "uploaded", label: "已上传" },
+  { value: "processing", label: "处理中" },
+  { value: "translated", label: "已翻译" },
+  { value: "analyzed", label: "已分析" },
+  { value: "failed", label: "失败" },
 ];
 
-export function SearchForm({ onSearch, loading = false, className = '' }: SearchFormProps) {
-  const [query, setQuery] = useState('');
+export function SearchForm({
+  onSearch,
+  loading = false,
+  className = "",
+}: SearchFormProps) {
+  const [query, setQuery] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filters, setFilters] = useState<SearchFilters>({});
@@ -48,7 +52,7 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
 
   // Filter history based on current input
   const filteredHistory = history.filter((item) =>
-    item.toLowerCase().includes(query.toLowerCase())
+    item.toLowerCase().includes(query.toLowerCase()),
   );
 
   // Handle search submission
@@ -61,7 +65,7 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
       setShowSuggestions(false);
       onSearch(query, filters);
     },
-    [query, filters, onSearch, addToHistory]
+    [query, filters, onSearch, addToHistory],
   );
 
   // Handle history item click
@@ -85,7 +89,7 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
 
   // Handle key press in suggestions
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       setShowSuggestions(false);
     }
   };
@@ -93,13 +97,13 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
   // Auto-hide suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = () => setShowSuggestions(false);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   // Check if any filters are active
   const hasActiveFilters = Object.values(filters).some(
-    (value) => value !== undefined && value !== ''
+    (value) => value !== undefined && value !== "",
   );
 
   return (
@@ -109,7 +113,7 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
         <div className="relative">
           <div className="relative">
             {/* Search Icon */}
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <svg
                 className="h-5 w-5 text-gray-400"
                 fill="none"
@@ -136,7 +140,7 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
               onFocus={() => setShowSuggestions(query.length > 0)}
               onKeyDown={handleKeyDown}
               placeholder="搜索论文标题、作者、摘要、关键词..."
-              className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
+              className="block w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-12 leading-5 placeholder-gray-500 focus:border-blue-500 focus:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
             />
 
             {/* Clear Button */}
@@ -144,10 +148,10 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
               <button
                 type="button"
                 onClick={() => {
-                  setQuery('');
+                  setQuery("");
                   setShowSuggestions(false);
                 }}
-                className="absolute inset-y-0 right-0 pr-10 flex items-center"
+                className="absolute inset-y-0 right-0 flex items-center pr-10"
               >
                 <svg
                   className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -169,10 +173,10 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
             <button
               type="submit"
               disabled={loading || !query.trim()}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              className="absolute inset-y-0 right-0 flex items-center pr-3"
             >
               {loading ? (
-                <div className="animate-spin h-5 w-5">
+                <div className="h-5 w-5 animate-spin">
                   <svg
                     className="text-blue-500"
                     fill="none"
@@ -216,11 +220,11 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
           {/* Search Suggestions */}
           {showSuggestions && filteredHistory.length > 0 && (
             <div
-              className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg"
+              className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="py-1">
-                <div className="px-3 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <div className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   搜索历史
                 </div>
                 {filteredHistory.slice(0, 5).map((historyQuery, index) => (
@@ -228,10 +232,10 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
                     key={index}
                     type="button"
                     onClick={() => handleHistoryClick(historyQuery)}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                    className="flex w-full items-center px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                   >
                     <svg
-                      className="h-4 w-4 text-gray-400 mr-2"
+                      className="mr-2 h-4 w-4 text-gray-400"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -258,7 +262,7 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
           >
-            {showAdvanced ? '隐藏' : '显示'}高级搜索
+            {showAdvanced ? "隐藏" : "显示"}高级搜索
           </button>
           {hasActiveFilters && (
             <button
@@ -273,19 +277,19 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
 
         {/* Advanced Search Filters */}
         {showAdvanced && (
-          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-900/50">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               {/* Category Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   分类
                 </label>
                 <select
-                  value={filters.category || ''}
+                  value={filters.category || ""}
                   onChange={(e) =>
-                    handleFilterChange('category', e.target.value || undefined)
+                    handleFilterChange("category", e.target.value || undefined)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 >
                   {categories.map((cat) => (
                     <option key={cat.value} value={cat.value}>
@@ -297,15 +301,15 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
 
               {/* Status Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   状态
                 </label>
                 <select
-                  value={filters.status || ''}
+                  value={filters.status || ""}
                   onChange={(e) =>
-                    handleFilterChange('status', e.target.value || undefined)
+                    handleFilterChange("status", e.target.value || undefined)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 >
                   {statuses.map((status) => (
                     <option key={status.value} value={status.value}>
@@ -317,48 +321,48 @@ export function SearchForm({ onSearch, loading = false, className = '' }: Search
 
               {/* Date From Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   开始日期
                 </label>
                 <input
                   type="date"
-                  value={filters.dateFrom || ''}
+                  value={filters.dateFrom || ""}
                   onChange={(e) =>
-                    handleFilterChange('dateFrom', e.target.value || undefined)
+                    handleFilterChange("dateFrom", e.target.value || undefined)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
               </div>
 
               {/* Date To Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   结束日期
                 </label>
                 <input
                   type="date"
-                  value={filters.dateTo || ''}
+                  value={filters.dateTo || ""}
                   onChange={(e) =>
-                    handleFilterChange('dateTo', e.target.value || undefined)
+                    handleFilterChange("dateTo", e.target.value || undefined)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 />
               </div>
             </div>
 
             {/* Author Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 作者
               </label>
               <input
                 type="text"
-                value={filters.author || ''}
+                value={filters.author || ""}
                 onChange={(e) =>
-                  handleFilterChange('author', e.target.value || undefined)
+                  handleFilterChange("author", e.target.value || undefined)
                 }
                 placeholder="输入作者姓名..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-400"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400"
               />
             </div>
           </div>

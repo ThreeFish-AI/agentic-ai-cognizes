@@ -15,7 +15,7 @@ export default function Page() {
   });
 
   const handleChange = (e: any) => {
-    if (e.target.name === "profilePhoto" ) {
+    if (e.target.name === "profilePhoto") {
       const file = e.target?.files[0];
 
       setData({

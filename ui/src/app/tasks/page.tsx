@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTaskStore, useUIStore } from '@/store';
-import { useActiveTasksMonitor } from '@/hooks/useWebSocket';
-import TaskList from '@/components/tasks/TaskList';
-import TaskProgress from '@/components/tasks/TaskProgress';
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useTaskStore, useUIStore } from "@/store";
+import { useActiveTasksMonitor } from "@/hooks/useWebSocket";
+import TaskList from "@/components/tasks/TaskList";
+import TaskProgress from "@/components/tasks/TaskProgress";
 
 export default function TasksPage() {
   const router = useRouter();
@@ -57,16 +57,12 @@ export default function TasksPage() {
       {/* Active Tasks Overview */}
       {activeTasks.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
             正在运行的任务 ({activeTasks.length})
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {activeTasks.slice(0, 6).map((task) => (
-              <TaskProgress
-                key={task.id}
-                task={task}
-                showDetails={false}
-              />
+              <TaskProgress key={task.id} task={task} showDetails={false} />
             ))}
           </div>
           {activeTasks.length > 6 && (

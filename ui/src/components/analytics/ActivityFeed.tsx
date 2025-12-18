@@ -1,13 +1,18 @@
-import React from 'react';
-import Link from 'next/link';
-import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
-import type { Task, Paper } from '@/types';
+import React from "react";
+import Link from "next/link";
+import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
+import type { Task, Paper } from "@/types";
 
 interface ActivityFeedProps {
   activities?: Array<{
     id: string;
-    type: 'paper_uploaded' | 'paper_translated' | 'paper_analyzed' | 'task_completed' | 'task_failed';
+    type:
+      | "paper_uploaded"
+      | "paper_translated"
+      | "paper_analyzed"
+      | "task_completed"
+      | "task_failed";
     title: string;
     description: string;
     timestamp: string;
@@ -19,7 +24,12 @@ interface ActivityFeedProps {
 
 const activityIcons = {
   paper_uploaded: (
-    <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg
+      className="h-5 w-5 text-blue-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -29,7 +39,12 @@ const activityIcons = {
     </svg>
   ),
   paper_translated: (
-    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg
+      className="h-5 w-5 text-green-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -39,7 +54,12 @@ const activityIcons = {
     </svg>
   ),
   paper_analyzed: (
-    <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg
+      className="h-5 w-5 text-purple-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -49,7 +69,12 @@ const activityIcons = {
     </svg>
   ),
   task_completed: (
-    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg
+      className="h-5 w-5 text-green-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -59,7 +84,12 @@ const activityIcons = {
     </svg>
   ),
   task_failed: (
-    <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg
+      className="h-5 w-5 text-red-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -71,49 +101,53 @@ const activityIcons = {
 };
 
 const activityLabels = {
-  paper_uploaded: '论文上传',
-  paper_translated: '翻译完成',
-  paper_analyzed: '分析完成',
-  task_completed: '任务完成',
-  task_failed: '任务失败',
+  paper_uploaded: "论文上传",
+  paper_translated: "翻译完成",
+  paper_analyzed: "分析完成",
+  task_completed: "任务完成",
+  task_failed: "任务失败",
 };
 
-export function ActivityFeed({ activities = [], maxItems = 10, className = '' }: ActivityFeedProps) {
+export function ActivityFeed({
+  activities = [],
+  maxItems = 10,
+  className = "",
+}: ActivityFeedProps) {
   // Mock activities for demonstration
   const mockActivities: typeof activities = [
     {
-      id: '1',
-      type: 'paper_uploaded',
-      title: '新论文上传',
-      description: 'Attention Is All You Need 已上传',
+      id: "1",
+      type: "paper_uploaded",
+      title: "新论文上传",
+      description: "Attention Is All You Need 已上传",
       timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     },
     {
-      id: '2',
-      type: 'paper_translated',
-      title: '翻译完成',
-      description: '《GPT-4 Technical Report》翻译完成',
+      id: "2",
+      type: "paper_translated",
+      title: "翻译完成",
+      description: "《GPT-4 Technical Report》翻译完成",
       timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     },
     {
-      id: '3',
-      type: 'task_completed',
-      title: '批量处理完成',
-      description: '5篇论文的分析任务已完成',
+      id: "3",
+      type: "task_completed",
+      title: "批量处理完成",
+      description: "5篇论文的分析任务已完成",
       timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     },
     {
-      id: '4',
-      type: 'paper_analyzed',
-      title: '分析完成',
-      description: '《Chain-of-Thought Prompting》分析完成',
+      id: "4",
+      type: "paper_analyzed",
+      title: "分析完成",
+      description: "《Chain-of-Thought Prompting》分析完成",
       timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
     },
     {
-      id: '5',
-      type: 'task_failed',
-      title: '任务失败',
-      description: 'PDF解析任务失败，请检查文件格式',
+      id: "5",
+      type: "task_failed",
+      title: "任务失败",
+      description: "PDF解析任务失败，请检查文件格式",
       timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
     },
   ];
@@ -127,7 +161,7 @@ export function ActivityFeed({ activities = [], maxItems = 10, className = '' }:
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / (1000 * 60));
 
-    if (diffMins < 1) return '刚刚';
+    if (diffMins < 1) return "刚刚";
     if (diffMins < 60) return `${diffMins}分钟前`;
     if (diffMins < 1440) return `${Math.floor(diffMins / 60)}小时前`;
     return `${Math.floor(diffMins / 1440)}天前`;
@@ -135,8 +169,8 @@ export function ActivityFeed({ activities = [], maxItems = 10, className = '' }:
 
   return (
     <div className={`activity-feed ${className}`}>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="border-b border-gray-200 p-6 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             最近活动
           </h3>
@@ -144,15 +178,18 @@ export function ActivityFeed({ activities = [], maxItems = 10, className = '' }:
 
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {limitedActivities.map((activity) => (
-            <div key={activity.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <div
+              key={activity.id}
+              className="p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
+            >
               <div className="flex items-start space-x-3">
                 {/* Icon */}
-                <div className="flex-shrink-0 mt-0.5">
+                <div className="mt-0.5 flex-shrink-0">
                   {activityIcons[activity.type]}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {activity.title}
@@ -166,7 +203,7 @@ export function ActivityFeed({ activities = [], maxItems = 10, className = '' }:
                   </p>
 
                   {/* Action link if entity exists */}
-                  {activity.entity && 'id' in activity.entity && (
+                  {activity.entity && "id" in activity.entity && (
                     <div className="mt-2">
                       <Link
                         href={
@@ -188,7 +225,7 @@ export function ActivityFeed({ activities = [], maxItems = 10, className = '' }:
           {limitedActivities.length === 0 && (
             <div className="p-8 text-center">
               <svg
-                className="mx-auto w-12 h-12 text-gray-400"
+                className="mx-auto h-12 w-12 text-gray-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -209,7 +246,7 @@ export function ActivityFeed({ activities = [], maxItems = 10, className = '' }:
 
         {/* View all link */}
         {displayActivities.length > maxItems && (
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="border-t border-gray-200 p-4 dark:border-gray-700">
             <Link
               href="/tasks"
               className="block text-center text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"

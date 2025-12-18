@@ -33,23 +33,23 @@ export interface Paper {
 }
 
 export type PaperCategory =
-  | 'llm-agents'
-  | 'context-engineering'
-  | 'reasoning'
-  | 'tool-use'
-  | 'planning'
-  | 'memory'
-  | 'multi-agent'
-  | 'evaluation'
-  | 'other';
+  | "llm-agents"
+  | "context-engineering"
+  | "reasoning"
+  | "tool-use"
+  | "planning"
+  | "memory"
+  | "multi-agent"
+  | "evaluation"
+  | "other";
 
 export type PaperStatus =
-  | 'uploaded'
-  | 'processing'
-  | 'translated'
-  | 'analyzed'
-  | 'failed'
-  | 'deleted';
+  | "uploaded"
+  | "processing"
+  | "translated"
+  | "analyzed"
+  | "failed"
+  | "deleted";
 
 // 任务相关类型
 export interface Task {
@@ -74,26 +74,26 @@ export interface Task {
 }
 
 export type TaskType =
-  | 'translate'
-  | 'analyze'
-  | 'extract'
-  | 'batch-translate'
-  | 'batch-analyze'
-  | 'index'
-  | 'cleanup';
+  | "translate"
+  | "analyze"
+  | "extract"
+  | "batch-translate"
+  | "batch-analyze"
+  | "index"
+  | "cleanup";
 
 export type TaskStatus =
-  | 'pending'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'paused';
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "paused";
 
 export interface TaskLog {
   id: string;
   taskId: string;
-  level: 'debug' | 'info' | 'warn' | 'error';
+  level: "debug" | "info" | "warn" | "error";
   message: string;
   timestamp: string;
   details?: any;
@@ -101,20 +101,26 @@ export interface TaskLog {
 
 // WebSocket 消息类型
 export interface WebSocketMessage {
-  type: 'task_update' | 'task_progress' | 'task_log' | 'system_notification' | 'ping' | 'pong';
+  type:
+    | "task_update"
+    | "task_progress"
+    | "task_log"
+    | "system_notification"
+    | "ping"
+    | "pong";
   taskId?: string;
   data?: any;
   timestamp: string;
 }
 
 export interface TaskUpdateMessage extends WebSocketMessage {
-  type: 'task_update';
+  type: "task_update";
   taskId: string;
   data: Partial<Task>;
 }
 
 export interface TaskProgressMessage extends WebSocketMessage {
-  type: 'task_progress';
+  type: "task_progress";
   taskId: string;
   data: {
     progress: number;
@@ -123,7 +129,7 @@ export interface TaskProgressMessage extends WebSocketMessage {
 }
 
 export interface TaskLogMessage extends WebSocketMessage {
-  type: 'task_log';
+  type: "task_log";
   taskId: string;
   data: TaskLog;
 }
@@ -136,8 +142,8 @@ export interface SearchQuery {
   dateFrom?: string;
   dateTo?: string;
   author?: string;
-  sortBy?: 'relevance' | 'date' | 'title';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "relevance" | "date" | "title";
+  sortOrder?: "asc" | "desc";
 }
 
 export interface SearchResult {
@@ -163,7 +169,7 @@ export interface SearchFilters {
 // 用户界面状态类型
 export interface Notification {
   id: string;
-  type: 'success' | 'error' | 'warning' | 'info';
+  type: "success" | "error" | "warning" | "info";
   title: string;
   message: string;
   duration?: number; // 自动关闭时间（毫秒）
@@ -180,10 +186,10 @@ export interface ModalState {
 }
 
 export interface UIState {
-  theme: 'light' | 'dark' | 'system';
+  theme: "light" | "dark" | "system";
   sidebarOpen: boolean;
   sidebarCollapsed: boolean;
-  language: 'zh' | 'en';
+  language: "zh" | "en";
   notifications: Notification[];
   modals: ModalState;
   loading: {
@@ -257,15 +263,15 @@ export interface UploadPaperForm {
 
 export interface PaperFilters {
   search?: string;
-  category?: PaperCategory | 'all';
-  status?: PaperStatus | 'all';
+  category?: PaperCategory | "all";
+  status?: PaperStatus | "all";
   dateRange?: {
     start: string;
     end: string;
   };
   author?: string;
-  sortBy?: 'uploadedAt' | 'updatedAt' | 'title';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "uploadedAt" | "updatedAt" | "title";
+  sortOrder?: "asc" | "desc";
 }
 
 // 配置类型
@@ -276,12 +282,12 @@ export interface AppConfig {
   supportedFormats: string[];
   uploadChunkSize: number; // bytes
   autoSaveInterval: number; // seconds
-  theme: 'light' | 'dark' | 'system';
-  language: 'zh' | 'en';
+  theme: "light" | "dark" | "system";
+  language: "zh" | "en";
 }
 
 // 导出所有类型的联合类型（用于通用组件）
 export type PaperFields = keyof Paper;
 export type TaskFields = keyof Task;
-export type SortOrder = 'asc' | 'desc';
+export type SortOrder = "asc" | "desc";
 export type SortField = string;
