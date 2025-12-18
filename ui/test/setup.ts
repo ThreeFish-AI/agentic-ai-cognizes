@@ -1,7 +1,10 @@
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
+import { enableMapSet } from "immer";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { server } from "../../tests/ui/__mocks__/server";
+
+enableMapSet();
 
 // Start server before all tests
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));

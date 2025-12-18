@@ -1,18 +1,27 @@
 import { usePaperStore } from "@/store";
 import type { Paper } from "@/types";
 import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createPaper, createPapers } from "../../helpers/factory";
 
 describe("usePaperStore", () => {
   beforeEach(() => {
     // Reset store before each test
-    usePaperStore.setState({
-      papers: [],
-      loading: false,
-      error: null,
-      searchTerm: "",
-      statusFilter: null,
-      selectedPaperIds: [],
+    act(() => {
+      usePaperStore.setState({
+        papers: [],
+        loading: false,
+        error: null,
+        filters: {
+          search: "",
+          category: "all",
+          status: "all",
+          sortBy: "uploadedAt",
+          sortOrder: "desc",
+        },
+        selectedPapers: new Set(),
+        currentPaper: null,
+      });
     });
   });
 
@@ -23,7 +32,7 @@ describe("usePaperStore", () => {
       expect(result.current.papers).toEqual([]);
       expect(result.current.loading).toBe(false);
       expect(result.current.error).toBe(null);
-      expect(result.current.searchTerm).toBe("");
+      expect(result.current.filters.search).toBe("");
     });
   });
 
@@ -33,9 +42,7 @@ describe("usePaperStore", () => {
       const testPaper = createPaper();
 
       act(() => {
-        usePaperStore.setState({
-          papers: [testPaper],
-        });
+        result.current.setPapers([testPaper]);
       });
 
       expect(result.current.papers).toHaveLength(1);
@@ -43,6 +50,11 @@ describe("usePaperStore", () => {
     });
 
     it("can update loading state", () => {
+      // modifying state directly for testing internal state changes not exposed by actions sometimes,
+      // but here we can just verify the initial state or simulate a fetch (which we can't easily without mocking api).
+      // We can use setState to simulate the loading state change if needed, or check if actions trigger it.
+      // The store handles loading internally in fetchPapers.
+      // Let's us setState to verify selector or state update logic.
       const { result } = renderHook(() => usePaperStore());
 
       act(() => {
@@ -68,7 +80,7 @@ describe("usePaperStore", () => {
       const papers = createPapers(5);
 
       act(() => {
-        usePaperStore.setState({ papers });
+        result.current.setPapers(papers);
       });
 
       expect(result.current.papers).toHaveLength(5);
@@ -80,49 +92,20 @@ describe("usePaperStore", () => {
       const { result } = renderHook(() => usePaperStore());
 
       act(() => {
-        if (result.current.setSearchTerm) {
-          result.current.setSearchTerm("Attention");
-        } else {
-          usePaperStore.setState({ searchTerm: "Attention" });
-        }
+        result.current.setFilters({ search: "Attention" });
       });
 
-      expect(result.current.searchTerm).toBe("Attention");
-    });
-
-    it("can filter papers by search term", () => {
-      const { result } = renderHook(() => usePaperStore());
-      const papers = createPapers(3);
-      papers[0].title = "Attention Is All You Need";
-      papers[1].title = "BERT Paper";
-      papers[2].title = "GPT-3 Paper";
-
-      act(() => {
-        usePaperStore.setState({ papers, searchTerm: "Attention" });
-      });
-
-      // Check if filteredPapers getter exists and works
-      if (result.current.filteredPapers) {
-        expect(
-          result.current.filteredPapers.some((p: Paper) =>
-            p.title.includes("Attention")
-          )
-        ).toBe(true);
-      }
+      expect(result.current.filters.search).toBe("Attention");
     });
 
     it("can set status filter", () => {
       const { result } = renderHook(() => usePaperStore());
 
       act(() => {
-        if (result.current.setStatusFilter) {
-          result.current.setStatusFilter("processed");
-        } else {
-          usePaperStore.setState({ statusFilter: "processed" });
-        }
+        result.current.setFilters({ status: "analyzed" });
       });
 
-      expect(result.current.statusFilter).toBe("processed");
+      expect(result.current.filters.status).toBe("analyzed");
     });
   });
 
@@ -132,22 +115,17 @@ describe("usePaperStore", () => {
       const papers = createPapers(3);
 
       act(() => {
-        usePaperStore.setState({ papers });
+        result.current.setPapers(papers);
       });
 
       act(() => {
-        if (result.current.selectPaper) {
-          result.current.selectPaper(papers[0].id);
-          result.current.selectPaper(papers[1].id);
-        } else {
-          usePaperStore.setState({
-            selectedPaperIds: [papers[0].id, papers[1].id],
-          });
-        }
+        result.current.togglePaperSelection(papers[0].id);
+        result.current.togglePaperSelection(papers[1].id);
       });
 
-      expect(result.current.selectedPaperIds).toContain(papers[0].id);
-      expect(result.current.selectedPaperIds).toContain(papers[1].id);
+      expect(result.current.selectedPapers.has(papers[0].id)).toBe(true);
+      expect(result.current.selectedPapers.has(papers[1].id)).toBe(true);
+      expect(result.current.selectedPapers.has(papers[2].id)).toBe(false);
     });
 
     it("can clear selection", () => {
@@ -155,21 +133,36 @@ describe("usePaperStore", () => {
       const papers = createPapers(2);
 
       act(() => {
+        result.current.setPapers(papers);
+        // Manually set selection to simulate state
         usePaperStore.setState({
-          papers,
-          selectedPaperIds: [papers[0].id, papers[1].id],
+          selectedPapers: new Set([papers[0].id, papers[1].id]),
         });
       });
 
       act(() => {
-        if (result.current.clearSelection) {
-          result.current.clearSelection();
-        } else {
-          usePaperStore.setState({ selectedPaperIds: [] });
-        }
+        result.current.clearPaperSelection();
       });
 
-      expect(result.current.selectedPaperIds).toHaveLength(0);
+      expect(result.current.selectedPapers.size).toBe(0);
+    });
+
+    it("can select all papers", () => {
+      const { result } = renderHook(() => usePaperStore());
+      const papers = createPapers(3);
+
+      act(() => {
+        result.current.setPapers(papers);
+      });
+
+      act(() => {
+        result.current.selectAllPapers();
+      });
+
+      expect(result.current.selectedPapers.size).toBe(3);
+      expect(result.current.selectedPapers.has(papers[0].id)).toBe(true);
+      expect(result.current.selectedPapers.has(papers[1].id)).toBe(true);
+      expect(result.current.selectedPapers.has(papers[2].id)).toBe(true);
     });
   });
 
@@ -179,8 +172,7 @@ describe("usePaperStore", () => {
       const newPaper = createPaper();
 
       act(() => {
-        const currentPapers = usePaperStore.getState().papers;
-        usePaperStore.setState({ papers: [...currentPapers, newPaper] });
+        result.current.addPaper(newPaper);
       });
 
       expect(result.current.papers).toContainEqual(newPaper);
@@ -191,22 +183,17 @@ describe("usePaperStore", () => {
       const paper = createPaper({ id: "update-test", status: "uploaded" });
 
       act(() => {
-        usePaperStore.setState({ papers: [paper] });
+        result.current.setPapers([paper]);
       });
 
       act(() => {
-        const papers = usePaperStore
-          .getState()
-          .papers.map((p: Paper) =>
-            p.id === "update-test" ? { ...p, status: "processed" as const } : p
-          );
-        usePaperStore.setState({ papers });
+        result.current.updatePaper("update-test", { status: "analyzed" });
       });
 
       const updatedPaper = result.current.papers.find(
         (p: Paper) => p.id === "update-test"
       );
-      expect(updatedPaper?.status).toBe("processed");
+      expect(updatedPaper?.status).toBe("analyzed");
     });
 
     it("can delete a paper from store", () => {
@@ -214,63 +201,16 @@ describe("usePaperStore", () => {
       const paper = createPaper({ id: "delete-test" });
 
       act(() => {
-        usePaperStore.setState({ papers: [paper] });
+        result.current.setPapers([paper]);
       });
 
       act(() => {
-        const papers = usePaperStore
-          .getState()
-          .papers.filter((p: Paper) => p.id !== "delete-test");
-        usePaperStore.setState({ papers });
+        result.current.removePaper("delete-test");
       });
 
       expect(result.current.papers).not.toContainEqual(
         expect.objectContaining({ id: "delete-test" })
       );
-    });
-  });
-
-  describe("Bulk Operations", () => {
-    it("handles bulk paper selection", () => {
-      const { result } = renderHook(() => usePaperStore());
-      const papers = createPapers(3);
-
-      act(() => {
-        usePaperStore.setState({ papers });
-      });
-
-      // Select multiple papers
-      act(() => {
-        usePaperStore.setState({
-          selectedPaperIds: papers.map((p: Paper) => p.id),
-        });
-      });
-
-      expect(result.current.selectedPaperIds).toHaveLength(3);
-    });
-
-    it("can perform bulk status update", () => {
-      const { result } = renderHook(() => usePaperStore());
-      const papers = createPapers(3, { status: "uploaded" });
-
-      act(() => {
-        usePaperStore.setState({ papers });
-      });
-
-      // Bulk update status
-      act(() => {
-        const updatedPapers = usePaperStore
-          .getState()
-          .papers.map((p: Paper) => ({
-            ...p,
-            status: "processing" as const,
-          }));
-        usePaperStore.setState({ papers: updatedPapers });
-      });
-
-      expect(
-        result.current.papers.every((p: Paper) => p.status === "processing")
-      ).toBe(true);
     });
   });
 });
