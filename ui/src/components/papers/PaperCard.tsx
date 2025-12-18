@@ -92,6 +92,7 @@ export function PaperCard({
   return (
     <div
       role="article"
+      data-testid="paper-card"
       className={`rounded-lg border bg-white shadow-sm transition-shadow duration-200 hover:shadow-md dark:bg-gray-800 ${isSelected ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800" : "border-gray-200 dark:border-gray-700"} ${className} `}
     >
       {/* Header */}
