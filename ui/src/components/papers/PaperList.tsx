@@ -1,7 +1,7 @@
-import React, { useState, useMemo } from "react";
 import { usePaperStore, useUIStore } from "@/store";
-import PaperCard from "./PaperCard";
 import type { Paper, PaperCategory, PaperStatus, SortOrder } from "@/types";
+import React, { useMemo, useState } from "react";
+import PaperCard from "./PaperCard";
 
 interface PaperListProps {
   papers?: any[];
@@ -262,7 +262,11 @@ export function PaperList({
   };
 
   return (
-    <div className={`paper-list ${className}`}>
+    <div
+      className={`paper-list ${className}`}
+      role="region"
+      aria-label="论文列表"
+    >
       {/* Filters and Actions */}
       <div className="mb-6 space-y-4">
         {/* Search Bar */}
