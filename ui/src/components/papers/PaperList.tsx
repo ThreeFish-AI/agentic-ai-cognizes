@@ -414,7 +414,10 @@ export function PaperList({
 
       {/* Paper Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+          data-testid="loading-spinner"
+        >
           {[...Array(6)].map((_, i) => (
             <div key={i} className="animate-pulse">
               <div className="h-64 rounded-lg bg-gray-200 dark:bg-gray-700"></div>

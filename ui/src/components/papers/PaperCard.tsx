@@ -1,8 +1,11 @@
+"use client";
+
 import { usePaperStore, useUIStore } from "@/store";
 import type { Paper } from "@/types";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
 import Link from "next/link";
+import { useState } from "react";
 
 interface PaperCardProps {
   paper: Paper;
@@ -88,6 +91,7 @@ export function PaperCard({
   };
 
   const isSelected = selectedPapers.has(paper.id);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <div
@@ -223,11 +227,7 @@ export function PaperCard({
                   type="button"
                   data-testid="process-dialog"
                   className="inline-flex items-center rounded-md border border-transparent bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  onClick={() =>
-                    document
-                      .getElementById(`process-menu-${paper.id}`)
-                      ?.classList.toggle("hidden")
-                  }
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
                 >
                   <svg
                     className="mr-1 h-4 w-4"
@@ -246,35 +246,46 @@ export function PaperCard({
                 </button>
 
                 {/* Process Dropdown Menu */}
-                <div
-                  id={`process-menu-${paper.id}`}
-                  className="absolute left-0 z-10 mt-2 hidden w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800"
-                >
-                  <div className="py-1">
-                    {!paper.translation && (
+                {isMenuOpen && (
+                  <div className="absolute left-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 dark:bg-gray-800">
+                    <div className="py-1">
+                      {!paper.translation && (
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            handleProcess("translate");
+                            setIsMenuOpen(false);
+                          }}
+                          className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          翻译
+                        </button>
+                      )}
+                      {!paper.analysis && (
+                        <button
+                          role="menuitem"
+                          onClick={() => {
+                            handleProcess("analyze");
+                            setIsMenuOpen(false);
+                          }}
+                          className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                          分析
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleProcess("translate")}
+                        role="menuitem"
+                        onClick={() => {
+                          handleProcess("index");
+                          setIsMenuOpen(false);
+                        }}
                         className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
                       >
-                        翻译
+                        建立索引
                       </button>
-                    )}
-                    {!paper.analysis && (
-                      <button
-                        onClick={() => handleProcess("analyze")}
-                        className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                      >
-                        分析
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleProcess("index")}
-                      className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      建立索引
-                    </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>

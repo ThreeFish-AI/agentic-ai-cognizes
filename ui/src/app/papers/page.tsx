@@ -25,6 +25,12 @@ export default function PapersPage() {
   // Handle paper processing
   const handlePaperProcess = async (paperId: string, workflow: string) => {
     await processPaper(paperId, workflow);
+    addNotification({
+      type: "success",
+      title: "任务已提交",
+      message: "论文处理任务已成功启动",
+      duration: 3000,
+    });
   };
 
   // Handle paper deletion

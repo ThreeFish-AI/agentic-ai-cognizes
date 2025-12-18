@@ -106,13 +106,6 @@ export function UploadZone({
         }));
       }
 
-      addNotification({
-        type: "success",
-        title: "上传成功",
-        message: `成功上传 ${files.length} 个文件，正在处理中...`,
-        duration: 5000,
-      });
-
       setFiles([]);
       setModal("uploadPaper", false);
 
