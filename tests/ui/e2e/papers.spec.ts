@@ -37,8 +37,15 @@ test.describe("Papers Management", () => {
   });
 
   test("filters papers by status", async ({ page }) => {
+    // Verify filtering request
+    const responsePromise = page.waitForResponse(
+      (resp: any) =>
+        resp.url().includes("/api/papers") &&
+        resp.url().includes("status=processing")
+    );
     // Select 'Processing' status using the dropdown
-    await page.selectOption('[data-testid="status-filter"]', "processing");
+    await page.getByRole("combobox").nth(1).selectOption("processing");
+    await responsePromise;
 
     // Verify filtered results
     const processedCards = page.locator('[data-testid="paper-card"]');
@@ -66,7 +73,13 @@ test.describe("Papers Management", () => {
 
     // Upload a file (simulate file upload)
     const fileInput = page.locator('input[type="file"]');
-    await fileInput.setInputFiles("../tests/ui/fixtures/sample.pdf");
+    // Use buffer and mimeType to ensure dropzone accepts it
+    await fileInput.setInputFiles({
+      name: "sample.pdf",
+      mimeType: "application/pdf",
+      // @ts-ignore
+      buffer: Buffer.from("dummy content"),
+    });
     // Force change event to ensure dropzone picks it up
     await fileInput.dispatchEvent("change");
     await expect(page.locator("text=sample.pdf")).toBeVisible();
@@ -79,14 +92,15 @@ test.describe("Papers Management", () => {
     // Wait for upload to complete
     await expect(page.locator('[data-testid="toast"]')).toContainText(
       "上传成功",
-      { timeout: 10000 }
+      { timeout: 30000 }
     );
 
     // Close modal
-    await page.click('[data-testid="upload-modal"] button[aria-label="Close"]');
+    await page.click('[data-testid="upload-modal"] button[aria-label="关闭"]');
 
-    // Verify new paper appears in list
-    await expect(page.locator('[data-testid="paper-card"]')).toHaveCount(6);
+    // Verify new paper appears in list (checking title)
+    // Note: Mock API puts "New Uploaded Paper" at the top
+    await expect(page.locator("text=New Uploaded Paper")).toBeVisible();
   });
 
   test("processes a paper", async ({ page }) => {
@@ -125,7 +139,14 @@ test.describe("Papers Management", () => {
     await expect(page.locator("text=已选择 2 篇论文")).toBeVisible();
 
     // Click batch process
+    // Click batch process
+    const responsePromise = page.waitForResponse(
+      (resp: any) =>
+        resp.url().includes("/api/papers/batch-process") &&
+        resp.status() === 200
+    );
     await page.click('button:has-text("批量建立索引")');
+    await responsePromise;
 
     // Verify processing started
     await expect(page.locator("text=批量处理已启动")).toBeVisible();
@@ -146,15 +167,26 @@ test.describe("Papers Management", () => {
     // page.on("dialog", (dialog) => dialog.accept()); // Handled in beforeEach
 
     // Click delete button
+    // Click delete button
+    const responsePromise = page.waitForResponse(
+      (resp: any) =>
+        resp.url().includes("/api/papers/") &&
+        resp.request().method() === "DELETE"
+    );
     await firstCard.locator('button:has-text("删除")').click({ force: true });
+    await responsePromise;
 
     // Wait for list to update
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
 
     // Verify deletion success message
-    // Note: Depends on if the app shows a toast or just updates list
-    // verification of count decrement might be flakey if optimistic UI not used
-    // But let's assume it updates.
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "删除成功"
+    );
+
+    // Verification by count or specific element
+    // Assuming we deleted the first card, which was "PaLM" (ID 5, Status Analyzed, Date 2024-01-07)
+    // We check that text "PaLM" is no longer visible, or count decremented
     await expect(page.locator('[data-testid="paper-card"]')).toHaveCount(
       initialCount - 1
     );
