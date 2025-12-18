@@ -78,7 +78,7 @@ class Settings:
 
         # CORS 设置
         self.CORS_ORIGINS: list[str] = os.getenv(
-            "CORS_ORIGINS", "http://localhost:3000"
+            "CORS_ORIGINS", "http://localhost:9003"
         ).split(",")
 
         # 日志设置

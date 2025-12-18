@@ -165,7 +165,7 @@ jobs:
         run: yarn test:e2e --project=chromium
         env:
           CI: true
-          E2E_BASE_URL: http://localhost:3001
+          E2E_BASE_URL: http://localhost:9003
 
       - name: Upload E2E test results
         if: always()
@@ -227,7 +227,7 @@ jobs:
         run: yarn test:e2e --project=${{ matrix.browser }}
         env:
           CI: true
-          E2E_BASE_URL: http://localhost:3001
+          E2E_BASE_URL: http://localhost:9003
 
       - name: Upload E2E test results
         if: always()

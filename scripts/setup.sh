@@ -141,7 +141,7 @@ fi
 echo "2. Activate virtual environment: source venv/bin/activate"
 echo "3. Start backend: cd ui && npm run dev:backend"
 echo "4. Start frontend: cd ui && npm run dev:frontend"
-echo "5. Access the UI at: http://localhost:3000"
+echo "5. Access the UI at: http://localhost:9003"
 echo ""
 echo "For development:"
 echo "- Run tests: pytest"
