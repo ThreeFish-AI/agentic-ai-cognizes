@@ -6,6 +6,7 @@ import { setupUserEvent } from "../../helpers/test-utils";
 import { usePaperStore, useUIStore } from "@/store";
 import { within } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
+import { beforeEach, describe, expect, it } from "vitest";
 import { server } from "../../__mocks__/server";
 
 describe("Papers Page Integration", () => {

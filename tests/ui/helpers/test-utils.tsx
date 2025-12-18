@@ -1,7 +1,9 @@
 import { RenderResult, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { UserEvent } from "@testing-library/user-event/dist/types/setup/setup";
-import { vi } from "vitest";
+import { expect, vi } from "vitest";
+
+// Define UserEvent type from usage
+type UserEvent = ReturnType<typeof userEvent.setup>;
 
 // Enhanced user event setup
 export const setupUserEvent = (): UserEvent => {

@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { enableMapSet } from "immer";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";

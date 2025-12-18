@@ -1,6 +1,6 @@
 import { PaperCard } from "@/components/papers/PaperCard";
 import { usePaperStore } from "@/store";
-import { vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_PAPERS } from "../../helpers/factory";
 import { fireEvent, render, screen } from "../../helpers/render";
 

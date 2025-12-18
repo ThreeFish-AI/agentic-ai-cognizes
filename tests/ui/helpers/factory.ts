@@ -1,4 +1,4 @@
-import { Paper, SearchResult, Task, User } from "@/types";
+import { Paper, SearchResult, Task } from "@/types";
 import { faker } from "@faker-js/faker";
 
 // Paper factory
@@ -20,7 +20,8 @@ export const createPaper = (overrides: Partial<Paper> = {}): Paper => ({
   status: faker.helpers.arrayElement([
     "uploaded",
     "processing",
-    "processed",
+    "translated",
+    "analyzed",
     "failed",
   ]),
   uploadedAt: faker.date.past().toISOString(),
@@ -37,44 +38,24 @@ export const createPapers = (
   overrides: Partial<Paper> = {}
 ): Paper[] => Array.from({ length: count }, () => createPaper(overrides));
 
-// User factory
-export const createUser = (overrides: Partial<User> = {}): User => ({
-  id: faker.string.uuid(),
-  email: faker.internet.email(),
-  name: faker.person.fullName(),
-  avatar: faker.image.avatar(),
-  created_at: faker.date.past().toISOString(),
-  updated_at: faker.date.recent().toISOString(),
-  preferences: {
-    theme: faker.helpers.arrayElement(["light", "dark", "system"]),
-    language: faker.helpers.arrayElement(["zh-CN", "en-US"]),
-    auto_translate: faker.datatype.boolean(),
-    notification_email: faker.datatype.boolean(),
-    papers_per_page: faker.helpers.arrayElement([10, 20, 50]),
-  },
-  ...overrides,
-});
-
 // Task factory
 export const createTask = (overrides: Partial<Task> = {}): Task => ({
   id: faker.string.uuid(),
-  type: faker.helpers.arrayElement([
-    "upload",
-    "process",
-    "translate",
-    "summarize",
-  ]),
+  type: faker.helpers.arrayElement(["translate", "analyze", "extract"]),
   status: faker.helpers.arrayElement([
     "pending",
-    "processing",
+    "running",
     "completed",
     "failed",
   ]),
   progress: faker.number.int({ min: 0, max: 100 }),
-  created_at: faker.date.recent().toISOString(),
-  updated_at: faker.date.recent().toISOString(),
+  title: faker.lorem.sentence(),
+  workflow: "default",
+  logs: [],
+  createdAt: faker.date.recent().toISOString(),
+  updatedAt: faker.date.recent().toISOString(),
   result: null,
-  error: null,
+  error: undefined,
   ...overrides,
 });
 
@@ -82,10 +63,11 @@ export const createTask = (overrides: Partial<Task> = {}): Task => ({
 export const createSearchResult = (
   overrides: Partial<SearchResult> = {}
 ): SearchResult => ({
-  type: "paper",
-  id: faker.string.uuid(),
-  title: faker.lorem.words(5),
-  excerpt: faker.lorem.sentences(2),
+  paper: createPaper(),
+  highlights: {
+    title: [faker.lorem.words(3)],
+    abstract: [faker.lorem.sentence()],
+  },
   score: faker.number.float({ min: 0, max: 1, fractionDigits: 2 }),
   ...overrides,
 });
@@ -203,14 +185,6 @@ export const TEST_PAPERS = {
     status: "uploaded" as const,
     uploadedAt: "2024-01-13T10:00:00Z",
     updatedAt: "2024-01-13T12:00:00Z",
-  }),
-};
-
-export const TEST_USER = {
-  EXAMPLE_USER: createUser({
-    id: "test-user-id",
-    email: "test@example.com",
-    name: "Test User",
   }),
 };
 
