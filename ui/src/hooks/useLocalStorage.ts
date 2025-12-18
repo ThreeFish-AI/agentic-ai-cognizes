@@ -8,6 +8,9 @@ export function useLocalStorage<T>(
 ): [T, (value: T | ((val: T) => T)) => void, () => void] {
   // 从 localStorage 获取初始值
   const readValue = useCallback((): T => {
+    if (typeof window === "undefined") {
+      return initialValue;
+    }
     try {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
@@ -23,6 +26,9 @@ export function useLocalStorage<T>(
   const setValue = useCallback(
     (value: T | ((val: T) => T)) => {
       try {
+        if (typeof window === "undefined") {
+          return;
+        }
         const newValue = value instanceof Function ? value(storedValue) : value;
         window.localStorage.setItem(key, JSON.stringify(newValue));
         setStoredValue(newValue);
@@ -36,6 +42,9 @@ export function useLocalStorage<T>(
   // 删除值的函数
   const removeValue = useCallback(() => {
     try {
+      if (typeof window === "undefined") {
+        return;
+      }
       window.localStorage.removeItem(key);
       setStoredValue(initialValue);
     } catch (error) {
@@ -294,6 +303,9 @@ export function useDownloadQueue() {
 export function useCache() {
   const getCached = useCallback(<T>(key: string): T | null => {
     try {
+      if (typeof window === "undefined") {
+        return null;
+      }
       const item = window.localStorage.getItem(`cache-${key}`);
       if (!item) return null;
 
@@ -314,6 +326,9 @@ export function useCache() {
 
   const setCached = useCallback(<T>(key: string, data: T, ttl?: number) => {
     try {
+      if (typeof window === "undefined") {
+        return;
+      }
       const item = {
         data,
         timestamp: Date.now(),
@@ -326,10 +341,15 @@ export function useCache() {
   }, []);
 
   const removeCached = useCallback((key: string) => {
-    window.localStorage.removeItem(`cache-${key}`);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(`cache-${key}`);
+    }
   }, []);
 
   const clearCache = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
     const keys = Object.keys(window.localStorage);
     keys.forEach((key) => {
       if (key.startsWith("cache-")) {
