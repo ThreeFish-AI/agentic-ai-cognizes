@@ -3,6 +3,7 @@ import papersData from "../fixtures/papers.json";
 
 export async function setupMockApi(page: Page) {
   // Helper to get fresh copy of data for each test
+  // Helper to get fresh copy of data for each test
   let dbPapers = JSON.parse(JSON.stringify(papersData));
 
   // Handle all API requests
