@@ -1,8 +1,7 @@
-import React, { useCallback, useState } from "react";
-import { useDropzone } from "react-dropzone";
-import { useUIStore } from "@/store";
-import { usePaperStore } from "@/store";
+import { usePaperStore, useUIStore } from "@/store";
 import type { PaperCategory } from "@/types";
+import { useCallback, useState } from "react";
+import { useDropzone } from "react-dropzone";
 
 interface UploadZoneProps {
   onUploadComplete?: (taskIds: string[]) => void;
@@ -138,7 +137,7 @@ export function UploadZone({
   };
 
   return (
-    <div className={`upload-zone p-6 ${className}`}>
+    <div className={`upload-zone p-6 ${className}`} data-testid="upload-zone">
       {/* Dropzone */}
       <div
         {...getRootProps()}
