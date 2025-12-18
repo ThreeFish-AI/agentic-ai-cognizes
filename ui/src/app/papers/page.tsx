@@ -88,7 +88,10 @@ export default function PapersPage() {
 
       {/* Upload Modal */}
       {modals.uploadPaper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          data-testid="upload-modal"
+        >
           <div className="mx-4 max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg bg-white shadow-xl dark:bg-gray-800">
             <div className="p-6">
               <div className="mb-4 flex items-center justify-between">

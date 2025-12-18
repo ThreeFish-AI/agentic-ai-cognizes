@@ -128,6 +128,7 @@ export function PaperCard({
                   {categoryLabels[paper.category]}
                 </span>
                 <span
+                  data-testid="paper-status"
                   className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[paper.status]} `}
                 >
                   {statusLabels[paper.status]}
@@ -166,9 +167,19 @@ export function PaperCard({
               />
             </svg>
             <span>
-              {format(new Date(paper.uploadedAt), "yyyy-MM-dd HH:mm", {
-                locale: zhCN,
-              })}
+              {(() => {
+                try {
+                  return format(
+                    new Date(paper.uploadedAt),
+                    "yyyy-MM-dd HH:mm",
+                    {
+                      locale: zhCN,
+                    },
+                  );
+                } catch (e) {
+                  return "无效日期";
+                }
+              })()}
             </span>
           </div>
         </div>
@@ -210,6 +221,7 @@ export function PaperCard({
               <div className="relative inline-block text-left">
                 <button
                   type="button"
+                  data-testid="process-dialog"
                   className="inline-flex items-center rounded-md border border-transparent bg-blue-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   onClick={() =>
                     document
