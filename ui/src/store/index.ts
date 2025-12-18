@@ -1,21 +1,21 @@
+import { api } from "@/lib/api";
+import type {
+  ModalState,
+  Notification,
+  Pagination,
+  Paper,
+  PaperFilters,
+  Task,
+  TaskLog,
+  TaskLogMessage,
+  TaskProgressMessage,
+  TaskUpdateMessage,
+  UIState,
+  WebSocketMessage,
+} from "@/types";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import { api } from "@/lib/api";
-import type {
-  Paper,
-  Task,
-  TaskLog,
-  UIState,
-  PaperFilters,
-  Notification,
-  ModalState,
-  WebSocketMessage,
-  TaskUpdateMessage,
-  TaskProgressMessage,
-  TaskLogMessage,
-  Pagination,
-} from "@/types";
 
 // 论文状态管理
 interface PaperState {
@@ -115,14 +115,17 @@ export const usePaperStore = create<PaperState>()(
             state.currentPaper = paper;
           }),
 
-        togglePaperSelection: (id) =>
+        togglePaperSelection: (id) => {
           set((state) => {
-            if (state.selectedPapers.has(id)) {
-              state.selectedPapers.delete(id);
+            const next = new Set(state.selectedPapers);
+            if (next.has(id)) {
+              next.delete(id);
             } else {
-              state.selectedPapers.add(id);
+              next.add(id);
             }
-          }),
+            state.selectedPapers = next;
+          });
+        },
 
         selectAllPapers: () =>
           set((state) => {
@@ -131,7 +134,7 @@ export const usePaperStore = create<PaperState>()(
 
         clearPaperSelection: () =>
           set((state) => {
-            state.selectedPapers.clear();
+            state.selectedPapers = new Set();
           }),
 
         setFilters: (filters) =>
@@ -180,10 +183,14 @@ export const usePaperStore = create<PaperState>()(
         },
 
         fetchPaper: async (id) => {
+          set((state) => {
+            state.error = null;
+          });
           try {
-            const paper = await api.papers.get(id);
+            const response = await api.papers.get(id);
+            const paperData = (response as any)?.data || response;
             set((state) => {
-              state.currentPaper = paper as unknown as Paper;
+              state.currentPaper = paperData as Paper;
             });
           } catch (error) {
             set((state) => {
