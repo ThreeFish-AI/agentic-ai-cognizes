@@ -19,7 +19,7 @@ describe("usePaperStore", () => {
           sortBy: "uploadedAt",
           sortOrder: "desc",
         },
-        selectedPapers: new Set(),
+        selectedPapers: [],
         currentPaper: null,
       });
     });
@@ -123,9 +123,9 @@ describe("usePaperStore", () => {
         result.current.togglePaperSelection(papers[1].id);
       });
 
-      expect(result.current.selectedPapers.has(papers[0].id)).toBe(true);
-      expect(result.current.selectedPapers.has(papers[1].id)).toBe(true);
-      expect(result.current.selectedPapers.has(papers[2].id)).toBe(false);
+      expect(result.current.selectedPapers.includes(papers[0].id)).toBe(true);
+      expect(result.current.selectedPapers.includes(papers[1].id)).toBe(true);
+      expect(result.current.selectedPapers.includes(papers[2].id)).toBe(false);
     });
 
     it("can clear selection", () => {
@@ -136,7 +136,7 @@ describe("usePaperStore", () => {
         result.current.setPapers(papers);
         // Manually set selection to simulate state
         usePaperStore.setState({
-          selectedPapers: new Set([papers[0].id, papers[1].id]),
+          selectedPapers: [papers[0].id, papers[1].id],
         });
       });
 
@@ -144,7 +144,7 @@ describe("usePaperStore", () => {
         result.current.clearPaperSelection();
       });
 
-      expect(result.current.selectedPapers.size).toBe(0);
+      expect(result.current.selectedPapers.length).toBe(0);
     });
 
     it("can select all papers", () => {
@@ -159,10 +159,10 @@ describe("usePaperStore", () => {
         result.current.selectAllPapers();
       });
 
-      expect(result.current.selectedPapers.size).toBe(3);
-      expect(result.current.selectedPapers.has(papers[0].id)).toBe(true);
-      expect(result.current.selectedPapers.has(papers[1].id)).toBe(true);
-      expect(result.current.selectedPapers.has(papers[2].id)).toBe(true);
+      expect(result.current.selectedPapers.length).toBe(3);
+      expect(result.current.selectedPapers.includes(papers[0].id)).toBe(true);
+      expect(result.current.selectedPapers.includes(papers[1].id)).toBe(true);
+      expect(result.current.selectedPapers.includes(papers[2].id)).toBe(true);
     });
   });
 
