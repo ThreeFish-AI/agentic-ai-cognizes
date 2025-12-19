@@ -70,6 +70,7 @@ geckodriver*
 tests/reports/*
 .coverage
 /coverage
+ui/coverage
 coverage.json
 coverage.xml
 .pytest_cache/
