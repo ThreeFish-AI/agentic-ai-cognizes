@@ -125,6 +125,7 @@ export async function setupMockApi(page: Page) {
         ...papersData[0],
         id: String(Date.now()),
         title: "New Uploaded Paper",
+        translation: null,
         status: "uploaded",
         uploadedAt: new Date().toISOString(),
       };

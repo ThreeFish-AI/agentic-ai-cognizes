@@ -93,6 +93,13 @@ test.describe("Papers Management", () => {
     // Click start upload
     const startButton = page.locator('button:has-text("开始上传")');
     await expect(startButton).toBeEnabled();
+
+    // Setup wait for response BEFORE triggering the action
+    const responsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes("/api/papers") && resp.request().method() === "GET"
+    );
+
     await startButton.click();
 
     // Wait for upload to complete
@@ -117,6 +124,7 @@ test.describe("Papers Management", () => {
       );
     }
 
+    // Wait for the papers list refresh to match our captured promise
     // Wait for the papers list refresh to match our captured promise
     await responsePromise;
 
@@ -239,6 +247,7 @@ test.describe("Papers Management", () => {
     await firstCard.hover();
 
     const viewLink = firstCard.locator('a:has-text("查看")');
+    await expect(viewLink).toBeVisible();
     await viewLink.click();
 
     // Verify navigation to details page
@@ -287,16 +296,17 @@ test.describe("Papers Management", () => {
     await expect(page.locator("text=加载失败")).toBeVisible({ timeout: 10000 });
     await expect(page.locator('button:has-text("重试")')).toBeVisible();
 
-    // Click retry
-    await page.click('button:has-text("重试")');
-
-    // Should attempt to reload
     // Should attempt to reload
     // Wait for the retry request to complete
-    await page.waitForResponse(
+    const responsePromise = page.waitForResponse(
       (response) =>
         response.url().includes("/api/papers") && response.status() === 500
     );
+
+    // Click retry
+    await page.click('button:has-text("重试")');
+
+    await responsePromise;
   });
 
   test("handles pagination", async ({ page }) => {
