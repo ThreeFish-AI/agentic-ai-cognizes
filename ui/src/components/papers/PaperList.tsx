@@ -181,6 +181,7 @@ export function PaperList({
     sortOrder,
     setFilters,
     filters,
+    fetchPapers,
   ]);
 
   // Handle bulk actions
