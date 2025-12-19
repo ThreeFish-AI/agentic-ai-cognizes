@@ -17,6 +17,7 @@ graph TD
             A1 --> A3["FastAPI ✓"]
             A1 --> A4["Docker ✓"]
             A1 --> A5["OceanBase Vector ⏳"]
+            A1 --> A7["Cognee Graph ⏳"]
             A1 --> A6["测试覆盖 82%"]
         end
 
@@ -75,7 +76,8 @@ graph TB
         D1[论文文件]
         D2[翻译内容]
         D3[分析数据]
-        D4[Vector Index]
+        D4[OceanBase Vector]
+        D5[Cognee Graph Store]
     end
 
     A1 --> B1
@@ -91,6 +93,7 @@ graph TB
     C1 --> D2
     C1 --> D3
     C1 --> D4
+    C1 --> D5
 
     style A1 fill:#9f7aea
     style A2 fill:#9f7aea
@@ -114,6 +117,7 @@ timeline
     section 本周重点
         修复 UI E2E 测试
         优化 CI/CD 流程
+        Cognee 调研与 PoC
         制定搜索技术方案
         分配翻译任务
         集成 OceanBase
@@ -127,6 +131,7 @@ timeline
         Web UI V1.0 发布
         完整用户界面
         全功能语义搜索
+        Cognee 知识图谱初步集成
         翻译覆盖率达 80%
 ```
 
@@ -142,6 +147,7 @@ timeline
     section Q1 2026
         核心功能发布 : Web UI 正式版<br>混合检索(关键词+向量)<br>论文搜索功能
         内容建设 : 完成剩余翻译<br>社区质量反馈
+        智能增强 : 引入 Cognee 构建论文知识图谱<br>GraphRAG 初步实现
     section Q2 2026
         体验与生态 : 用户认证系统<br>个性化推荐<br>开放 API Platform
         性能优化 : 响应速度 <500ms<br>智能缓存策略<br>批量处理优化
@@ -198,6 +204,7 @@ graph TD
 ### 🚀 立即执行（12 月 - 1 月）
 
 - **Web UI & E2E**：修复 CI 测试，确保 Web 界面基础功能稳定（Next.js + Vitest）。
+- **Cognee Integration**：启动 Cognee 集成调研，探索基于 GraphRAG 的论文关联分析。
 - **搜索功能**：全文搜索、分类筛选、结果优化。
 - **Vector Search**：引入 OceanBase，实现向量索引与检索功能。
 - **基础设施**：优化 CI/CD 流水线，解决依赖兼容性问题。
