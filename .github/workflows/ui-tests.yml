@@ -321,12 +321,12 @@ jobs:
       - name: Build application with bundle analysis
         run: |
           npm run build
-          npx npx webpack-bundle-analyzer build/static/js/*.js -m static -r report.html -O
+          npx npx webpack-bundle-analyzer .next/static/chunks/**/*.js -m static -r report.html -O
 
       - name: Analyze bundle size
         run: |
           # Check if main bundle is under 500KB
-          BUNDLE_SIZE=$(wc -c < build/static/js/main*.js)
+          BUNDLE_SIZE=$(wc -c < .next/static/chunks/main-*.js)
           if (( $BUNDLE_SIZE > 524288 )); then
             echo "Bundle size ${BUNDLE_SIZE} bytes exceeds 500KB limit"
             # Don't fail the build, just warn
