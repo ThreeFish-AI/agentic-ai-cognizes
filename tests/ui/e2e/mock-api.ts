@@ -125,10 +125,15 @@ export async function setupMockApi(page: Page) {
         ...papersData[0],
         id: String(Date.now()),
         title: "New Uploaded Paper",
+        translation: null,
         status: "uploaded",
         uploadedAt: new Date().toISOString(),
       };
       dbPapers.unshift(newPaper);
+      console.log(
+        "Mocking POST upload paper. new dbPapers count:",
+        dbPapers.length
+      );
 
       await route.fulfill({
         status: 200,

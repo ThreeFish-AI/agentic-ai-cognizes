@@ -21,7 +21,7 @@ describe("Papers Page Integration", () => {
     usePaperStore.setState({
       papers: [],
       currentPaper: null,
-      selectedPapers: new Set(),
+      selectedPapers: [],
       filters: {
         search: "",
         category: "all",

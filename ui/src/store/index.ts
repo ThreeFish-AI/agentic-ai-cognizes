@@ -21,7 +21,7 @@ import { immer } from "zustand/middleware/immer";
 interface PaperState {
   papers: Paper[];
   currentPaper: Paper | null;
-  selectedPapers: Set<string>;
+  selectedPapers: string[];
   filters: PaperFilters;
   pagination: Pagination;
   loading: boolean;
@@ -62,7 +62,7 @@ export const usePaperStore = create<PaperState>()(
         // Initial state
         papers: [],
         currentPaper: null,
-        selectedPapers: new Set(),
+        selectedPapers: [],
         filters: {
           search: "",
           category: "all",
@@ -103,8 +103,18 @@ export const usePaperStore = create<PaperState>()(
 
         removePaper: (id) =>
           set((state) => {
+            console.log("Store: removePaper called for ID:", id);
+            const initialLength = state.papers.length;
             state.papers = state.papers.filter((p) => p.id !== id);
-            state.selectedPapers.delete(id);
+            console.log(
+              "Store: papers length changed from",
+              initialLength,
+              "to",
+              state.papers.length,
+            );
+            state.selectedPapers = state.selectedPapers.filter(
+              (pId) => pId !== id,
+            );
             if (state.currentPaper?.id === id) {
               state.currentPaper = null;
             }
@@ -117,24 +127,24 @@ export const usePaperStore = create<PaperState>()(
 
         togglePaperSelection: (id) => {
           set((state) => {
-            const next = new Set(state.selectedPapers);
-            if (next.has(id)) {
-              next.delete(id);
+            if (state.selectedPapers.includes(id)) {
+              state.selectedPapers = state.selectedPapers.filter(
+                (pId) => pId !== id,
+              );
             } else {
-              next.add(id);
+              state.selectedPapers.push(id);
             }
-            state.selectedPapers = next;
           });
         },
 
         selectAllPapers: () =>
           set((state) => {
-            state.selectedPapers = new Set(state.papers.map((p) => p.id));
+            state.selectedPapers = state.papers.map((p) => p.id);
           }),
 
         clearPaperSelection: () =>
           set((state) => {
-            state.selectedPapers = new Set();
+            state.selectedPapers = [];
           }),
 
         setFilters: (filters) =>
@@ -510,129 +520,116 @@ interface UIStateStore extends UIState {
 
 export const useUIStore = create<UIStateStore>()(
   devtools(
-    persist(
-      immer((set) => ({
-        // Initial state
-        theme: "system",
-        sidebarOpen: true,
-        sidebarCollapsed: false,
-        language: "zh",
-        notifications: [],
-        modals: {
-          uploadPaper: false,
-          paperViewer: false,
-          taskDetails: false,
-          settings: false,
-          confirmDialog: false,
-        },
-        loading: {
-          papers: false,
-          tasks: false,
-          upload: false,
-        },
-        errors: {},
-
-        // Actions
-        setTheme: (theme) =>
-          set((state) => {
-            state.theme = theme;
-          }),
-
-        setLanguage: (language) =>
-          set((state) => {
-            state.language = language;
-          }),
-
-        toggleSidebar: () =>
-          set((state) => {
-            state.sidebarOpen = !state.sidebarOpen;
-          }),
-
-        setSidebarOpen: (open) =>
-          set((state) => {
-            state.sidebarOpen = open;
-          }),
-
-        setSidebarCollapsed: (collapsed) =>
-          set((state) => {
-            state.sidebarCollapsed = collapsed;
-          }),
-
-        addNotification: (notification) =>
-          set((state) => {
-            const id = Date.now().toString();
-            const newNotification: Notification = {
-              ...notification,
-              id,
-              timestamp: new Date().toISOString(),
-              read: false,
-            };
-            state.notifications.unshift(newNotification);
-
-            // Auto remove after duration (if specified)
-            if (notification.duration && notification.duration > 0) {
-              setTimeout(() => {
-                set((s) => {
-                  s.notifications = s.notifications.filter((n) => n.id !== id);
-                });
-              }, notification.duration);
-            }
-          }),
-
-        removeNotification: (id) =>
-          set((state) => {
-            state.notifications = state.notifications.filter(
-              (n) => n.id !== id,
-            );
-          }),
-
-        markNotificationRead: (id) =>
-          set((state) => {
-            const notification = state.notifications.find((n) => n.id === id);
-            if (notification) {
-              notification.read = true;
-            }
-          }),
-
-        clearAllNotifications: () =>
-          set((state) => {
-            state.notifications = [];
-          }),
-
-        setModal: (modal, open) =>
-          set((state) => {
-            state.modals[modal] = open;
-          }),
-
-        setLoading: (key, value) =>
-          set((state) => {
-            state.loading[key] = value;
-          }),
-
-        setError: (key, error) =>
-          set((state) => {
-            if (error) {
-              state.errors[key] = error;
-            } else {
-              delete state.errors[key];
-            }
-          }),
-
-        clearErrors: () =>
-          set((state) => {
-            state.errors = {};
-          }),
-      })),
-      {
-        name: "ui-store",
-        partialize: (state) => ({
-          theme: state.theme,
-          language: state.language,
-          sidebarOpen: state.sidebarOpen,
-          sidebarCollapsed: state.sidebarCollapsed,
-        }),
+    immer((set) => ({
+      // Initial state
+      theme: "system",
+      sidebarOpen: true,
+      sidebarCollapsed: false,
+      language: "zh",
+      notifications: [],
+      modals: {
+        uploadPaper: false,
+        paperViewer: false,
+        taskDetails: false,
+        settings: false,
+        confirmDialog: false,
       },
-    ),
+      loading: {
+        papers: false,
+        tasks: false,
+        upload: false,
+      },
+      errors: {},
+
+      // Actions
+      setTheme: (theme) =>
+        set((state) => {
+          state.theme = theme;
+        }),
+
+      setLanguage: (language) =>
+        set((state) => {
+          state.language = language;
+        }),
+
+      toggleSidebar: () =>
+        set((state) => {
+          state.sidebarOpen = !state.sidebarOpen;
+        }),
+
+      setSidebarOpen: (open) =>
+        set((state) => {
+          state.sidebarOpen = open;
+        }),
+
+      setSidebarCollapsed: (collapsed) =>
+        set((state) => {
+          state.sidebarCollapsed = collapsed;
+        }),
+
+      addNotification: (notification) =>
+        set((state) => {
+          const id = Date.now().toString();
+          const newNotification: Notification = {
+            ...notification,
+            id,
+            timestamp: new Date().toISOString(),
+            read: false,
+          };
+          state.notifications.unshift(newNotification);
+
+          // Auto remove after duration (if specified)
+          if (notification.duration && notification.duration > 0) {
+            setTimeout(() => {
+              set((s) => {
+                s.notifications = s.notifications.filter((n) => n.id !== id);
+              });
+            }, notification.duration);
+          }
+        }),
+
+      removeNotification: (id) =>
+        set((state) => {
+          state.notifications = state.notifications.filter((n) => n.id !== id);
+        }),
+
+      markNotificationRead: (id) =>
+        set((state) => {
+          const notification = state.notifications.find((n) => n.id === id);
+          if (notification) {
+            notification.read = true;
+          }
+        }),
+
+      clearAllNotifications: () =>
+        set((state) => {
+          state.notifications = [];
+        }),
+
+      setModal: (modal, open) =>
+        set((state) => {
+          state.modals[modal] = open;
+        }),
+
+      setLoading: (key, value) =>
+        set((state) => {
+          state.loading[key] = value;
+        }),
+
+      setError: (key, error) =>
+        set((state) => {
+          if (error) {
+            state.errors[key] = error;
+          } else {
+            delete state.errors[key];
+          }
+        }),
+
+      clearErrors: () =>
+        set((state) => {
+          state.errors = {};
+        }),
+    })),
     {
       name: "ui-store",
     },
