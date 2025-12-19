@@ -129,6 +129,10 @@ export async function setupMockApi(page: Page) {
         uploadedAt: new Date().toISOString(),
       };
       dbPapers.unshift(newPaper);
+      console.log(
+        "Mocking POST upload paper. new dbPapers count:",
+        dbPapers.length
+      );
 
       await route.fulfill({
         status: 200,

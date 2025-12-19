@@ -11,6 +11,10 @@ test.describe("Papers Management", () => {
     });
     await setupMockApi(page);
     await page.goto("/papers");
+    // Clear persisted state to ensure clean start for each test
+    await page.evaluate(() => localStorage.clear());
+    // Reload to apply cleared storage
+    await page.reload();
   });
 
   test("displays papers list correctly", async ({ page }) => {
@@ -112,6 +116,9 @@ test.describe("Papers Management", () => {
         "Modal close button not clickable or not found, continuing verification"
       );
     }
+
+    // Wait for the papers list refresh to match our captured promise
+    await responsePromise;
 
     // Verify new paper appears in list (checking title)
     // Note: Mock API puts "New Uploaded Paper" at the top
@@ -228,6 +235,9 @@ test.describe("Papers Management", () => {
       .first();
     // The previous test logic used .click() on the card main area? No, the code has "查看" link.
     // Ensure we click the link.
+    // Hover over the card to reveal the view button
+    await firstCard.hover();
+
     const viewLink = firstCard.locator('a:has-text("查看")');
     await viewLink.click();
 
