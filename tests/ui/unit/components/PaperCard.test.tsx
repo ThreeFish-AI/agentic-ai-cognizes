@@ -7,7 +7,7 @@ import { fireEvent, render, screen } from "../../helpers/render";
 // Mock the store
 vi.mock("@/store", () => ({
   usePaperStore: vi.fn(() => ({
-    selectedPapers: new Set<string>(),
+    selectedPapers: [],
     togglePaperSelection: vi.fn(),
   })),
   useUIStore: vi.fn(() => ({
@@ -157,7 +157,7 @@ describe("PaperCard", () => {
   it("applies selected styles when paper is selected", () => {
     // Mock the store to return selected state
     (usePaperStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      selectedPapers: new Set([TEST_PAPERS.ATTENTION_PAPER.id]),
+      selectedPapers: [TEST_PAPERS.ATTENTION_PAPER.id],
       selectPaper: vi.fn(),
       clearSelection: vi.fn(),
     });
