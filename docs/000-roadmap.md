@@ -17,8 +17,8 @@ graph TD
             A1 --> A3["FastAPI ✓"]
             A1 --> A4["Docker ✓"]
             A1 --> A5["OceanBase Vector ⏳"]
-            A1 --> A7["Cognee Graph ⏳"]
-            A1 --> A6["测试覆盖 82%"]
+            A1 --> A6["Cognee Graph ⏳"]
+            A1 --> A7["测试覆盖 82%"]
         end
 
         subgraph "内容建设层 - 65%完成"
