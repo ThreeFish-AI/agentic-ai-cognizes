@@ -679,6 +679,504 @@ graph TD
     style E fill:#e3f2fd
 ```
 
+## Web UI 开发指引
+
+### 1. API 集成
+
+```javascript
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:8000/api/:path*",
+      },
+      {
+        source: "/ws/:path*",
+        destination: "http://localhost:8000/ws/:path*",
+      },
+    ];
+  },
+  images: {
+    domains: ["localhost"],
+  },
+};
+
+module.exports = nextConfig;
+```
+
+### 2. API 客户端设计
+
+```typescript
+// src/lib/api.ts
+import axios from "axios";
+
+const apiClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+  timeout: 30000,
+});
+
+// 请求拦截器
+apiClient.interceptors.request.use(
+  (config) => {
+    // 添加认证头（预留）
+    // config.headers.Authorization = `Bearer ${token}`
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// 响应拦截器
+apiClient.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    // 统一错误处理
+    const message = error.response?.data?.detail || error.message;
+    return Promise.reject(new Error(message));
+  }
+);
+
+export const api = {
+  // 论文相关
+  papers: {
+    list: (params?: any) => apiClient.get("/api/papers", { params }),
+    get: (id: string) => apiClient.get(`/api/papers/${id}`),
+    upload: (formData: FormData) =>
+      apiClient.post("/api/papers", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      }),
+    process: (id: string, workflow: string, options?: any) =>
+      apiClient.post(`/api/papers/${id}/process`, { workflow, options }),
+    delete: (id: string) => apiClient.delete(`/api/papers/${id}`),
+  },
+
+  // 任务相关
+  tasks: {
+    list: (params?: any) => apiClient.get("/api/tasks", { params }),
+    get: (id: string) => apiClient.get(`/api/tasks/${id}`),
+    cancel: (id: string) => apiClient.post(`/api/tasks/${id}/cancel`),
+    logs: (id: string) => apiClient.get(`/api/tasks/${id}/logs`),
+  },
+};
+```
+
+### 3. 状态管理 (Zustand)
+
+```typescript
+// src/store/index.ts
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
+
+interface AppState {
+  // 论文状态
+  papers: Paper[];
+  currentPaper: Paper | null;
+  papersLoading: boolean;
+  papersError: string | null;
+
+  // 任务状态
+  tasks: Task[];
+  currentTask: Task | null;
+  taskUpdates: Map<string, TaskUpdate>;
+
+  // UI 状态
+  sidebarOpen: boolean;
+  theme: "light" | "dark";
+  notifications: Notification[];
+
+  // Actions
+  fetchPapers: () => Promise<void>;
+  uploadPaper: (file: File) => Promise<string>;
+  processPaper: (id: string, workflow: string) => Promise<void>;
+  subscribeToTask: (taskId: string) => void;
+  unsubscribeFromTask: (taskId: string) => void;
+}
+
+export const useAppStore = create<AppState>()(
+  devtools((set, get) => ({
+    // Initial state
+    papers: [],
+    currentPaper: null,
+    papersLoading: false,
+    papersError: null,
+
+    tasks: [],
+    currentTask: null,
+    taskUpdates: new Map(),
+
+    sidebarOpen: true,
+    theme: "light",
+    notifications: [],
+
+    // Actions
+    fetchPapers: async () => {
+      set({ papersLoading: true, papersError: null });
+      try {
+        const papers = await api.papers.list();
+        set({ papers, papersLoading: false });
+      } catch (error) {
+        set({ papersError: error.message, papersLoading: false });
+      }
+    },
+
+    uploadPaper: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.papers.upload(formData);
+      return response.task_id;
+    },
+
+    processPaper: async (id: string, workflow: string) => {
+      const task = await api.papers.process(id, workflow);
+      set((state) => ({
+        tasks: [task, ...state.tasks],
+      }));
+      return task;
+    },
+
+    subscribeToTask: (taskId: string) => {
+      // WebSocket 订阅逻辑
+    },
+
+    unsubscribeFromTask: (taskId: string) => {
+      // WebSocket 取消订阅
+    },
+  }))
+);
+```
+
+### 4. NextAdmin 组件集成示例
+
+#### 论文列表组件
+
+```typescript
+// src/components/papers/PaperList.tsx
+import { Table } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+
+export function PaperList({ papers }: { papers: Paper[] }) {
+  return (
+    <Card>
+      <Table>
+        <Table.Header>
+          <Table.Row>
+            <Table.Head>标题</Table.Head>
+            <Table.Head>作者</Table.Head>
+            <Table.Head>状态</Table.Head>
+            <Table.Head>上传时间</Table.Head>
+            <Table.Head>操作</Table.Head>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          {papers.map((paper) => (
+            <Table.Row key={paper.id}>
+              <Table.Cell className="font-medium">{paper.title}</Table.Cell>
+              <Table.Cell>{paper.authors.join(", ")}</Table.Cell>
+              <Table.Cell>
+                <Badge
+                  variant={
+                    paper.status === "translated" ? "success" : "warning"
+                  }
+                >
+                  {paper.status}
+                </Badge>
+              </Table.Cell>
+              <Table.Cell>
+                {new Date(paper.uploadedAt).toLocaleDateString()}
+              </Table.Cell>
+              <Table.Cell>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/papers/${paper.id}`}>查看</Link>
+                </Button>
+              </Table.Cell>
+            </Table.Row>
+          ))}
+        </Table.Body>
+      </Table>
+    </Card>
+  );
+}
+```
+
+#### 任务进度组件
+
+```typescript
+// src/components/tasks/TaskProgress.tsx
+import { Progress } from "@/components/ui/progress";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+export function TaskProgress({ task }: { task: Task }) {
+  const progress = task.progress || 0;
+
+  return (
+    <Card>
+      <div className="p-4">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="font-semibold">{task.title}</h3>
+          <Badge variant={task.status === "completed" ? "success" : "info"}>
+            {task.status}
+          </Badge>
+        </div>
+        <Progress value={progress} className="mb-2" />
+        <p className="text-sm text-muted-foreground">
+          {task.message || "处理中..."}
+        </p>
+      </div>
+    </Card>
+  );
+}
+```
+
+#### 仪表板统计卡片
+
+```typescript
+// src/components/dashboard/StatsCard.tsx
+import { Card } from "@/components/ui/card";
+import { ApexChart } from "react-apexcharts";
+
+export function StatsCard({ title, value, change, icon }: StatsCardProps) {
+  return (
+    <Card>
+      <div className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className="text-2xl font-bold">{value}</p>
+            {change && (
+              <p
+                className={`text-sm ${
+                  change > 0 ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {change > 0 ? "+" : ""}
+                {change}%
+              </p>
+            )}
+          </div>
+          <div className="text-2xl text-muted-foreground">{icon}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+```
+
+#### 搜索表单组件
+
+```typescript
+// src/components/search/SearchForm.tsx
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
+
+export function SearchForm() {
+  return (
+    <Card>
+      <div className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Input placeholder="搜索论文标题或作者..." />
+          <Select placeholder="选择分类">
+            <option value="llm">LLM Agents</option>
+            <option value="context">Context Engineering</option>
+            <option value="reasoning">Reasoning</option>
+          </Select>
+          <Select placeholder="状态">
+            <option value="all">全部</option>
+            <option value="translated">已翻译</option>
+            <option value="pending">待翻译</option>
+          </Select>
+          <Button>搜索</Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+```
+
+### 5. WebSocket 集成
+
+```typescript
+// src/hooks/useWebSocket.ts
+import { useEffect, useRef, useState } from "react";
+import { useAppStore } from "@/store";
+
+export const useWebSocket = (url: string) => {
+  const wsRef = useRef<WebSocket | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { subscribeToTask, unsubscribeFromTask } = useAppStore();
+
+  const connect = () => {
+    try {
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setIsConnected(true);
+        setError(null);
+        console.log("WebSocket connected");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "task_update") {
+            // 更新任务状态
+            subscribeToTask(data.task_id, data);
+          }
+        } catch (err) {
+          console.error("Failed to parse WebSocket message:", err);
+        }
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+        console.log("WebSocket disconnected");
+        // 自动重连
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = (event) => {
+        setError("WebSocket connection error");
+        console.error("WebSocket error:", event);
+      };
+    } catch (err) {
+      setError("Failed to create WebSocket connection");
+    }
+  };
+
+  const disconnect = () => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  };
+
+  const subscribe = (taskId: string) => {
+    if (wsRef.current && isConnected) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "subscribe",
+          task_id: taskId,
+        })
+      );
+    }
+  };
+
+  const unsubscribe = (taskId: string) => {
+    if (wsRef.current && isConnected) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: "unsubscribe",
+          task_id: taskId,
+        })
+      );
+    }
+  };
+
+  useEffect(() => {
+    connect();
+    return () => disconnect();
+  }, [url]);
+
+  return { isConnected, error, subscribe, unsubscribe };
+};
+```
+
+### 5. 环境配置
+
+```bash
+# .env.local
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+NEXT_PUBLIC_MAX_FILE_SIZE=52428800  # 50MB
+NEXT_PUBLIC_SUPPORTED_FORMATS=pdf
+NEXT_PUBLIC_APP_NAME=Agentic AI 论文平台
+NEXT_PUBLIC_APP_VERSION=1.0.0
+```
+
+## 关键实现文件
+
+### 已存在的核心文件
+
+1. **`src/app/layout.tsx`** - 根布局（已集成 NextAdmin 主题系统）
+2. **`src/components/layout/`** - 布局组件（侧边栏、头部等）
+3. **`src/components/ui/`** - NextAdmin 基础 UI 组件库
+4. **`src/components/Auth/`** - 认证相关组件（已实现）
+5. **`tailwind.config.js`** - Tailwind CSS 配置（已优化）
+
+### 待实现的关键文件
+
+1. **`src/lib/api.ts`** - API 客户端，统一处理后端通信
+2. **`src/components/papers/PaperViewer.tsx`** - 核心论文内容查看组件
+3. **`src/hooks/useWebSocket.ts`** - WebSocket 管理钩子，实现实时通信
+4. **`src/store/index.ts`** - 全局状态管理，使用 Zustand
+5. **`src/app/papers/page.tsx`** - 论文列表页面
+6. **`src/app/tasks/page.tsx`** - 任务监控页面
+
+## 性能优化策略
+
+### 1. 代码优化
+
+- **动态导入**: 对大型组件使用 `React.lazy()`
+- **Tree Shaking**: 确保未使用代码被移除
+- **Bundle 分析**: 使用 `@next/bundle-analyzer`
+
+### 2. 运行时优化
+
+- **图片优化**: 使用 Next.js Image 组件
+- **缓存策略**: SWR 缓存 API 响应
+- **虚拟滚动**: 大列表性能优化
+
+### 3. 用户体验
+
+- **加载状态**: 骨架屏和加载指示器
+- **错误边界**: 优雅的错误处理
+- **离线支持**: Service Worker（未来扩展）
+
+## 注意事项
+
+### 1. 安全考虑
+
+- XSS 防护（使用 React 内置保护）
+- CSRF 保护（API 请求）
+- 文件上传验证（类型、大小）
+
+### 2. 国际化准备
+
+- 使用 `next-intl` 支持中英文切换
+- 日期和数字格式本地化
+- 文本外部化管理
+
+### 3. 未来扩展
+
+- 预留认证接口（JWT/OAuth）
+- 设计插件系统架构
+- PWA 功能支持
+- 移动端适配优化
+
+## 相关资源
+
+### 官方文档
+
+- **[Next.js 16 官方文档](https://nextjs.org/docs)** - App Router、Server Components、配置指南
+- **[NextAdmin 官方文档](https://nextadmin.co/docs)** - 组件库使用、主题定制、最佳实践
+- **[Zustand 状态管理](https://github.com/pmndrs/zustand)** - 状态管理、中间件、TypeScript 支持
+- **[SWR 数据获取](https://swr.vercel.app)** - 数据获取、缓存、错误处理
+- **[Tailwind CSS](https://tailwindcss.com/docs)** - 样式系统、响应式设计、自定义配置
+
+### 额外资源
+
+- **[React 19 文档](https://react.dev/)** - 最新特性和最佳实践
+- **[ApexCharts](https://apexcharts.com/docs/)** - 图表配置和自定义（已集成）
+- **[TypeScript](https://www.typescriptlang.org/docs/)** - 类型系统和配置
+
 ## 发布流程
 
 ### 版本管理
