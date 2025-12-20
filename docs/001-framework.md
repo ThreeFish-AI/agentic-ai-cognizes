@@ -54,7 +54,7 @@ flowchart TD
 
     %% 存储层
     subgraph StorageLayer [文件存储]
-        Z1[papers/source/<br/>49 篇原始文档]
+        Z1[papers/source/<br/>51 篇原始文档]
         Z2[papers/translation/<br/>16 篇翻译]
         Z3[papers/heartfelt/<br/>16 篇分析]
     end
@@ -112,7 +112,7 @@ agentic-ai-papers/
 │   │   ├── main.py        # 应用入口
 │   │   ├── routes/        # API 路由 (papers, tasks, websocket)
 │   │   ├── services/      # 业务逻辑 (paper_service, task_service)
-│   │   └── models/        # 数据模型
+│   │   └── models/        # Pydantic 数据模型
 │   ├── claude/            # Agent 实现
 │   │   ├── base.py        # BaseAgent 抽象基类
 │   │   ├── workflow_agent.py    # 工作流编排
@@ -130,13 +130,14 @@ agentic-ai-papers/
 │   └── src/
 │       ├── app/           # App Router 页面
 │       ├── components/    # React 组件
+│       ├── hooks/         # 自定义 Hooks (useApi, useWebSocket)
 │       ├── store/         # Zustand 状态管理
 │       └── services/      # API 服务
 ├── papers/                # 论文存储
-│   ├── source/            # 49 篇原始文档
+│   ├── source/            # 51 篇原始文档
 │   ├── translation/       # 16 篇翻译
 │   └── heartfelt/         # 16 篇深度分析
-├── tests/                 # 测试套件 (49 个文件, 82% 覆盖率)
+├── tests/                 # 测试套件 (82% 覆盖率)
 └── docs/                  # 文档
 ```
 
@@ -216,6 +217,7 @@ classDiagram
 | 文件系统存储       | 简化部署，降低运维复杂度            | 零数据库依赖    |
 | 异步优先架构       | 优化资源利用率，支持高并发          | 3x 并发处理能力 |
 | Next.js App Router | 现代 React 架构，支持 SSR/RSC       | 良好 SEO 支持   |
+| Pydantic Models    | 类型安全的 API 数据验证             | 自动文档生成    |
 
 ## 当前状态
 
@@ -225,7 +227,7 @@ classDiagram
 | API 层   | ✅ 已完成     | papers/tasks/websocket |
 | Skills   | ✅ 已完成     | 7 个 Fallback Skills   |
 | Web UI   | ✅ MVP 已实现 | Next.js 论文管理页面   |
-| 测试     | ✅ 82% 覆盖率 | 49 个测试文件          |
+| 测试     | ✅ 82% 覆盖率 | Pytest + Vitest        |
 | 数据库   | ⏳ 进行中     | OceanBase 向量存储     |
 | 知识图谱 | ⏳ 调研中     | Cognee GraphRAG        |
 
@@ -235,3 +237,7 @@ classDiagram
 - **智能检索**：混合检索（关键词 + 向量）
 - **知识图谱**：Cognee 论文关联分析
 - **用户系统**：认证与个性化推荐
+
+---
+
+_最后更新：2025 年 12 月_
