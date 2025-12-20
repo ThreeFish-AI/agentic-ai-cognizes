@@ -33,10 +33,10 @@ graph TD
     end
 
     subgraph "Cognee Memory Layer"
-        B -->|2. cognee.add()| C[Data Pipeline]
-        C -->|3. cognee.cognify()| D[Cognition Engine]
+        B -->|"2. cognee.add()"| C[Data Pipeline]
+        C -->|"3. cognee.cognify()"| D[Cognition Engine]
 
-        D -->|提取| E[Entities & Relations]
+        D -->|提取| E["Entities & Relations"]
         D -->|生成| F[Vectors]
 
         E --> G[(Graph Store\nNeo4j / Kuzu)]
@@ -46,8 +46,8 @@ graph TD
     end
 
     subgraph "Application Layer"
-        J[Heartfelt Agent] -->|4. cognee.search()| I
-        K[Analysis Agent] -->|5. get_graph()| I
+        J[Heartfelt Agent] -->|"4. cognee.search()"| I
+        K[Analysis Agent] -->|"5. get_graph()"| I
     end
 
     style A fill:#9f7aea
