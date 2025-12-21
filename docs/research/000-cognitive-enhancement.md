@@ -12,7 +12,6 @@
 
 1. [执行摘要](#1-执行摘要)
 2. [理论基础](#2-理论基础)
-   - [2.4 Agentic RAG 深入解读](#24-agentic-rag-深入解读rag-20)
 3. [主流框架解读与对比](#3-主流框架解读与对比)
 4. [图数据库支撑](#4-图数据库支撑)
 5. [向量数据库支撑](#5-向量数据库支撑)
@@ -61,7 +60,7 @@
 
 #### 2.1.1 定义与核心概念
 
-知识图谱（Knowledge Graph, KG）是一种以图结构组织结构化知识的抽象方式，由 **节点**（实体）和 **边**（关系）组成。
+知识图谱（Knowledge Graph, KG）是一种以图结构组织结构化知识的抽象方式，由 **节点**（实体）和 **边**（关系）组成 [1]。
 
 ```mermaid
 graph LR
@@ -168,7 +167,7 @@ LLM 正在革新传统知识工程：
 
 #### 2.2.2 GraphRAG 架构
 
-Microsoft GraphRAG 采用两阶段架构：
+Microsoft GraphRAG 采用两阶段架构 [2]：
 
 **阶段一：离线索引（知识图谱构建）**
 
@@ -192,7 +191,7 @@ flowchart LR
 
 #### 2.2.3 社区检测与分层摘要
 
-GraphRAG 的创新在于 **Leiden 社区检测算法**：
+GraphRAG 的创新在于 **Leiden 社区检测算法** [2]：
 
 1. 将图谱划分为紧密连接的社区
 2. 为每个社区生成 LLM 摘要
@@ -208,7 +207,7 @@ Level 2: 具体主题摘要（如"ReAct框架"、"Tool Use模式"）
 
 #### 2.3.1 Agent 核心特征
 
-根据《Agentic Design Patterns》，Agent 区别于传统软件的核心是：
+根据《Agentic Design Patterns》[10]，Agent 区别于传统软件的核心是：
 
 > **代理性（Agency）**：能够感知环境、做出决策、采取行动以自主实现目标
 
@@ -234,7 +233,7 @@ flowchart LR
 
 #### 2.3.3 从 ReAct 到认知增强
 
-**ReAct 框架**（Reasoning + Acting）奠定了现代 Agent 基础：
+**ReAct 框架**（Reasoning + Acting）奠定了现代 Agent 基础 [5]：
 
 ```
 Think: 我需要查找关于 GraphRAG 的论文
@@ -254,7 +253,7 @@ Act: analyze_relationships(papers)
 
 ### 2.4 Agentic RAG 深入解读（RAG 2.0）
 
-Agentic RAG 代表了检索增强生成技术的重大演进，将传统 RAG 的被动检索转变为主动推理，是构建智能认知增强系统的核心范式。
+Agentic RAG 代表了检索增强生成技术的重大演进，将传统 RAG 的被动检索转变为主动推理，是构建智能认知增强系统的核心范式 [8][9]。
 
 #### 2.4.1 RAG 技术演进
 
@@ -578,7 +577,7 @@ flowchart TB
 
 #### 3.1.1 核心定位
 
-Cognee 是一个开源的 **AI 记忆层框架**，将原始数据转换为可搜索、可连接的智能记忆。
+Cognee 是一个开源的 **AI 记忆层框架**，将原始数据转换为可搜索、可连接的智能记忆 [11][20]。
 
 > **核心理念**：图+向量混合存储，支持语义搜索与结构推理统一
 
@@ -723,7 +722,7 @@ graphrag query --root ./my_project --method local "What is ReAct?"
 
 #### 3.3.1 核心组件
 
-LlamaIndex 提供灵活的知识图谱构建与查询能力：
+LlamaIndex 提供灵活的知识图谱构建与查询能力 [14][22]：
 
 - **PropertyGraphIndex**：属性图索引，支持节点/边属性
 - **KnowledgeGraphRAGRetriever**：图谱检索器
@@ -775,7 +774,7 @@ response = kg_query_engine.query(
 
 #### 3.4.1 核心定位
 
-LangGraph 是 LangChain 生态的 **Agent 工作流编排框架**：
+LangGraph 是 LangChain 生态的 **Agent 工作流编排框架** [15][23]：
 
 - **状态管理**：跨步骤保持状态
 - **条件分支**：动态决策路由
@@ -832,7 +831,7 @@ app = workflow.compile()
 
 #### 3.5.1 核心创新
 
-MemGPT（现更名为 Letta AI）采用 **操作系统式内存管理**：
+MemGPT（现更名为 Letta AI）采用 **操作系统式内存管理** [4][16]：
 
 ```mermaid
 flowchart TB
@@ -904,7 +903,7 @@ Agent: 好的，我会保持简洁。
 
 #### 4.1.1 核心优势
 
-Neo4j 是最成熟的原生图数据库，事实上的行业标准。
+Neo4j 是最成熟的原生图数据库，事实上的行业标准 [13]。
 
 | 特性            | 说明                        |
 | --------------- | --------------------------- |
@@ -947,7 +946,7 @@ from llama_index.graph_stores.neo4j import Neo4jGraphStore
 
 #### 4.2.1 核心优势
 
-FalkorDB 是为 AI/ML 工作负载优化的高性能图数据库。
+FalkorDB 是为 AI/ML 工作负载优化的高性能图数据库 [18][25]。
 
 | 特性           | 说明                            |
 | -------------- | ------------------------------- |
@@ -1037,7 +1036,7 @@ Memgraph 是内存图数据库，专注实时处理。
 
 #### 5.1.1 核心优势
 
-OceanBase 是多模一体化分布式数据库，支持向量检索。
+OceanBase 是多模一体化分布式数据库，支持向量检索 [17]。
 
 | 特性             | 说明                         |
 | ---------------- | ---------------------------- |
@@ -1115,7 +1114,7 @@ vectorstore = OceanBase.from_documents(
 
 ## 6. Agentic Design Patterns 解读
 
-基于《Agentic Design Patterns: A Hands-On Guide to Building Intelligent Systems》整理。
+基于《Agentic Design Patterns: A Hands-On Guide to Building Intelligent Systems》[10] 整理。
 
 ### 6.1 Prompt Chaining（提示链）
 
@@ -1800,49 +1799,65 @@ class HybridRetriever:
 
 ## 9. 参考资料
 
-### 9.1 学术论文
+以下是本报告引用的参考文献，正文中使用 [N] 格式进行标注。
 
-| 论文                                                      | 作者/机构           | 年份 | 核心贡献              |
-| --------------------------------------------------------- | ------------------- | ---- | --------------------- |
-| Knowledge Graphs: Introduction, History, and Perspectives | Chaudhri et al.     | 2022 | 知识图谱综述          |
-| From Local to Global: A Graph RAG Approach                | Microsoft Research  | 2024 | GraphRAG 架构         |
-| Graph-Guided Concept Selection for Efficient RAG          | Liu et al. (Huawei) | 2024 | G2ConS 图导向概念选择 |
-| MemGPT: Towards LLMs as Operating Systems                 | UC Berkeley         | 2023 | 操作系统式记忆管理    |
-| ReAct: Synergizing Reasoning and Acting                   | Google/Princeton    | 2023 | 推理与行动框架        |
-| Chain-of-Thought Prompting                                | Google              | 2022 | 链式思维推理          |
-| A Survey on Large Language Model Based Autonomous Agents  | Wang et al.         | 2023 | LLM Agent 综述        |
-| Self-RAG: Learning to Retrieve, Generate, and Critique    | Asai et al.         | 2024 | 自反思检索增强生成    |
-| Corrective RAG: Enhancing Retrieval Quality               | Yan et al.          | 2024 | 纠错检索增强生成      |
+### 学术论文
 
-### 9.2 技术文档
+[1] Chaudhri, V., et al. "Knowledge Graphs: Introduction, History, and Perspectives." _AI Magazine_, 2022. https://doi.org/10.1002/aaai.12033
 
-| 资源                   | 链接                                      | 说明              |
-| ---------------------- | ----------------------------------------- | ----------------- |
-| **Cognee Docs**        | https://docs.cognee.ai/                   | AI 记忆框架文档   |
-| **Microsoft GraphRAG** | https://microsoft.github.io/graphrag/     | GraphRAG 官方文档 |
-| **Neo4j Docs**         | https://neo4j.com/docs/                   | 图数据库文档      |
-| **LlamaIndex**         | https://docs.llamaindex.ai/               | RAG 框架文档      |
-| **LangGraph**          | https://langchain-ai.github.io/langgraph/ | Agent 编排框架    |
-| **Letta AI**           | https://docs.letta.com/                   | MemGPT 演进版本   |
-| **OceanBase Vector**   | https://www.oceanbase.com/docs/vector     | 向量检索文档      |
+[2] Edge, D., et al. "From Local to Global: A Graph RAG Approach to Query-Focused Summarization." _Microsoft Research_, 2024. https://arxiv.org/abs/2404.16130
 
-### 9.3 书籍
+[3] Liu, Z., et al. "Graph-Guided Concept Selection for Efficient Retrieval-Augmented Generation." _Huawei Cloud_, 2025. https://arxiv.org/abs/2510.24120
 
-- **Agentic Design Patterns: A Hands-On Guide to Building Intelligent Systems**
-  - 作者：Goldman Sachs Engineering Team
-  - 涵盖：Prompt Chaining, Routing, Parallelization, Tool Use, Planning, Reflection, Multi-Agent, Guardrails, Memory, MCP
+[4] Packer, C., et al. "MemGPT: Towards LLMs as Operating Systems." _UC Berkeley_, 2023. https://arxiv.org/abs/2310.08560
 
-### 9.4 开源项目
+[5] Yao, S., et al. "ReAct: Synergizing Reasoning and Acting in Language Models." _Google/Princeton_, 2023. https://arxiv.org/abs/2210.03629
 
-| 项目               | GitHub                            | 说明           |
-| ------------------ | --------------------------------- | -------------- |
-| Cognee             | github.com/topoteretes/cognee     | AI 记忆框架    |
-| Microsoft GraphRAG | github.com/microsoft/graphrag     | 图谱增强 RAG   |
-| LlamaIndex         | github.com/run-llama/llama_index  | RAG 开发框架   |
-| LangGraph          | github.com/langchain-ai/langgraph | Agent 工作流   |
-| MemGPT/Letta       | github.com/cpacker/MemGPT         | 长期记忆 Agent |
-| FalkorDB           | github.com/FalkorDB/FalkorDB      | 高性能图数据库 |
-| Kuzu               | github.com/kuzudb/kuzu            | 嵌入式图数据库 |
+[6] Wei, J., et al. "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models." _Google_, 2022. https://arxiv.org/abs/2201.11903
+
+[7] Wang, L., et al. "A Survey on Large Language Model Based Autonomous Agents." _Tsinghua University_, 2023. https://arxiv.org/abs/2308.11432
+
+[8] Asai, A., et al. "Self-RAG: Learning to Retrieve, Generate, and Critique Through Self-Reflection." _University of Washington_, 2024. https://arxiv.org/abs/2310.11511
+
+[9] Yan, S., et al. "Corrective Retrieval Augmented Generation." _Baidu_, 2024. https://arxiv.org/abs/2401.15884
+
+[10] Goldman Sachs Engineering Team. "Agentic Design Patterns: A Hands-On Guide to Building Intelligent Systems." 2024.
+
+### 技术文档
+
+[11] Cognee Documentation. https://docs.cognee.ai/
+
+[12] Microsoft GraphRAG Documentation. https://microsoft.github.io/graphrag/
+
+[13] Neo4j Documentation. https://neo4j.com/docs/
+
+[14] LlamaIndex Documentation. https://docs.llamaindex.ai/
+
+[15] LangGraph Documentation. https://langchain-ai.github.io/langgraph/
+
+[16] Letta AI (MemGPT) Documentation. https://docs.letta.com/
+
+[17] OceanBase Vector Documentation. https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004827710
+
+[18] FalkorDB Documentation. https://docs.falkordb.com/
+
+[19] Kuzu Documentation. https://kuzudb.github.io/docs/tutorials/
+
+### 开源项目
+
+[20] Cognee. https://github.com/topoteretes/cognee
+
+[21] Microsoft GraphRAG. https://github.com/microsoft/graphrag
+
+[22] LlamaIndex. https://github.com/run-llama/llama_index
+
+[23] LangGraph. https://github.com/langchain-ai/langgraph
+
+[24] MemGPT/Letta. https://github.com/cpacker/MemGPT
+
+[25] FalkorDB. https://github.com/FalkorDB/FalkorDB
+
+[26] Kuzu. https://github.com/kuzudb/kuzu
 
 ---
 
