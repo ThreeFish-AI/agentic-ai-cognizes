@@ -607,8 +607,8 @@ Claude Agent SDK（原 Claude Code SDK）是 Anthropic 提供的 Agent 开发框
 
 ```mermaid
 graph TB
-    subgraph "Claude Agent SDK 架构"
-        A[Application] --> Q[query() API]
+    subgraph Claude_Agent_SDK_架构
+        A[Application] --> Q["query() API"]
         Q --> L[Agent Loop]
         L --> T[Tool Execution]
         L --> C[Context Management]
@@ -617,7 +617,7 @@ graph TB
         T --> M[MCP Servers]
     end
 
-    subgraph "Built-in Tools"
+    subgraph Built_in_Tools
         B1[Read]
         B2[Edit]
         B3[Bash]
