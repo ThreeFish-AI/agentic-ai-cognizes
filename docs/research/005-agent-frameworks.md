@@ -40,34 +40,39 @@
 
 ```mermaid
 mindmap
-  root((Agent Framework))
-    Google ADK
-      多语言支持
-        Python
-        TypeScript
-        Go
-        Java
-      Agent 类型
-        LLM Agent
-        Workflow Agent
-        Custom Agent
-      特色能力
-        Multi-Agent 系统
-        Vertex AI Memory Bank
-        MCP/A2A 协议
-        完整部署方案
-    Claude Agent SDK
-      语言支持
-        Python
-        TypeScript
-      核心特性
-        内置工具
-        权限控制
-        Streaming API
-      Agent Skills
-        三层加载
-        预构建 Skills
-        自定义 Skills
+  root((Google ADK))
+    多语言支持
+      Python
+      TypeScript
+      Go
+      Java
+    Agent 类型
+      LLM Agent
+      Workflow Agent
+      Custom Agent
+    特色能力
+      Multi-Agent 系统
+      Vertex AI Memory Bank
+      MCP/A2A 协议
+      完整部署方案
+```
+
+---
+
+```mermaid
+mindmap
+  root((Claude Agent SDK))
+    语言支持
+      Python
+      TypeScript
+    核心特性
+      内置工具
+      权限控制
+      Streaming API
+    Agent Skills
+      三层加载
+      预构建 Skills
+      自定义 Skills
 ```
 
 ---
