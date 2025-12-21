@@ -1,10 +1,16 @@
 # AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code / Antigravity when working with code in this repository.
 
-## Repository Overview
+## Project Overview
 
-This is a research repository focused on AI Agents papers, containing translated academic papers, summaries, and research materials in Chinese and English. The repository is organized around key research areas in AI agents, context engineering, and retrieval-augmented generation.
+**一个专注于 Agentic AI 学术研究与工程应用方案定制的智能平台**，通过 Agents 协作，构建一个 **认知增强的学术研究助手**，为中文读者提供高质量的论文收集、翻译、理解、语义检索与应用服务。
+
+- **内容采集**：自动化收集、解析 Agentic AI 领域前沿论文
+- **深度翻译**：保持学术术语准确性的高质量中英互译
+- **语义理解**：基于 GraphRAG 的论文关联分析与知识图谱构建
+- **智能检索**：混合检索（关键词 + 向量 + 图谱）支持多跳推理
+- **应用研究**：论文综述与趋势分析、技术选型参考、认知增强与可视化、认知应用方案定制
 
 ## 开发总则
 
