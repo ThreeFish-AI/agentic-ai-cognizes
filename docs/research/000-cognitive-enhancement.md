@@ -93,6 +93,63 @@ graph LR
 | **向量数据库** | 语义相似检索       | 无结构关系     | 模糊匹配、推荐 |
 | **图数据库**   | 关系遍历、多跳推理 | 大规模扩展挑战 | 知识网络、推理 |
 
+#### 2.1.4 知识图谱在 AI 中的应用（2024-2025 前沿）
+
+基于 2024-2025 年最新研究和产业实践，知识图谱在现代 AI 系统中的应用已显著扩展：
+
+**1. GraphRAG - 知识图谱增强检索生成（2024 年突破）**
+
+将 KG 集成到 RAG 流程中，是 2024 年最重要的技术突破之一：
+
+```mermaid
+flowchart LR
+    Query[用户查询] --> KG[(知识图谱)]
+    KG --> Subgraph[子图检索]
+    Subgraph --> Context[结构化上下文]
+    Context --> LLM[LLM 生成]
+    LLM --> Answer[准确回答]
+```
+
+**核心优势**：
+
+- 减少 LLM 幻觉 40-60%
+- 支持多跳推理和复杂关系查询
+- 提供可解释的决策路径
+
+**2. KG-Enhanced LLMs - 知识增强大模型**
+
+| 企业应用          | 技术方案        | 效果提升            |
+| ----------------- | --------------- | ------------------- |
+| **智能问答**      | KG + SQL + LLM  | 准确率 +35%         |
+| **元数据管理**    | KG 语义层       | 数据治理效率 2x     |
+| **多 Agent 协作** | KG 作为知识枢纽 | 复杂任务成功率 +50% |
+
+**3. 行业垂直应用（2024 年实践）**
+
+- **医疗健康**：临床决策支持、生命历程风险路径重构
+- **金融服务**：风险评估、合规检查、客户 360° 视图
+- **网络安全**：威胁与漏洞关系图谱
+- **电商零售**：产品图谱、供应链优化、个性化推荐
+
+**4. 自动化 KG 构建与维护**
+
+LLM 正在革新传统知识工程：
+
+- **LLM 驱动的实体关系抽取**：减少 70% 手动标注
+- **自动图谱更新**：实时知识增量融合
+- **图谱质量评估**：AI 辅助的知识验证
+
+> **市场规模**：知识图谱市场预计从 2024 年 $10.6 亿增长至 2030 年 $69.3 亿（CAGR 37%）
+
+**5. 前沿趋势（2025+）**
+
+| 趋势                 | 描述                             |
+| -------------------- | -------------------------------- |
+| **实时 KG**          | 动态自更新知识图谱               |
+| **多模态 KG**        | 跨文本、图像、视频的统一知识表示 |
+| **Agentic GraphRAG** | Agent 驱动的图谱原生推理         |
+| **边缘 KG**          | 分布式图谱部署，降低延迟         |
+
 ### 2.2 GraphRAG 原理深入
 
 #### 2.2.1 传统 RAG 的局限
@@ -1745,13 +1802,17 @@ class HybridRetriever:
 
 ### 9.1 学术论文
 
-| 论文                                                      | 作者/机构          | 年份 | 核心贡献           |
-| --------------------------------------------------------- | ------------------ | ---- | ------------------ |
-| Knowledge Graphs: Introduction, History, and Perspectives | Chaudhri et al.    | 2022 | 知识图谱综述       |
-| From Local to Global: A Graph RAG Approach                | Microsoft Research | 2024 | GraphRAG 架构      |
-| MemGPT: Towards LLMs as Operating Systems                 | UC Berkeley        | 2023 | 操作系统式记忆管理 |
-| ReAct: Synergizing Reasoning and Acting                   | Google/Princeton   | 2023 | 推理与行动框架     |
-| Chain-of-Thought Prompting                                | Google             | 2022 | 链式思维推理       |
+| 论文                                                      | 作者/机构           | 年份 | 核心贡献              |
+| --------------------------------------------------------- | ------------------- | ---- | --------------------- |
+| Knowledge Graphs: Introduction, History, and Perspectives | Chaudhri et al.     | 2022 | 知识图谱综述          |
+| From Local to Global: A Graph RAG Approach                | Microsoft Research  | 2024 | GraphRAG 架构         |
+| Graph-Guided Concept Selection for Efficient RAG          | Liu et al. (Huawei) | 2024 | G2ConS 图导向概念选择 |
+| MemGPT: Towards LLMs as Operating Systems                 | UC Berkeley         | 2023 | 操作系统式记忆管理    |
+| ReAct: Synergizing Reasoning and Acting                   | Google/Princeton    | 2023 | 推理与行动框架        |
+| Chain-of-Thought Prompting                                | Google              | 2022 | 链式思维推理          |
+| A Survey on Large Language Model Based Autonomous Agents  | Wang et al.         | 2023 | LLM Agent 综述        |
+| Self-RAG: Learning to Retrieve, Generate, and Critique    | Asai et al.         | 2024 | 自反思检索增强生成    |
+| Corrective RAG: Enhancing Retrieval Quality               | Yan et al.          | 2024 | 纠错检索增强生成      |
 
 ### 9.2 技术文档
 
