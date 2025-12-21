@@ -12,6 +12,7 @@
 
 1. [执行摘要](#1-执行摘要)
 2. [理论基础](#2-理论基础)
+   - [2.4 Agentic RAG 深入解读](#24-agentic-rag-深入解读rag-20)
 3. [主流框架解读与对比](#3-主流框架解读与对比)
 4. [图数据库支撑](#4-图数据库支撑)
 5. [向量数据库支撑](#5-向量数据库支撑)
@@ -36,19 +37,21 @@
 
 ### 1.2 核心发现
 
-| 维度         | 关键洞察                                                        |
-| ------------ | --------------------------------------------------------------- |
-| **GraphRAG** | Microsoft GraphRAG 通过社区检测和分层摘要，显著提升全局理解能力 |
-| **记忆框架** | Cognee 提供图+向量统一架构，支持自学习优化                      |
-| **图数据库** | Neo4j 成熟稳定，FalkorDB 在 AI 场景性能领先                     |
-| **设计模式** | Memory 模式是认知增强的核心，需区分短期/长期记忆                |
+| 维度            | 关键洞察                                                        |
+| --------------- | --------------------------------------------------------------- |
+| **Agentic RAG** | RAG 2.0 通过 Agent 驱动实现多步推理、自适应检索和自我修正       |
+| **GraphRAG**    | Microsoft GraphRAG 通过社区检测和分层摘要，显著提升全局理解能力 |
+| **记忆框架**    | Cognee 提供图+向量统一架构，支持自学习优化                      |
+| **图数据库**    | Neo4j 成熟稳定，FalkorDB 在 AI 场景性能领先                     |
+| **设计模式**    | Memory 模式是认知增强的核心，需区分短期/长期记忆                |
 
 ### 1.3 关键建议
 
 1. **采用 Cognee 作为记忆框架**：统一图谱与向量存储，简化架构
-2. **Neo4j 作为图数据库首选**：成熟生态，与 LangChain/LlamaIndex 深度集成
-3. **保持 OceanBase 向量存储**：多模一体化，满足混合检索需求
-4. **分阶段实施**：先完成向量增强，再逐步引入图谱能力
+2. **实施 Agentic RAG 架构**：Adaptive + Corrective + Self-RAG 组合
+3. **Neo4j 作为图数据库首选**：成熟生态，与 LangChain/LlamaIndex 深度集成
+4. **保持 OceanBase 向量存储**：多模一体化，满足混合检索需求
+5. **分阶段实施**：向量增强 → 图谱增强 → Agentic RAG 完整实现
 
 ---
 
@@ -191,6 +194,324 @@ Act: analyze_relationships(papers)
 - **知识图谱**：结构化存储实体关系
 - **自我反思**：评估并改进自身行为
 - **多 Agent 协作**：任务分解与专业化
+
+### 2.4 Agentic RAG 深入解读（RAG 2.0）
+
+Agentic RAG 代表了检索增强生成技术的重大演进，将传统 RAG 的被动检索转变为主动推理，是构建智能认知增强系统的核心范式。
+
+#### 2.4.1 RAG 技术演进
+
+```mermaid
+flowchart LR
+    subgraph "RAG 1.0 (2020-2023)"
+        A1[用户查询] --> A2[向量检索]
+        A2 --> A3[Top-K 文档]
+        A3 --> A4[LLM 生成]
+    end
+
+    subgraph "RAG 2.0 / Agentic RAG (2024+)"
+        B1[用户查询] --> B2{Agent 决策}
+        B2 --> B3[路由选择]
+        B2 --> B4[多步规划]
+        B2 --> B5[工具调用]
+        B3 --> B6[检索执行]
+        B4 --> B6
+        B5 --> B6
+        B6 --> B7{质量评估}
+        B7 -->|不满足| B2
+        B7 -->|满足| B8[生成回答]
+    end
+```
+
+| 阶段             | 时间      | 特征              | 代表技术           |
+| ---------------- | --------- | ----------------- | ------------------ |
+| **Naive RAG**    | 2020-2022 | 简单检索-生成     | 基础向量检索       |
+| **Advanced RAG** | 2022-2023 | 预处理/后处理优化 | 查询重写、重排序   |
+| **Modular RAG**  | 2023-2024 | 组件化架构        | 可插拔检索器       |
+| **Agentic RAG**  | 2024+     | 智能代理驱动      | 自主决策、多步推理 |
+
+#### 2.4.2 Agentic RAG 核心定义
+
+> **Agentic RAG** 是一种将自主 AI Agent 嵌入 RAG 流程的范式，使 LLM 不再仅仅是被动的内容生成器，而是成为能够主动规划、决策、检索和自我修正的智能编排者。
+
+**核心能力差异**：
+
+| 能力维度       | 传统 RAG       | Agentic RAG      |
+| -------------- | -------------- | ---------------- |
+| **执行模式**   | 线性流水线     | 循环迭代         |
+| **决策能力**   | 无（固定流程） | 有（动态选择）   |
+| **检索策略**   | 单次静态检索   | 多轮自适应检索   |
+| **工具使用**   | 无             | 多工具动态调用   |
+| **自我修正**   | 无             | 内置评估反馈循环 |
+| **多步推理**   | 困难           | 原生支持         |
+| **上下文管理** | 简单拼接       | 智能压缩与选择   |
+
+#### 2.4.3 Agentic RAG 关键模式
+
+**1. Adaptive RAG（自适应检索）**
+
+Agent 根据查询特征动态选择检索策略：
+
+```mermaid
+flowchart TD
+    Q[用户查询] --> C{查询分类}
+    C -->|事实查询| V[向量检索]
+    C -->|关系查询| G[图谱检索]
+    C -->|实时信息| W[Web 搜索]
+    C -->|计算需求| T[工具调用]
+    V & G & W & T --> F[融合结果]
+```
+
+**2. Corrective RAG（纠错检索）**
+
+引入文档相关性评估器，低质量时触发补救措施：
+
+```python
+# Corrective RAG 核心流程
+def corrective_rag(query, documents):
+    # 1. 评估检索文档的相关性
+    grades = grade_documents(query, documents)
+
+    relevant_docs = [d for d, g in zip(documents, grades) if g == "relevant"]
+
+    # 2. 如果相关文档不足，触发纠错机制
+    if len(relevant_docs) < threshold:
+        # 策略 A: 查询重写后重新检索
+        rewritten_query = rewrite_query(query)
+        additional_docs = retrieve(rewritten_query)
+
+        # 策略 B: 补充 Web 搜索
+        web_results = web_search(query)
+        relevant_docs.extend(web_results)
+
+    # 3. 基于优化后的文档生成回答
+    return generate(query, relevant_docs)
+```
+
+**3. Self-RAG（自反思检索）**
+
+系统自主评估生成内容的质量和事实性：
+
+```mermaid
+flowchart LR
+    A[生成回答] --> B{自我评估}
+    B -->|检查支撑性| C[每句话是否有依据?]
+    B -->|检查幻觉| D[是否包含杜撰信息?]
+    B -->|检查完整性| E[是否回答了问题?]
+    C & D & E --> F{通过?}
+    F -->|否| G[识别问题并修正]
+    G --> A
+    F -->|是| H[输出最终回答]
+```
+
+**4. Multi-Step Reasoning（多步推理）**
+
+将复杂问题分解为子任务序列：
+
+```
+用户问题：哪些 2024 年发表的论文同时引用了 ReAct 和 Chain-of-Thought？
+
+Agent 规划：
+  Step 1: 搜索引用 ReAct 的 2024 年论文 → 结果集 A
+  Step 2: 搜索引用 Chain-of-Thought 的 2024 年论文 → 结果集 B
+  Step 3: 计算 A ∩ B → 交集论文
+  Step 4: 提取论文标题和摘要
+  Step 5: 生成总结回答
+```
+
+#### 2.4.4 Agentic RAG 架构模式
+
+**单 Agent 架构**
+
+```mermaid
+flowchart TB
+    User[用户] --> Agent[RAG Agent]
+
+    Agent --> Router{路由器}
+    Router --> VectorDB[(向量库)]
+    Router --> GraphDB[(图谱库)]
+    Router --> WebSearch[Web 搜索]
+    Router --> Calculator[计算器]
+
+    VectorDB & GraphDB & WebSearch & Calculator --> Agent
+    Agent --> Response[回答]
+```
+
+**多 Agent 协作架构**
+
+```mermaid
+flowchart TB
+    User[用户] --> Orchestrator[编排 Agent]
+
+    Orchestrator --> Retriever[检索 Agent]
+    Orchestrator --> Grader[评估 Agent]
+    Orchestrator --> Generator[生成 Agent]
+    Orchestrator --> Reflector[反思 Agent]
+
+    Retriever --> VectorDB[(向量库)]
+    Retriever --> GraphDB[(图谱库)]
+
+    Grader --> Retriever
+    Generator --> Reflector
+    Reflector --> Generator
+
+    Generator --> Response[回答]
+```
+
+#### 2.4.5 主流实现框架
+
+**LangGraph 实现**
+
+LangGraph 是构建 Agentic RAG 的主流框架，基于图结构编排工作流：
+
+```python
+from langgraph.graph import StateGraph, END
+from typing import TypedDict, List
+
+class AgentState(TypedDict):
+    query: str
+    documents: List[str]
+    generation: str
+    grade: str
+
+def retrieve(state: AgentState) -> AgentState:
+    """检索相关文档"""
+    docs = retriever.invoke(state["query"])
+    return {"documents": docs}
+
+def grade_documents(state: AgentState) -> AgentState:
+    """评估文档相关性"""
+    grades = [grade_doc(state["query"], doc) for doc in state["documents"]]
+    return {"grade": "pass" if sum(grades) > len(grades) * 0.5 else "fail"}
+
+def decide_next(state: AgentState) -> str:
+    """决定下一步动作"""
+    if state["grade"] == "fail":
+        return "web_search"  # 触发 Web 搜索补救
+    return "generate"
+
+def generate(state: AgentState) -> AgentState:
+    """生成回答"""
+    response = llm.invoke(build_prompt(state["query"], state["documents"]))
+    return {"generation": response}
+
+# 构建 Agentic RAG 工作流
+workflow = StateGraph(AgentState)
+workflow.add_node("retrieve", retrieve)
+workflow.add_node("grade", grade_documents)
+workflow.add_node("web_search", web_search)
+workflow.add_node("generate", generate)
+
+workflow.set_entry_point("retrieve")
+workflow.add_edge("retrieve", "grade")
+workflow.add_conditional_edges("grade", decide_next)
+workflow.add_edge("web_search", "generate")
+workflow.add_edge("generate", END)
+
+agentic_rag = workflow.compile()
+```
+
+**LlamaIndex 实现**
+
+LlamaIndex 提供 Router Query Engine 实现自适应检索：
+
+```python
+from llama_index.core.query_engine import RouterQueryEngine
+from llama_index.core.selectors import LLMSingleSelector
+
+# 定义多个检索工具
+vector_tool = QueryEngineTool.from_defaults(
+    query_engine=vector_index.as_query_engine(),
+    description="适用于语义相似性搜索的向量检索"
+)
+
+graph_tool = QueryEngineTool.from_defaults(
+    query_engine=graph_index.as_query_engine(),
+    description="适用于关系探索的知识图谱检索"
+)
+
+summary_tool = QueryEngineTool.from_defaults(
+    query_engine=summary_index.as_query_engine(),
+    description="适用于全局理解的文档摘要检索"
+)
+
+# 构建路由查询引擎
+router_engine = RouterQueryEngine(
+    selector=LLMSingleSelector.from_defaults(),
+    query_engine_tools=[vector_tool, graph_tool, summary_tool]
+)
+
+# Agent 自动选择最佳检索策略
+response = router_engine.query("What is the relationship between ReAct and CoT?")
+```
+
+#### 2.4.6 Agentic RAG 评估指标
+
+| 指标类别       | 具体指标                | 说明                   |
+| -------------- | ----------------------- | ---------------------- |
+| **检索质量**   | Context Precision       | 检索内容与问题的相关性 |
+|                | Context Recall          | 关键信息的召回率       |
+| **生成质量**   | Faithfulness            | 回答是否有检索内容支撑 |
+|                | Answer Relevancy        | 回答与问题的相关性     |
+| **Agent 效能** | Tool Selection Accuracy | 工具选择正确率         |
+|                | Reasoning Steps         | 推理步骤合理性         |
+|                | Self-Correction Rate    | 自我修正成功率         |
+
+**RAGAS 评估示例**：
+
+```python
+from ragas import evaluate
+from ragas.metrics import faithfulness, answer_relevancy, context_precision
+
+result = evaluate(
+    dataset,
+    metrics=[faithfulness, answer_relevancy, context_precision]
+)
+print(result)
+# {'faithfulness': 0.87, 'answer_relevancy': 0.92, 'context_precision': 0.85}
+```
+
+#### 2.4.7 本项目 Agentic RAG 应用建议
+
+基于调研结果，针对本项目的 Agentic RAG 实施建议：
+
+| 组件         | 建议方案                                | 优先级 |
+| ------------ | --------------------------------------- | ------ |
+| **检索策略** | Adaptive RAG（向量 + 图谱路由）         | P0     |
+| **质量保障** | Corrective RAG（相关性评估 + Web 补充） | P1     |
+| **多步推理** | LangGraph 状态机编排                    | P1     |
+| **自我反思** | Self-RAG 生成后评估                     | P2     |
+| **评估体系** | RAGAS 集成                              | P0     |
+
+**推荐架构**：
+
+```mermaid
+flowchart TB
+    subgraph "Agentic RAG Pipeline"
+        Query[用户查询] --> Router{智能路由}
+
+        Router -->|论文检索| OB[(OceanBase 向量)]
+        Router -->|关系探索| Neo[(Neo4j 图谱)]
+        Router -->|最新信息| Web[Web 搜索]
+
+        OB & Neo & Web --> Grader[相关性评估]
+        Grader -->|低质量| Router
+        Grader -->|高质量| Generator[LLM 生成]
+
+        Generator --> Reflector[自我反思]
+        Reflector -->|需修正| Generator
+        Reflector -->|通过| Response[最终回答]
+    end
+
+    subgraph "认知增强层"
+        Memory[(Cognee 记忆)]
+        Context[上下文管理]
+    end
+
+    Query --> Context
+    Context --> Memory
+    Memory --> Router
+```
 
 ---
 
