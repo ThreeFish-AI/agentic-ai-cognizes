@@ -602,49 +602,39 @@ class Citation(DataPoint):
 ### 7.6 实施路线图
 
 ```mermaid
-gantt
-    title Cognee 集成实施路线
-    dateFormat  YYYY-MM
-    section Phase 1: PoC
-    环境搭建与依赖安装      :2025-12, 2026-01
-    本地 3-5 篇论文图谱构建   :2026-01, 2026-01
-    基础检索验证            :2026-01, 2026-02
+timeline
+    title Cognee 集成实施路线图
 
-    section Phase 2: 服务集成
-    Cognee SDK 封装          :2026-02, 2026-02
-    Neo4j + OceanBase 持久化  :2026-02, 2026-03
-    Agent 集成              :2026-03, 2026-03
+    section Phase 1 PoC (2025-12 ~ 2026-02)
+        2025-12 ~ 2026-01 : 🎯 目标：本地跑通 3-5 篇论文的图谱构建
+                          : ✅ 安装 cognee 依赖
+                          : ✅ 编写脚本：读取 papers/source 下的 PDFs
+        2026-01 : ✅ 定义基础 Data Model (Pydantic)
+                : ✅ 生成并可视化简单的 Knowledge Graph
+        2026-01 ~ 2026-02 : ✅ 基础检索验证
 
-    section Phase 3: 高级应用
-    论文关系图谱可视化       :2026-03, 2026-04
-    多跳推理问答            :2026-04, 2026-05
-    引用网络分析            :2026-05, 2026-06
+    section Phase 2 服务集成 (2026-02 ~ 2026-03)
+        2026-02 : 🎯 目标：将 Cognee 封装为 SDK/API 供 Agent 调用
+                : ✅ Cognee SDK 封装
+                : ✅ 集成到 agents/core/memory.py (新建模块)
+        2026-02 ~ 2026-03 : ✅ Neo4j + OceanBase 持久化配置
+                          : ✅ 在 Workflow Agent Pipeline 中加入 Memory Step
+        2026-03 : ✅ Agent 集成完成
+
+    section Phase 3 高级应用 (2026-03 ~ 2026-06)
+        2026-03 ~ 2026-04 : 🎯 目标：支持基于图谱的复杂问答
+                          : ✅ 在 Web UI 中开发论文关系图谱可视化组件
+        2026-04 ~ 2026-05 : ✅ 多跳推理问答
+                          : ✅ 实现 Citation Network 分析
+        2026-05 ~ 2026-06 : ✅ 引用网络分析深化
+                          : ✅ Heartfelt Agent 支持 Graph-enhanced generation
 ```
 
-### 第一阶段：PoC (Proof of Concept)
-
-- **目标**：在本地跑通 3-5 篇论文的图谱构建。
-- **行动**：
-  1.  安装 `cognee` 依赖。
-  2.  编写脚本：读取 `papers/source` 下的 PDFs。
-  3.  定义基础 Data Model (Pydantic)。
-  4.  生成并可视化简单的 Knowledge Graph。
-
-### 第二阶段：服务集成 (Service Integration)
-
-- **目标**：将 Cognee 封装为 SDK/API，供 Agent 调用。
-- **行动**：
-  1.  集成到 `agents/core/memory.py` (新建模块)。
-  2.  在 `Workflow Agent` 的 Pipeline 中加入 "Memory Step"。
-  3.  配置持久化存储 (Postgres + Neo4j/Kuzu)。
-
-### 第三阶段：高级应用 (Advanced RAG)
-
-- **目标**：支持基于图谱的复杂问答。
-- **行动**：
-  1.  在 Web UI 中开发 "论文关系图谱" 可视化组件。
-  2.  实现 "Citation Network" 分析。
-  3.  Heartfelt Agent 支持 Graph-enhanced generation。
+> [!NOTE] > **路线图说明**：
+>
+> - 🎯 表示各阶段核心目标
+> - ✅ 表示具体行动项
+> - 时间跨度基于预估，实际进度可能根据资源和优先级调整
 
 ---
 
