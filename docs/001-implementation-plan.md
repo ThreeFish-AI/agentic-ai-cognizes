@@ -1,9 +1,10 @@
 # Agentic AI 学术研究与工程应用平台 - 实施计划方案
 
-> **版本**：v1.0  
+> **版本**：v1.1  
 > **日期**：2025 年 12 月  
-> **状态**：初稿  
-> **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)
+> **状态**：Review 完成  
+> **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)  
+> **变更记录**：v1.1 - 补充 OceanBase 适配器、混合检索并发实现、修复版本号不一致
 
 ---
 
@@ -297,6 +298,9 @@ CREATE TABLE tasks (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (source_id) REFERENCES sources(id) ON DELETE CASCADE
 );
+
+-- 6. 全文索引（用于关键词检索）
+CREATE FULLTEXT INDEX idx_sources_fulltext ON sources (title, abstract);
 ```
 
 #### 3.4.2 验收标准
@@ -450,7 +454,7 @@ flowchart TD
 version: "3.8"
 services:
   neo4j:
-    image: neo4j:2025-community
+    image: neo4j:5.26.0
     ports:
       - "7474:7474" # HTTP
       - "7687:7687" # Bolt
@@ -592,6 +596,78 @@ class CogneeMemory:
 | cognee.add     | 成功添加文档 | API 测试 |
 | cognee.cognify | 成功构建图谱 | 图谱查询 |
 | cognee.search  | 返回相关结果 | 检索测试 |
+
+#### 4.3.4 OceanBase Vector Store 适配器
+
+**目标**：为 Cognee 开发 OceanBase 向量存储适配器
+
+**实现步骤**：
+
+1. 创建 `cognizes/core/cognee_oceanbase.py`
+2. 实现 `OceanBaseVectorStore` 类，继承 Cognee BaseVectorStore
+3. 实现 `add_vectors()`, `search()`, `delete()` 方法
+4. 使用 OceanBase HNSW 索引进行向量检索
+
+**代码示例**：
+
+```python
+# cognizes/core/cognee_oceanbase.py
+from typing import List, Optional
+from cognee.infrastructure.databases.vector import BaseVectorStore
+import pymysql
+
+class OceanBaseVectorStore(BaseVectorStore):
+    """自定义 OceanBase 向量存储适配器"""
+
+    def __init__(self, connection_config: dict):
+        self.config = connection_config
+        self._connection = None
+
+    async def add_vectors(
+        self,
+        vectors: List[List[float]],
+        ids: List[str],
+        collection: str,
+        metadata: Optional[List[dict]] = None
+    ) -> None:
+        """添加向量到 OceanBase"""
+        sql = f"""
+            INSERT INTO {collection}_embeddings (id, embedding, metadata)
+            VALUES (%s, %s, %s)
+        """
+        # 执行批量插入
+        pass
+
+    async def search(
+        self,
+        query_vector: List[float],
+        collection: str,
+        k: int = 10
+    ) -> List[dict]:
+        """向量相似度搜索"""
+        sql = f"""
+            SELECT id, chunk_text,
+                   embedding <-> %s AS distance
+            FROM {collection}_embeddings
+            ORDER BY embedding <-> %s
+            LIMIT %s
+        """
+        # 执行查询并返回结果
+        pass
+
+    async def delete(self, ids: List[str], collection: str) -> None:
+        """删除向量"""
+        sql = f"DELETE FROM {collection}_embeddings WHERE id IN %s"
+        pass
+```
+
+**验收标准**：
+
+| 验收项              | 标准                   | 验证方式 |
+| ------------------- | ---------------------- | -------- |
+| 适配器单元测试      | 全部通过               | pytest   |
+| Cognee API 透明使用 | cognee.search 正常返回 | 集成测试 |
+| 向量检索准确率      | Recall@10 > 85%        | 评估测试 |
 
 ### 4.4 任务 2.3：知识图谱构建
 
@@ -757,6 +833,65 @@ class SearchRouter:
 | RRF 融合正确 | 排序符合预期       | 单元测试 |
 | 混合检索质量 | Precision@10 > 70% | 评估测试 |
 | 响应时间     | < 1s               | 性能测试 |
+
+#### 4.5.5 三路检索并发实现
+
+```python
+# cognizes/api/services/hybrid_search.py
+import asyncio
+from typing import List, Dict
+
+class HybridSearchService:
+    """混合检索服务"""
+
+    async def search(self, query: str, limit: int = 10) -> List[Dict]:
+        """并发执行三路检索并融合结果"""
+
+        # 并发执行三路检索
+        keyword_task = self._keyword_search(query, limit)
+        vector_task = self._vector_search(query, limit)
+        graph_task = self._graph_search(query, limit)
+
+        results = await asyncio.gather(
+            keyword_task,
+            vector_task,
+            graph_task,
+            return_exceptions=True
+        )
+
+        # 过滤失败的检索
+        valid_results = [
+            r for r in results
+            if not isinstance(r, Exception) and r is not None
+        ]
+
+        # RRF 融合 (k=60 为学术推荐值 [Cormack 2009])
+        return reciprocal_rank_fusion(valid_results, k=60)
+
+    async def _keyword_search(self, query: str, limit: int) -> List[Dict]:
+        """关键词检索 - OceanBase FULLTEXT"""
+        sql = """
+            SELECT id, title, abstract,
+                   MATCH(title, abstract) AGAINST(%s) AS score
+            FROM sources
+            WHERE MATCH(title, abstract) AGAINST(%s IN BOOLEAN MODE)
+            ORDER BY score DESC
+            LIMIT %s
+        """
+        # 执行查询
+        pass
+
+    async def _vector_search(self, query: str, limit: int) -> List[Dict]:
+        """向量检索 - OceanBase HNSW"""
+        # 1. 生成查询向量
+        # 2. 执行 HNSW 检索
+        pass
+
+    async def _graph_search(self, query: str, limit: int) -> List[Dict]:
+        """图谱检索 - Neo4j Cypher"""
+        # 执行 Cypher 查询
+        pass
+```
 
 ### 4.6 阶段二验收清单
 
@@ -1446,9 +1581,12 @@ pydantic = ">=2.6.0"
 anthropic = ">=0.40.0"
 openai = ">=1.40.0"
 cognee = ">=0.1.17"
-neo4j = ">=5.20.0"
+neo4j = ">=5.26.0"
 sqlalchemy = ">=2.0.0"
 ragas = ">=0.1.0"
+pymysql = ">=1.1.0"
+httpx = ">=0.27.0"
+vis-network = ">=9.1.0"
 ```
 
 ---
@@ -1487,6 +1625,14 @@ ragas = ">=0.1.0"
 # LLM Configuration
 ANTHROPIC_API_KEY=sk-ant-...
 OPENAI_API_KEY=sk-...
+
+# Embedding Configuration
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-small
+
+# Cognee Configuration
+COGNEE_LLM_PROVIDER=anthropic
+COGNEE_LLM_MODEL=claude-sonnet-4-20250514
 
 # Database Configuration
 OCEANBASE_HOST=localhost
