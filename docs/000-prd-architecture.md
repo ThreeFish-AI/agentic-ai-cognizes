@@ -775,10 +775,10 @@ gantt
 
 ## 10. 参考文献
 
-| 序号 | 参考源                       | 来源                                                                                  |
-| ---- | ---------------------------- | ------------------------------------------------------------------------------------- |
+| 序号 | 参考源                       | 来源                                                                                  | 核心思想                      | 本项目应用模块         |
+| ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ----------------------------- | ---------------------- |
 | [1]  | 项目架构文档                 | [docs/001-architecture.md](./001-architecture.md)                                     |
-| [2]  | Microsoft GraphRAG 论文      | [From Local to Global](https://arxiv.org/abs/2404.16130)                              |
+| [2]  | Microsoft GraphRAG 论文      | [From Local to Global](https://arxiv.org/abs/2404.16130)                              | LLM 构建知识图谱 + 图机器学习 | 论文关联分析、多跳检索 |
 | [3]  | 认知增强调研 - GraphRAG 原理 | [docs/research/000-cognitive-enhancement.md](./research/000-cognitive-enhancement.md) |
 | [4]  | Cognee 深度调研              | [docs/research/003-cognee.md](./research/003-cognee.md)                               |
 | [5]  | 认知增强调研报告             | [docs/research/000-cognitive-enhancement.md](./research/000-cognitive-enhancement.md) |
@@ -792,3 +792,5 @@ gantt
 | [13] | Agentic Design Patterns      | 认知增强调研 §6                                                                       |
 | [14] | RAGAS 评估框架               | [RAGAS Docs](https://docs.ragas.io/)                                                  |
 | [15] | Context Engineering 调研     | [docs/research/001-context-engineering.md](./research/001-context-engineering.md)     |
+| [16] | ReAct                        | [ReAct: Synergizing Reasoning and Acting](https://arxiv.org/abs/2210.03629)           | 推理与行动交织，减少幻觉      | Agent 决策循环         |
+| [17] | CoT                          | [Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11903) (Google, 2022)         | 链式思维促进复杂推理          | Heartfelt Agent        |
