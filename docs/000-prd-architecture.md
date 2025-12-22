@@ -2,9 +2,10 @@
 
 > **Agentic AI 学术研究与工程应用方案定制**
 >
-> **版本**：v1.0  
+> **版本**：v1.1  
 > **日期**：2025 年 12 月  
-> **状态**：初稿
+> **状态**：Review 完成  
+> **变更记录**：v1.1 - 增强引用系统、完善架构细节、优化可视化
 
 ---
 
@@ -63,12 +64,13 @@ graph TB
 
 ### 1.3 设计理念
 
-基于**认知增强**理论 [5]，本平台采用以下核心设计理念：
+基于**认知增强**与 **Context Engineering** 理论 [5][15]，本平台采用以下核心设计理念：
 
-1. **Agentic RAG 架构**：将传统 RAG 被动检索转变为 Agent 驱动的主动推理 [6]
-2. **图谱增强记忆**：利用知识图谱解决 LLM 的"孤立上下文"问题 [7]
-3. **多 Agent 协作**：借鉴 BettaFish 论坛协作机制，避免单模型思维局限 [8]
-4. **三位一体存储**：基于 OceanBase 实现 TP/AP/Vector 统一存储 [9]
+1. **Agentic RAG 架构**：将传统 RAG 被动检索转变为 Agent 驱动的主动推理，实现 Adaptive + Corrective + Self-RAG 组合 [6]
+2. **图谱增强记忆**：利用知识图谱解决 LLM 的"孤立上下文"问题，构建确定性知识结构 [7]
+3. **多 Agent 协作**：借鉴 BettaFish 论坛协作机制，通过"论坛辩论"模式避免单模型思维局限和交流同质化 [8]
+4. **三位一体存储**：基于 OceanBase 实现 TP/AP/Vector 统一存储，消除 ETL 同步延迟 [9]
+5. **分层上下文管理**：采用短期/长期记忆分层架构，系统性管理 Agent 运行上下文 [15]
 
 ---
 
@@ -551,14 +553,16 @@ sequenceDiagram
 
 ### 5.1 理论基础
 
-本平台认知增强体系基于以下核心理论 [5]：
+本平台认知增强体系基于以下核心理论 [5][15]：
 
-| 理论                    | 核心思想                    | 应用模块      |
-| ----------------------- | --------------------------- | ------------- |
-| **GraphRAG**            | LLM 构建知识图谱 + 社区检测 | 内容关联分析  |
-| **Agentic RAG**         | Agent 驱动的自适应检索      | 智能问答      |
-| **Memory Pattern**      | 短期/长期记忆分层           | Cognee 认知层 |
-| **Context Engineering** | 系统性上下文管理            | 检索与生成    |
+| 理论                    | 核心思想                    | 应用模块       |
+| ----------------------- | --------------------------- | -------------- |
+| **GraphRAG**            | LLM 构建知识图谱 + 社区检测 | 内容关联分析   |
+| **Agentic RAG**         | Agent 驱动的自适应检索      | 智能问答       |
+| **Memory Pattern**      | 短期/长期记忆分层           | Cognee 认知层  |
+| **Context Engineering** | 系统性上下文管理            | 检索与生成     |
+| **ReAct Framework**     | 推理与行动交织              | Agent 决策循环 |
+| **Reflection**          | 自我评估与修正              | 生成质量保障   |
 
 ### 5.2 Cognee 记忆层
 
@@ -687,7 +691,14 @@ flowchart LR
 
 ### 5.5 Agentic RAG 实现
 
-基于调研结论 [6]，实现 Adaptive + Corrective + Self-RAG 组合：
+基于调研结论 [6]，实现 Adaptive + Corrective + Self-RAG 组合，覆盖 RAG 2.0 全部核心能力：
+
+| 模式               | 核心能力       | 实现方式                             |
+| ------------------ | -------------- | ------------------------------------ |
+| **Adaptive RAG**   | 自适应检索策略 | 智能路由器动态选择向量/图谱/Web 检索 |
+| **Corrective RAG** | 纠错检索       | 相关性评估器 + Web 搜索补救          |
+| **Self-RAG**       | 自反思生成     | 生成后评估，需修正时回退重生         |
+| **Multi-Step**     | 多步推理       | LangGraph 状态机编排复杂检索任务     |
 
 ```mermaid
 flowchart TB
@@ -865,6 +876,42 @@ flowchart TD
     style Neo fill:#4caf50,color:#fff
 ```
 
+### 7.2.1 数据流图
+
+```mermaid
+flowchart LR
+    subgraph "输入层"
+        U[用户/API] --> |上传| P[PDF/URL/文档]
+        U --> |提问| Q[查询请求]
+    end
+
+    subgraph "处理层"
+        P --> RA[Reader Agent<br/>解析]
+        RA --> TA[Translation Agent<br/>翻译]
+        TA --> HA[Heartfelt Agent<br/>分析]
+        HA --> KG[知识图谱构建]
+    end
+
+    subgraph "存储层"
+        KG --> OB[(OceanBase<br/>向量+关系)]
+        KG --> Neo[(Neo4j<br/>图谱)]
+        HA --> FS[(文件系统<br/>原始文档)]
+    end
+
+    subgraph "检索层"
+        Q --> Router{智能路由}
+        Router --> |语义检索| OB
+        Router --> |图谱检索| Neo
+        OB --> Fusion[RRF 融合]
+        Neo --> Fusion
+        Fusion --> LLM[LLM 生成]
+        LLM --> R[检索结果]
+    end
+
+    style Router fill:#fbbc04,color:#000
+    style LLM fill:#9c27b0,color:#fff
+```
+
 ### 7.3 技术栈
 
 | 层级      | 技术选型                     | 版本/说明    |
@@ -999,22 +1046,25 @@ gantt
 
 ## 10. 参考文献
 
-| 序号 | 参考源                       | 来源                                                                                  | 核心思想                      | 本项目应用模块         |
-| ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ----------------------------- | ---------------------- |
-| [1]  | 项目架构文档                 | [docs/001-architecture.md](./001-architecture.md)                                     |
-| [2]  | Microsoft GraphRAG 论文      | [From Local to Global](https://arxiv.org/abs/2404.16130)                              | LLM 构建知识图谱 + 图机器学习 | 内容关联分析、多跳检索 |
-| [3]  | 认知增强调研 - GraphRAG 原理 | [docs/research/000-cognitive-enhancement.md](./research/000-cognitive-enhancement.md) |
-| [4]  | Cognee 深度调研              | [docs/research/003-cognee.md](./research/003-cognee.md)                               |
-| [5]  | 认知增强调研报告             | [docs/research/000-cognitive-enhancement.md](./research/000-cognitive-enhancement.md) |
-| [6]  | Agentic RAG 理论             | 认知增强调研 §2.4                                                                     |
-| [7]  | 知识图谱在 AI 中的应用       | 认知增强调研 §2.1.4                                                                   |
-| [8]  | BettaFish 深度调研           | [docs/research/006-bettafish.md](./research/006-bettafish.md)                         |
-| [9]  | OceanBase 深度调研           | [docs/research/004-oceanbase.md](./research/004-oceanbase.md)                         |
-| [10] | RRF 融合算法                 | 认知增强调研 §7.4                                                                     |
-| [11] | Neo4j 深度调研               | [docs/research/005-neo4j.md](./research/005-neo4j.md)                                 |
-| [12] | Agent 框架调研               | [docs/research/002-agent-frameworks.md](./research/002-agent-frameworks.md)           |
-| [13] | Agentic Design Patterns      | 认知增强调研 §6                                                                       |
-| [14] | RAGAS 评估框架               | [RAGAS Docs](https://docs.ragas.io/)                                                  |
-| [15] | Context Engineering 调研     | [docs/research/001-context-engineering.md](./research/001-context-engineering.md)     |
-| [16] | ReAct                        | [ReAct: Synergizing Reasoning and Acting](https://arxiv.org/abs/2210.03629)           | 推理与行动交织，减少幻觉      | Agent 决策循环         |
-| [17] | CoT                          | [Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11903) (Google, 2022)         | 链式思维促进复杂推理          | Heartfelt Agent        |
+| 序号 | 参考源                       | 来源                                                                                  | 核心思想                       | 本项目应用模块         |
+| ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ------------------------------ | ---------------------- |
+| [1]  | 项目架构文档                 | [docs/001-architecture.md](./001-architecture.md)                                     | 项目整体架构与代码结构         | 全局                   |
+| [2]  | Microsoft GraphRAG 论文      | [From Local to Global](https://arxiv.org/abs/2404.16130)                              | LLM 构建知识图谱 + 图机器学习  | 内容关联分析、多跳检索 |
+| [3]  | 认知增强调研 - GraphRAG 原理 | [docs/research/000-cognitive-enhancement.md](./research/000-cognitive-enhancement.md) | 图谱增强检索生成               | 智能检索体系           |
+| [4]  | Cognee 深度调研              | [docs/research/003-cognee.md](./research/003-cognee.md)                               | AI 记忆层 + 三存储架构         | 认知记忆层             |
+| [5]  | 认知增强调研报告             | [docs/research/000-cognitive-enhancement.md](./research/000-cognitive-enhancement.md) | 理论基础与框架对比             | 整体设计参考           |
+| [6]  | Agentic RAG 理论             | 认知增强调研 §2.4                                                                     | 主动推理、自适应检索、多步方案 | 智能问答、复杂检索     |
+| [7]  | 知识图谱在 AI 中的应用       | 认知增强调研 §2.1.4                                                                   | 减少幻觉 40-60%、可解释决策    | 内容关联分析           |
+| [8]  | BettaFish 深度调研           | [docs/research/006-bettafish.md](./research/006-bettafish.md)                         | 论坛协作机制、多 Agent 辩论    | Agent 协作设计         |
+| [9]  | OceanBase 深度调研           | [docs/research/004-oceanbase.md](./research/004-oceanbase.md)                         | 三位一体：TP/AP/Vector         | 数据存储架构           |
+| [10] | RRF 融合算法                 | 认知增强调研 §7.4                                                                     | 检索结果吾合重排序             | 混合检索               |
+| [11] | Neo4j 深度调研               | [docs/research/005-neo4j.md](./research/005-neo4j.md)                                 | 原生图存储、O(1) 关系遍历      | 知识图谱存储           |
+| [12] | Agent 框架调研               | [docs/research/002-agent-frameworks.md](./research/002-agent-frameworks.md)           | ADK/Claude SDK 对比            | 双框架战略             |
+| [13] | Agentic Design Patterns      | 认知增强调研 §6                                                                       | Memory、Tool Use、Reflection   | Agent 设计模式         |
+| [14] | RAGAS 评估框架               | [RAGAS Docs](https://docs.ragas.io/)                                                  | Faithfulness/Relevancy 评估    | 质量保障体系           |
+| [15] | Context Engineering 调研     | [docs/research/001-context-engineering.md](./research/001-context-engineering.md)     | 分层记忆、上下文压缩           | 记忆管理、状态管理     |
+| [16] | ReAct                        | [ReAct: Synergizing Reasoning and Acting](https://arxiv.org/abs/2210.03629)           | 推理与行动交织，减少幻觉       | Agent 决策循环         |
+| [17] | CoT                          | [Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11903)                        | 链式思维促进复杂推理           | Heartfelt Agent        |
+| [18] | Cognee 官方文档              | [Cognee Docs](https://docs.cognee.ai/)                                                | 核心操作、构建块、存储配置     | Cognee 集成            |
+| [19] | OceanBase 向量索引           | [OceanBase Vector Search](https://www.oceanbase.com/docs/common-oceanbase-database)   | HNSW/IVF 索引算法              | 向量检索               |
+| [20] | Neo4j GDS 算法               | [Neo4j GDS Manual](https://neo4j.com/docs/graph-data-science/)                        | 50+ 图算法                     | 图分析                 |
