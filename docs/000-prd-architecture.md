@@ -17,8 +17,8 @@
 5. [认知增强体系](#5-认知增强体系)
 6. [数据架构](#6-数据架构)
 7. [技术架构](#7-技术架构)
-8. [实施路线](#8-实施路线)
-9. [质量保障](#9-质量保障)
+8. [质量保障](#8-质量保障)
+9. [实施路线](#9-实施路线)
 10. [参考文献](#10-参考文献)
 
 ---
@@ -359,7 +359,7 @@ flowchart LR
 | **Claude SDK** | 原型开发、定制需求 | 灵活、Agent Skills 生态  |
 | **Google ADK** | 生产环境、批量处理 | 高性能、Multi-Agent 编排 |
 
-### 4.2 Agent 协作架构
+### 4.2 Agents 协作架构
 
 ```mermaid
 flowchart TB
@@ -395,6 +395,59 @@ flowchart TB
     style CA fill:#9c27b0,color:#fff
     style SA fill:#2196f3,color:#fff
     style Cognee fill:#ff9800,color:#fff
+```
+
+基于 **ReAct 框架**（Reasoning + Acting）设计，每个 Agent 交织推理与行动：
+
+```mermaid
+classDiagram
+    class BaseAgent {
+        <<abstract>>
+        +name: str
+        +process(input) dict
+        +call_skill(name, params) dict
+        +reason(context) str
+        +act(action) dict
+    }
+
+    class WorkflowAgent {
+        +full_workflow()
+        +translate_workflow()
+        +heartfelt_workflow()
+        +orchestrate(agents)
+    }
+
+    class PDFAgent {
+        +extract_content()
+        +extract_images()
+        +extract_metadata()
+    }
+
+    class TranslationAgent {
+        +translate(content, lang)
+        +preserve_terminology()
+    }
+
+    class HeartfeltAgent {
+        +analyze_paper()
+        +generate_insights()
+        +build_summary()
+    }
+
+    class BatchAgent {
+        +parallel_process()
+        +queue_management()
+    }
+
+    BaseAgent <|-- WorkflowAgent
+    BaseAgent <|-- PDFAgent
+    BaseAgent <|-- TranslationAgent
+    BaseAgent <|-- HeartfeltAgent
+    BaseAgent <|-- BatchAgent
+
+    WorkflowAgent --> PDFAgent : 调度
+    WorkflowAgent --> TranslationAgent : 调度
+    WorkflowAgent --> HeartfeltAgent : 调度
 ```
 
 ### 4.3 Agent 职责定义
@@ -509,6 +562,12 @@ sequenceDiagram
 
 ### 5.2 Cognee 记忆层
 
+基于 **Cognee** 框架，为 Agent 提供认知记忆层：
+
+- **长期记忆**：跨会话持久化，避免上下文遗忘
+- **语义记忆**：知识图谱存储实体关系
+- **情景记忆**：保留处理历史和决策轨迹
+
 基于 Cognee 框架 [4] 构建认知记忆层：
 
 ```mermaid
@@ -613,11 +672,11 @@ graph TB
 flowchart LR
     Query[用户查询] --> Parse[查询解析]
 
-    Parse --> KW[关键词检索]
-    Parse --> Vec[向量检索<br/>OceanBase]
-    Parse --> Graph[图谱检索<br/>Neo4j/Cognee]
+    Parse --> KW[关键词检索<br/>全文索引]
+    Parse --> Vec[向量检索<br/>语义相似度<br/>OceanBase]
+    Parse --> Graph[图谱检索<br/>多跳推理<br/>Neo4j/Cognee]
 
-    KW & Vec & Graph --> Fusion[RRF 融合]
+    KW & Vec & Graph --> Fusion[结果融合<br/>RRF 重排序]
     Fusion --> Rerank[LLM 重排序]
     Rerank --> Result[检索结果]
 
@@ -861,7 +920,7 @@ agentic-ai-cognizes/
 
 ### 8.1 评估指标体系
 
-基于 RAGAS 框架 [14] 建立评估体系：
+基于 RAGAS 框架 [14] 建立检索与生成质量评估体系：
 
 | 指标                  | 说明                       | 目标值 |
 | --------------------- | -------------------------- | ------ |
