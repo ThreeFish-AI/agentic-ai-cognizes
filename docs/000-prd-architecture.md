@@ -577,46 +577,55 @@ flowchart TB
 ### 6.2 OceanBase 数据模型
 
 ```sql
--- 内容元数据表 (TP 场景) - 表名保留 papers 以兼容现有代码
-CREATE TABLE papers (
+-- 内容元数据表 (TP 场景) - 对应知识图谱 Source 基类
+CREATE TABLE sources (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    source_type ENUM('paper', 'article', 'document', 'code_repo') NOT NULL,
     title VARCHAR(500) NOT NULL,
     abstract TEXT,
     authors JSON,
+    url VARCHAR(1000),
+    format VARCHAR(50),                    -- pdf, md, docx, pptx, xlsx, url, etc.
     publication_date DATE,
     category VARCHAR(100),
     status ENUM('pending', 'processing', 'translated', 'analyzed'),
+    metadata JSON,                         -- 特化类型的扩展属性
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_source_type (source_type),
     INDEX idx_category (category),
     INDEX idx_status (status)
 );
 
--- 内容向量表 (Vector DB 场景) - 表名保留 paper_embeddings 以兼容现有代码
-CREATE TABLE paper_embeddings (
+-- 内容向量表 (Vector DB 场景)
+CREATE TABLE source_embeddings (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    paper_id BIGINT NOT NULL,
+    source_id BIGINT NOT NULL,
     chunk_index INT DEFAULT 0,
     chunk_text TEXT,
     embedding VECTOR(1536),
-    FOREIGN KEY (paper_id) REFERENCES papers(id)
+    FOREIGN KEY (source_id) REFERENCES sources(id)
 );
 
 -- 创建 HNSW 向量索引
-CREATE INDEX idx_paper_embedding_hnsw
-ON paper_embeddings USING HNSW (embedding vector_cosine_ops)
+CREATE INDEX idx_source_embedding_hnsw
+ON source_embeddings USING HNSW (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 128);
 ```
 
 ### 6.3 Neo4j 知识图谱 Schema
 
 ```cypher
-// 创建约束
+// 创建约束 - Source 基类及特化类型
+CREATE CONSTRAINT source_id_unique FOR (s:Source) REQUIRE s.id IS UNIQUE
 CREATE CONSTRAINT paper_id_unique FOR (p:Paper) REQUIRE p.id IS UNIQUE
+CREATE CONSTRAINT article_id_unique FOR (a:Article) REQUIRE a.id IS UNIQUE
+CREATE CONSTRAINT document_id_unique FOR (d:Document) REQUIRE d.id IS UNIQUE
+CREATE CONSTRAINT code_repo_id_unique FOR (c:CodeRepo) REQUIRE c.id IS UNIQUE
 CREATE CONSTRAINT author_name_unique FOR (a:Author) REQUIRE a.name IS UNIQUE
 
-// 创建向量索引
-CREATE VECTOR INDEX paper_embedding FOR (p:Paper) ON (p.embedding)
+// 创建向量索引 - Source 级别通用语义检索
+CREATE VECTOR INDEX source_embedding FOR (s:Source) ON (s.embedding)
 OPTIONS {
   indexConfig: {
     `vector.dimensions`: 1536,
@@ -624,10 +633,15 @@ OPTIONS {
   }
 }
 
-// 示例查询：查找使用相似方法的论文
+// 示例查询 1：查找使用相似方法的论文
 MATCH (p1:Paper)-[:USES_METHOD]->(m:Method)<-[:USES_METHOD]-(p2:Paper)
 WHERE p1.title = "ReAct"
 RETURN p2.title, m.name
+
+// 示例查询 2：跨内容类型查找相关资源
+MATCH (s1:Source)-[:RELATED_TO]->(s2:Source)
+WHERE s1.title CONTAINS "Agent"
+RETURN s2.title, labels(s2) AS source_type
 ```
 
 ---
