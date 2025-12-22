@@ -1,10 +1,9 @@
 # Agentic AI 学术研究与工程应用平台 - 实施计划方案
 
-> **版本**：v1.1  
+> **版本**：v1.1
 > **日期**：2025 年 12 月  
-> **状态**：Review 完成  
-> **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)  
-> **变更记录**：v1.1 - 补充 OceanBase 适配器、混合检索并发实现、修复版本号不一致
+> **状态**：Review
+> **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)
 
 ---
 
@@ -175,44 +174,155 @@ cognizes/
 | 异常处理       | 统一错误响应格式         | 代码审查   |
 | API 文档       | Swagger/OpenAPI 自动生成 | 访问 /docs |
 
-### 3.3 任务 1.2：Agent 层
+### 3.3 任务 1.2：Agent 层（Google ADK）
 
-**目标**：基于 Claude SDK 实现核心 Agent，完成内容处理流程
+**目标**：基于 Google ADK 实现核心 Agent，完成内容处理流程
+
+> **框架选型说明**：
+>
+> - Phase 1 采用 Google ADK 作为主框架，利用其 LlmAgent、Workflow Agent、MCP 集成等成熟能力
+> - Phase 2 引入 Claude SDK + Agent Skills 实现高级认知功能
+> - 参考：[Agent Frameworks 调研报告](./research/002-agent-frameworks.md)
 
 #### 3.3.1 Agent 目录结构
 
 ```shell
 cognizes/agents/
-├── claude/
-│   ├── base.py                    # BaseAgent 抽象基类
-│   ├── coordinator_agent.py       # 中央协调 Agent
-│   ├── reader_agent.py            # 多源内容解析 Agent
-│   ├── translation_agent.py       # 翻译 Agent
-│   ├── heartfelt_agent.py         # 深度分析 Agent
-│   └── skills.py                  # Skill 调用封装
-└── adk/                           # Phase 2 实现
+├── adk/                           # Google ADK 实现 (Phase 1)
+│   ├── __init__.py
+│   ├── coordinator.py             # 中央协调 Agent (SequentialAgent)
+│   ├── reader_agent.py            # 多源内容解析 Agent (LlmAgent)
+│   ├── translation_agent.py       # 翻译 Agent (LlmAgent)
+│   ├── heartfelt_agent.py         # 深度分析 Agent (LlmAgent)
+│   ├── tools/                     # 自定义工具
+│   │   ├── pdf_parser.py
+│   │   ├── web_scraper.py
+│   │   └── oceanbase_search.py
+│   └── workflows/                 # 工作流编排
+│       └── content_pipeline.py
+└── claude/                        # Claude SDK 实现 (Phase 2)
+    ├── skills.py                  # Agent Skills 调用封装
+    └── cognitive_agent.py         # 认知增强 Agent
 ```
 
-#### 3.3.2 Agent 实现要点
+#### 3.3.2 Google ADK 依赖配置
 
-**BaseAgent 接口规范**：
+```bash
+# 安装 Google ADK
+pip install google-adk
+
+# 配置 Google Cloud 认证
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account.json"
+# 或使用
+export GOOGLE_API_KEY="your-google-api-key"
+```
+
+#### 3.3.3 Agent 实现要点
+
+**Coordinator Agent（中央协调器）**：
 
 ```python
-class BaseAgent(ABC):
-    """Agent 抽象基类"""
+# cognizes/agents/adk/coordinator.py
+from google.adk.agents import LlmAgent, SequentialAgent, ParallelAgent
+from .reader_agent import create_reader_agent
+from .translation_agent import create_translation_agent
+from .heartfelt_agent import create_heartfelt_agent
 
-    @abstractmethod
-    async def process(self, input_data: Dict) -> Dict:
-        """处理输入，返回结果"""
-        pass
+def create_content_pipeline():
+    """创建内容处理工作流"""
 
-    def reason(self, context: str) -> str:
-        """基于上下文推理"""
-        pass
+    # 1. Reader Agent - 解析内容
+    reader = create_reader_agent()
 
-    async def call_skill(self, skill_name: str, params: Dict) -> Dict:
-        """调用 Claude Skill"""
-        pass
+    # 2. 并行阶段：翻译 + 分析
+    translation = create_translation_agent()
+    analysis = create_heartfelt_agent()
+
+    parallel_stage = ParallelAgent(
+        name="parallel_processing",
+        sub_agents=[translation, analysis]
+    )
+
+    # 3. 组合为顺序工作流
+    return SequentialAgent(
+        name="content_pipeline",
+        sub_agents=[reader, parallel_stage]
+    )
+```
+
+**Reader Agent（内容解析）**：
+
+```python
+# cognizes/agents/adk/reader_agent.py
+from google.adk.agents import LlmAgent
+from .tools.pdf_parser import parse_pdf
+from .tools.web_scraper import scrape_url
+
+def create_reader_agent() -> LlmAgent:
+    """创建 Reader Agent"""
+    return LlmAgent(
+        model="gemini-2.0-flash",
+        name="reader_agent",
+        description="解析多种格式的内容源",
+        instruction="""你是一个内容解析专家。
+
+任务流程：
+1. 根据输入类型选择合适的解析工具
+2. 提取标题、摘要、作者、正文等关键信息
+3. 输出结构化的内容数据
+
+支持格式：PDF, Markdown, URL, arXiv""",
+        tools=[parse_pdf, scrape_url]
+    )
+```
+
+**Translation Agent（翻译）**：
+
+```python
+# cognizes/agents/adk/translation_agent.py
+from google.adk.agents import LlmAgent
+
+def create_translation_agent() -> LlmAgent:
+    """创建翻译 Agent"""
+    return LlmAgent(
+        model="gemini-2.0-flash",
+        name="translation_agent",
+        description="学术内容翻译",
+        instruction="""你是一个学术翻译专家，负责将英文学术内容翻译为中文。
+
+翻译规范：
+1. 保留学术术语原文：Chain-of-Thought、ReAct、RAG 等
+2. 保持原文结构：标题层级、列表、代码块
+3. 术语表格：附加关键术语英中对照表
+4. 质量目标：BLEU > 0.7"""
+    )
+```
+
+**Heartfelt Agent（深度分析）**：
+
+```python
+# cognizes/agents/adk/heartfelt_agent.py
+from google.adk.agents import LlmAgent
+from .tools.oceanbase_search import semantic_search
+
+def create_heartfelt_agent() -> LlmAgent:
+    """创建深度分析 Agent"""
+    return LlmAgent(
+        model="gemini-2.0-flash",
+        name="heartfelt_agent",
+        description="论文深度分析与洞察提取",
+        instruction="""你是一个学术分析专家，负责深度分析论文内容。
+
+分析维度：
+1. 核心创新点提取
+2. 方法论优缺点分析
+3. 与相关工作对比
+4. 实践应用场景
+5. 研究局限与未来方向
+
+输出格式：结构化 Markdown 分析报告""",
+        tools=[semantic_search]
+    )
 ```
 
 **Reader Agent 支持格式**：
@@ -225,13 +335,7 @@ class BaseAgent(ABC):
 | URL   | httpx + bs4    | P0     |
 | arXiv | arxiv API      | P1     |
 
-**Translation Agent 策略**：
-
-1. 保留学术术语（Chain-of-Thought, ReAct, RAG 等）
-2. 分块翻译处理长文本（每块 < 4000 tokens）
-3. 保持原文 Markdown 结构
-
-#### 3.3.3 验收标准
+#### 3.3.4 验收标准
 
 | 验收项         | 标准                      | 验证方式 |
 | -------------- | ------------------------- | -------- |
@@ -1578,6 +1682,7 @@ flowchart LR
 [project.dependencies]
 fastapi = ">=0.110.0"
 pydantic = ">=2.6.0"
+google-adk = ">=1.0.0"
 anthropic = ">=0.40.0"
 openai = ">=1.40.0"
 cognee = ">=0.1.17"
