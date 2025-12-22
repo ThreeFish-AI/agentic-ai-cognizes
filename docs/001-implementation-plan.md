@@ -1368,23 +1368,238 @@ export function KnowledgeGraph({ centerId, depth = 2 }: GraphProps) {
 | 交互功能     | 支持缩放、拖拽、点击 | 功能测试 |
 | 性能表现     | 1000 节点渲染 < 3s   | 性能测试 |
 
-### 5.6 阶段三验收清单
+### 5.6 任务 3.5：Solutions Architect Agent
 
-| 检查项                  | 状态 | 验收日期 |
-| ----------------------- | ---- | -------- |
-| 多跳推理问答可用        | ☐    |          |
-| 问题分解功能正常        | ☐    |          |
-| 自我反思机制有效        | ☐    |          |
-| RAGAS 评估管道运行      | ☐    |          |
-| Faithfulness > 85%      | ☐    |          |
-| Answer Relevancy > 90%  | ☐    |          |
-| Context Precision > 80% | ☐    |          |
-| Context Recall > 85%    | ☐    |          |
-| 短期记忆功能正常        | ☐    |          |
-| 长期记忆持久化          | ☐    |          |
-| 记忆检索准确            | ☐    |          |
-| 图谱可视化页面可用      | ☐    |          |
-| 测试覆盖率 > 90%        | ☐    |          |
+**目标**：实现场景化方案定制 Agent，根据用户业务场景输出技术方案
+
+> **参考**：[PRD §4.3 Solutions Architect](./000-prd-architecture.md)
+
+#### 5.6.1 Agent 职责
+
+| 职责         | 描述                         |
+| ------------ | ---------------------------- |
+| **需求分析** | 解析用户业务场景与技术约束   |
+| **方案检索** | 从知识图谱检索相关技术方案   |
+| **架构设计** | 综合分析后输出架构建议       |
+| **输出生成** | 生成 Markdown 格式的方案文档 |
+
+#### 5.6.2 实现步骤
+
+**Step 1：定义 Agent 结构**
+
+```python
+# cognizes/agents/adk/solutions_architect.py
+from google.adk.agents import LlmAgent
+from .tools.oceanbase_search import semantic_search
+from .tools.neo4j_query import graph_query
+
+def create_solutions_architect_agent() -> LlmAgent:
+    """创建 Solutions Architect Agent"""
+    return LlmAgent(
+        model="gemini-2.0-flash",
+        name="solutions_architect",
+        description="业务场景分析与技术方案设计",
+        instruction="""你是一个资深的解决方案架构师。
+
+分析流程：
+1. 理解用户业务场景和技术约束
+2. 使用搜索工具检索相关技术方案和最佳实践
+3. 综合分析适用性、优缺点和实施难度
+4. 输出结构化的架构设计方案
+
+输出格式：
+## 1. 需求理解
+## 2. 技术选型对比
+## 3. 推荐架构
+## 4. 实施路径
+## 5. 风险与缓解""",
+        tools=[semantic_search, graph_query]
+    )
+```
+
+**Step 2：注册到 Coordinator**
+
+```python
+# cognizes/agents/adk/coordinator.py
+from .solutions_architect import create_solutions_architect_agent
+
+# 在 create_content_pipeline 中添加可选的 Solutions Architect 分支
+solutions_agent = create_solutions_architect_agent()
+```
+
+**Step 3：API 端点**
+
+```python
+# cognizes/api/routes/architect.py
+@router.post("/api/v1/architect")
+async def generate_solution(request: ArchitectRequest):
+    """生成技术方案"""
+    agent = create_solutions_architect_agent()
+    result = await agent.run(request.scenario)
+    return {"solution": result}
+```
+
+#### 5.6.3 验收标准
+
+| 验收项     | 标准                   | 验证方式 |
+| ---------- | ---------------------- | -------- |
+| Agent 响应 | 生成结构化方案文档     | 功能测试 |
+| 方案相关性 | 方案与场景匹配度 > 80% | 人工评估 |
+| 响应时间   | < 30s（含检索）        | 性能测试 |
+
+### 5.7 任务 3.6：BettaFish ForumEngine（可选）
+
+**目标**：实现 Agent 论坛协作机制，通过多 Agent 辩论提升输出质量
+
+> **参考**：[BettaFish 调研报告](./research/006-bettafish.md)
+
+#### 5.7.1 论坛机制概述
+
+```mermaid
+flowchart TB
+    subgraph "ForumEngine 架构"
+        Q[用户查询] --> Host[主持人 LLM]
+
+        Host --> A1[Agent 1: 赞成派]
+        Host --> A2[Agent 2: 质疑派]
+        Host --> A3[Agent 3: 补充派]
+
+        A1 --> D{辩论轮次}
+        A2 --> D
+        A3 --> D
+
+        D -->|未达共识| Host
+        D -->|达成共识| Synthesizer[综合器]
+
+        Synthesizer --> Response[最终回答]
+    end
+
+    style Host fill:#4285f4,color:#fff
+    style Synthesizer fill:#34a853,color:#fff
+```
+
+#### 5.7.2 实现步骤
+
+**Step 1：定义 Forum Engine**
+
+```python
+# cognizes/agents/adk/forum_engine.py
+from google.adk.agents import LlmAgent, LoopAgent
+from typing import List, Dict
+
+class ForumEngine:
+    """Agent 论坛协作引擎"""
+
+    def __init__(self, max_rounds: int = 3):
+        self.max_rounds = max_rounds
+        self.host = self._create_host()
+        self.participants = self._create_participants()
+
+    def _create_host(self) -> LlmAgent:
+        """创建主持人 Agent"""
+        return LlmAgent(
+            model="gemini-2.0-flash",
+            name="forum_host",
+            instruction="""你是论坛主持人，负责：
+            1. 向各参与者分发讨论议题
+            2. 收集各方观点
+            3. 引导讨论向共识方向发展
+            4. 判断是否达成共识"""
+        )
+
+    def _create_participants(self) -> List[LlmAgent]:
+        """创建参与者 Agent"""
+        perspectives = [
+            ("advocate", "你负责支持主流观点，强调优势"),
+            ("skeptic", "你负责质疑和挑战，指出潜在问题"),
+            ("synthesizer", "你负责综合各方观点，寻找平衡")
+        ]
+
+        return [
+            LlmAgent(
+                model="gemini-2.0-flash",
+                name=name,
+                instruction=prompt
+            )
+            for name, prompt in perspectives
+        ]
+
+    async def discuss(self, topic: str) -> Dict:
+        """执行论坛讨论"""
+        discussion_log = []
+
+        for round_num in range(self.max_rounds):
+            # 主持人分发议题
+            host_prompt = await self.host.run(topic)
+
+            # 各参与者发言
+            responses = []
+            for participant in self.participants:
+                response = await participant.run(host_prompt)
+                responses.append({
+                    "agent": participant.name,
+                    "response": response
+                })
+
+            discussion_log.append({
+                "round": round_num + 1,
+                "responses": responses
+            })
+
+            # 检查共识
+            if await self._check_consensus(responses):
+                break
+
+        # 综合最终结论
+        return await self._synthesize(discussion_log)
+```
+
+**Step 2：集成到高级问答**
+
+```python
+# cognizes/api/routes/forum.py
+@router.post("/api/v1/forum/discuss")
+async def forum_discussion(request: ForumRequest):
+    """论坛式深度讨论"""
+    engine = ForumEngine(max_rounds=request.max_rounds or 3)
+    result = await engine.discuss(request.topic)
+    return result
+```
+
+#### 5.7.3 验收标准
+
+| 验收项   | 标准                         | 验证方式 |
+| -------- | ---------------------------- | -------- |
+| 多轮讨论 | 支持 3 轮以上辩论            | 功能测试 |
+| 共识达成 | 论坛能收敛到结论             | 逻辑测试 |
+| 输出质量 | 论坛输出 > 单 Agent 输出质量 | A/B 测试 |
+
+#### 5.7.4 优先级说明
+
+> [!NOTE]
+> 此任务为**可选增强功能**，建议在 Phase 3 核心任务完成后再实施。
+>
+> **推荐顺序**：多跳推理 → RAGAS 评估 → 记忆持久化 → 图谱可视化 → Solutions Architect → ForumEngine
+
+### 5.8 阶段三验收清单
+
+| 检查项                   | 状态 | 验收日期 |
+| ------------------------ | ---- | -------- |
+| 多跳推理问答可用         | ☐    |          |
+| 问题分解功能正常         | ☐    |          |
+| 自我反思机制有效         | ☐    |          |
+| RAGAS 评估管道运行       | ☐    |          |
+| Faithfulness > 85%       | ☐    |          |
+| Answer Relevancy > 90%   | ☐    |          |
+| Context Precision > 80%  | ☐    |          |
+| Context Recall > 85%     | ☐    |          |
+| 短期记忆功能正常         | ☐    |          |
+| 长期记忆持久化           | ☐    |          |
+| 记忆检索准确             | ☐    |          |
+| 图谱可视化页面可用       | ☐    |          |
+| Solutions Architect 可用 | ☐    |          |
+| ForumEngine 可用（可选） | ☐    |          |
+| 测试覆盖率 > 90%         | ☐    |          |
 
 ---
 
@@ -1642,6 +1857,221 @@ flowchart LR
         S --> V[验收测试]
         V --> P[部署 Production]
     end
+```
+
+### 7.6 RAGAS 评估数据集
+
+**数据集来源与构建方法**：
+
+| 数据集类型     | 来源            | 数量 | 构建方法                      |
+| -------------- | --------------- | ---- | ----------------------------- |
+| **自建问答对** | 已有论文库      | 100+ | 从翻译/分析结果中抽取典型问答 |
+| **标准测试集** | MS MARCO / NQ   | 500+ | 开源数据集子集                |
+| **领域专属**   | Agentic AI 论文 | 50+  | 人工标注 Ground Truth         |
+
+**数据集格式要求**：
+
+```json
+{
+  "question": "Agentic RAG 的核心组件有哪些？",
+  "answer": "系统生成的答案",
+  "contexts": ["检索到的上下文片段 1", "检索到的上下文片段 2"],
+  "ground_truth": "Agentic RAG 的核心组件包括：1) 智能路由器..."
+}
+```
+
+**评估脚本实现**：
+
+```python
+# cognizes/evaluation/ragas_eval.py
+from ragas import evaluate
+from ragas.metrics import faithfulness, answer_relevancy, context_precision, context_recall
+from datasets import Dataset
+
+async def run_ragas_evaluation(test_data: List[Dict]) -> Dict:
+    """执行 RAGAS 评估"""
+
+    # 构建评估数据集
+    dataset = Dataset.from_list(test_data)
+
+    # 运行评估
+    results = evaluate(
+        dataset=dataset,
+        metrics=[
+            faithfulness,
+            answer_relevancy,
+            context_precision,
+            context_recall
+        ]
+    )
+
+    return {
+        "faithfulness": results["faithfulness"],
+        "answer_relevancy": results["answer_relevancy"],
+        "context_precision": results["context_precision"],
+        "context_recall": results["context_recall"],
+        "passed": all([
+            results["faithfulness"] > 0.85,
+            results["answer_relevancy"] > 0.90,
+            results["context_precision"] > 0.80,
+            results["context_recall"] > 0.85
+        ])
+    }
+```
+
+### 7.7 E2E 测试场景清单
+
+**核心功能场景**：
+
+| 场景编号 | 场景名称 | 测试步骤                                    | 预期结果               |
+| -------- | -------- | ------------------------------------------- | ---------------------- |
+| E2E-001  | 论文上传 | 1. 上传 PDF → 2. 等待处理 → 3. 检查状态     | 状态变为 `analyzed`    |
+| E2E-002  | 语义搜索 | 1. 输入查询 → 2. 执行检索 → 3. 验证结果     | 返回相关论文，排序合理 |
+| E2E-003  | 翻译流程 | 1. 选择论文 → 2. 触发翻译 → 3. 检查输出     | 术语保留 + 结构完整    |
+| E2E-004  | 深度分析 | 1. 选择论文 → 2. 触发分析 → 3. 检查报告     | 生成结构化分析报告     |
+| E2E-005  | 知识图谱 | 1. 打开图谱页面 → 2. 点击节点 → 3. 展开关系 | 正确显示节点和关系     |
+
+**高级功能场景**（Phase 3+）：
+
+| 场景编号 | 场景名称   | 测试步骤                                        | 预期结果       |
+| -------- | ---------- | ----------------------------------------------- | -------------- |
+| E2E-101  | 多跳问答   | 1. 提问复杂问题 → 2. 观察推理过程 → 3. 验证答案 | 正确的多步推理 |
+| E2E-102  | 跨会话记忆 | 1. 第一次会话 → 2. 关闭 → 3. 新会话引用历史     | 记忆正确召回   |
+| E2E-103  | 方案生成   | 1. 描述业务场景 → 2. 请求方案 → 3. 检查输出     | 生成结构化方案 |
+
+**Playwright 测试示例**：
+
+```typescript
+// ui/tests/e2e/upload.spec.ts
+import { test, expect } from "@playwright/test";
+
+test("E2E-001 论文上传", async ({ page }) => {
+  // 1. 导航到上传页面
+  await page.goto("/upload");
+
+  // 2. 上传 PDF 文件
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles("tests/fixtures/sample.pdf");
+
+  // 3. 提交
+  await page.click('button[type="submit"]');
+
+  // 4. 等待处理完成
+  await expect(page.locator('[data-testid="status"]')).toHaveText("analyzed", {
+    timeout: 60000,
+  });
+});
+```
+
+### 7.8 性能测试基准
+
+**基准环境配置**：
+
+| 组件           | 配置                   | 说明              |
+| -------------- | ---------------------- | ----------------- |
+| **应用服务器** | 4 vCPU, 8GB RAM        | Docker 容器       |
+| **OceanBase**  | 8 vCPU, 16GB RAM       | 单节点开发模式    |
+| **Neo4j**      | 4 vCPU, 8GB RAM        | Community Edition |
+| **数据规模**   | 1000 篇论文, 100K 向量 | 预置测试数据      |
+
+**性能指标目标**：
+
+| 接口/功能              | 指标     | 目标值  | 测试工具         |
+| ---------------------- | -------- | ------- | ---------------- |
+| `/api/v1/sources` POST | 响应时间 | < 200ms | k6               |
+| `/api/v1/search` POST  | P95 延迟 | < 500ms | k6               |
+| 向量检索               | 单次查询 | < 100ms | pytest-benchmark |
+| 图谱遍历 (2 跳)        | 单次查询 | < 200ms | pytest-benchmark |
+| 混合检索 (三路)        | 端到端   | < 1s    | k6               |
+| 页面首屏               | LCP      | < 2s    | Lighthouse       |
+
+**负载测试脚本**：
+
+```javascript
+// tests/performance/search.k6.js
+import http from "k6/http";
+import { check, sleep } from "k6";
+
+export const options = {
+  stages: [
+    { duration: "1m", target: 10 }, // 预热
+    { duration: "3m", target: 50 }, // 正常负载
+    { duration: "1m", target: 100 }, // 峰值负载
+    { duration: "1m", target: 0 }, // 冷却
+  ],
+  thresholds: {
+    http_req_duration: ["p(95)<500"],
+    http_req_failed: ["rate<0.01"],
+  },
+};
+
+export default function () {
+  const payload = JSON.stringify({
+    query: "Agentic RAG 的核心组件",
+    limit: 10,
+  });
+
+  const params = {
+    headers: { "Content-Type": "application/json" },
+  };
+
+  const res = http.post("http://localhost:8000/api/v1/search", payload, params);
+
+  check(res, {
+    "status is 200": (r) => r.status === 200,
+    "response time < 500ms": (r) => r.timings.duration < 500,
+  });
+
+  sleep(1);
+}
+```
+
+### 7.9 翻译质量评估
+
+**BLEU 评估配置**：
+
+| 配置项       | 值           | 说明                       |
+| ------------ | ------------ | -------------------------- |
+| **评估工具** | sacrebleu    | 标准 BLEU 计算库           |
+| **参考数据** | 人工翻译样本 | 30+ 篇论文摘要的高质量翻译 |
+| **分词方式** | jieba (中文) | 中文分词后计算             |
+| **目标分数** | BLEU > 0.7   | 学术翻译质量标准           |
+
+**评估脚本**：
+
+```python
+# cognizes/evaluation/bleu_eval.py
+import sacrebleu
+import jieba
+
+def evaluate_translation_quality(
+    hypotheses: List[str],  # 系统翻译
+    references: List[List[str]]  # 参考翻译（可多个）
+) -> Dict:
+    """评估翻译质量"""
+
+    # 中文分词
+    hyps_tokenized = [' '.join(jieba.cut(h)) for h in hypotheses]
+    refs_tokenized = [
+        [' '.join(jieba.cut(r)) for r in ref_set]
+        for ref_set in references
+    ]
+
+    # 计算 BLEU
+    bleu = sacrebleu.corpus_bleu(
+        hyps_tokenized,
+        refs_tokenized,
+        tokenize='zh'
+    )
+
+    return {
+        "bleu_score": bleu.score / 100,  # 归一化到 0-1
+        "passed": bleu.score / 100 > 0.7,
+        "details": {
+            "brevity_penalty": bleu.bp,
+            "precisions": bleu.precisions
+        }
+    }
 ```
 
 ---
