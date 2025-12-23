@@ -4,8 +4,9 @@ sidebar_position: 4
 title: 向量数据库深度调研报告
 last_update:
   author: Aurelius Huang
-  version: 1.0
-  date: 2025-12-23
+  version: 1.1
+  created_at: 2025-12-23
+  updated_at: 2025-12-23
   status: Pending Review
 tags:
   - Vector Databases
@@ -17,19 +18,19 @@ tags:
   - Pinecone
 ---
 
-> **调研范围**：产品设计、架构实现、索引算法、性能指标、集成方式、场景推荐
+> **调研范围**：架构设计、产品实现、索引算法、性能指标、集成方式、场景推荐
 
 ## 📋 目录
 
 1. [调研概述](#1-调研概述)
 2. [PostgreSQL + PGVector](#2-postgresql--pgvector)
-3. [Vector Chord (VectorChord/pgvecto.rs)](#3-vector-chord)
+3. [VectorChord(pgvecto.rs)](#3-vectorchord)
 4. [Milvus](#4-milvus)
 5. [Weaviate](#5-weaviate)
 6. [Pinecone](#6-pinecone)
 7. [系统性对比分析](#7-系统性对比分析)
 8. [场景推荐与选型指南](#8-场景推荐与选型指南)
-9. [本项目集成方案 Demo](#9-本项目集成方案-demo)
+9. [本项目集成方案](#9-本项目集成方案)
 10. [References](#references)
 
 ---
@@ -202,24 +203,63 @@ SET ivfflat.probes = 10;  -- 建议 sqrt(lists)
 - ❌ 需要表中已有数据才能创建
 - ❌ 查询性能稍逊于 HNSW
 
-### 2.6 混合搜索与过滤
+### 2.6 过滤与迭代索引扫描
+
+#### 2.6.1 过滤策略
+
+带 `WHERE` 条件的向量搜索有多种索引策略 [22]：
 
 ```sql
--- 带过滤条件的向量搜索
-SELECT * FROM items
-WHERE category_id = 123
-ORDER BY embedding <-> '[3,1,2]'
-LIMIT 5;
+-- 基础过滤查询
+SELECT * FROM items WHERE category_id = 123 ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
+```
 
--- 混合搜索（向量 + 全文检索）
-SELECT id, content
-FROM items, plainto_tsquery('hello search') query
-WHERE textsearch @@ query
-ORDER BY ts_rank_cd(textsearch, query) DESC
-LIMIT 5;
+**过滤策略选择**：
 
--- 迭代索引扫描（v0.8.0+）
+| 策略             | 适用场景       | 实现方式                                                           |
+| ---------------- | -------------- | ------------------------------------------------------------------ |
+| **列索引优先**   | 低选择率过滤   | `CREATE INDEX ON items (category_id)`                              |
+| **向量索引优先** | 高选择率过滤   | 增大 `hnsw.ef_search`                                              |
+| **部分索引**     | 固定少量值过滤 | `CREATE INDEX ON items USING hnsw (...) WHERE (category_id = 123)` |
+| **分区表**       | 多值过滤       | `PARTITION BY LIST(category_id)`                                   |
+
+#### 2.6.2 迭代索引扫描 (v0.8.0+)
+
+近似索引的过滤会在索引扫描**后**应用，可能导致返回结果不足。迭代索引扫描可自动扫描更多索引直到获得足够结果 [22]：
+
+```sql
+-- 严格顺序：结果按距离精确排序
 SET hnsw.iterative_scan = strict_order;
+
+-- 宽松顺序：允许轻微乱序，但召回更高
+SET hnsw.iterative_scan = relaxed_order;  -- HNSW
+SET ivfflat.iterative_scan = relaxed_order;  -- IVFFlat
+
+-- 使用物化 CTE 在宽松顺序下获取严格排序
+WITH relaxed_results AS MATERIALIZED (
+    SELECT id, embedding <-> '[1,2,3]' AS distance
+    FROM items WHERE category_id = 123
+    ORDER BY distance LIMIT 5
+) SELECT * FROM relaxed_results ORDER BY distance + 0;  -- +0 for PG17+
+```
+
+**迭代扫描参数**：
+
+| 参数                   | 描述                   | 默认值 |
+| ---------------------- | ---------------------- | ------ |
+| `hnsw.max_scan_tuples` | HNSW 最大扫描元组数    | 20000  |
+| `ivfflat.max_probes`   | IVFFlat 最大探测列表数 | 全部   |
+
+#### 2.6.3 混合搜索（向量 + 全文）
+
+```sql
+-- 结合向量搜索与 PostgreSQL 全文检索
+SELECT id, content,
+    ts_rank(to_tsvector('english', content), query) AS text_score
+FROM items, plainto_tsquery('english', 'machine learning') query
+WHERE to_tsvector('english', content) @@ query
+ORDER BY embedding <=> '[...]'::vector
+LIMIT 10;
 ```
 
 ### 2.7 性能调优指南
@@ -234,11 +274,11 @@ SET hnsw.iterative_scan = strict_order;
 
 ---
 
-## 3. Vector Chord
+## 3. VectorChord
 
 ### 3.1 产品概述
 
-Vector Chord（原 pgvecto.rs）是由 TensorChord 开发的高性能 PostgreSQL 向量搜索扩展 [5]。它采用 Rust 语言编写，提供比 PGVector 更优的性能表现。
+VectorChord（原 pgvecto.rs）是由 TensorChord 开发的高性能 PostgreSQL 向量搜索扩展 [5]。它采用 Rust 语言编写，提供比 PGVector 更优的性能表现。
 
 > ⚠️ **注意**：TensorChord 推荐新用户使用 VectorChord（新一代实现），而非旧版 pgvecto.rs [6]。
 
@@ -319,6 +359,48 @@ CREATE TABLE items (
 -- 无缝迁移
 -- 只需将索引类型从 hnsw 改为 vchordrq
 ```
+
+### 3.6 vchordg 图索引 (v0.5.0+)
+
+VectorChord 还提供基于磁盘的图索引 `vchordg`，内存消耗更低 [23]：
+
+```sql
+-- 创建 vchordg 图索引
+CREATE INDEX ON items USING vchordg (embedding vector_l2_ops);
+
+-- 带参数配置
+CREATE INDEX ON items USING vchordg (embedding vector_cosine_ops)
+WITH (options = $$
+    bits = 2
+    m = 32
+    ef_construction = 64
+    alpha = [1.0, 1.2]
+$$);
+```
+
+**vchordg 参数说明**：
+
+| 参数              | 描述               | 默认值     | 建议                   |
+| ----------------- | ------------------ | ---------- | ---------------------- |
+| `bits`            | RaBitQ 量化比率    | 2          | 2 = 高召回，1 = 低内存 |
+| `m`               | 每顶点最大邻居数   | 32         | 对应 HNSW/DiskANN 的 M |
+| `ef_construction` | 构建时动态列表大小 | 64         | 越大越慢但质量越好     |
+| `alpha`           | 剪枝时的 alpha 值  | [1.0, 1.2] | 对应 DiskANN 的 alpha  |
+
+### 3.7 预过滤 Prefilter (v0.4.0+)
+
+VectorChord 的 `vchordrq.prefilter` 参数允许向量索引利用过滤条件进行剪枝 [24]：
+
+```sql
+-- 启用预过滤
+SET vchordrq.prefilter = on;
+
+-- 适用于严格且低成本的过滤条件
+-- 1% 选择率时可获得 200% QPS 提升
+-- 10% 选择率时可获得 5% QPS 提升
+```
+
+> **注意**：预过滤仅推荐用于**严格**（过滤大量行）且**低成本**（计算开销远低于向量距离计算）的过滤条件。
 
 ---
 
@@ -649,7 +731,61 @@ results = collection.query.hybrid(
 | **Kubernetes**     | 自托管生产 | 高可用，零停机更新     |
 | **Embedded**       | 快速评估   | Python/JS 直接启动     |
 
----
+### 5.8 向量量化技术 [25]
+
+Weaviate 支持四种向量压缩方法：
+
+| 量化方法                         | 压缩比 | 召回影响 | 特点                  |
+| -------------------------------- | ------ | -------- | --------------------- |
+| **PQ** (Product Quantization)    | ~24x   | 中等     | 需要训练，适用 HNSW   |
+| **BQ** (Binary Quantization)     | 32x    | 较大     | 无训练，V3 模型效果好 |
+| **SQ** (Scalar Quantization)     | 4x     | 较小     | 8-bit 压缩，256 个桶  |
+| **RQ** (Rotational Quantization) | 4x/32x | 较小     | 无训练，即时启用      |
+
+```python
+# 启用 SQ 压缩（推荐）
+collection = client.collections.create(
+    name="Article",
+    vectorizer_config=weaviate.Configure.Vectorizer.text2vec_openai(),
+    vector_index_config=weaviate.Configure.VectorIndex.hnsw(
+        quantizer=weaviate.Configure.VectorIndex.Quantizer.sq()
+    )
+)
+```
+
+> **提示**：Weaviate 使用**过度获取 + 重排序**策略来弥补量化导致的精度损失。
+
+### 5.9 集群架构 [26]
+
+Weaviate 采用 **Raft + Leaderless** 混合架构：
+
+```mermaid
+graph TB
+    subgraph "元数据复制 - Raft 共识"
+        Leader[Leader 节点]
+        Follower1[Follower 节点]
+        Follower2[Follower 节点]
+    end
+
+    subgraph "数据复制 - Leaderless"
+        N1[Node 1]
+        N2[Node 2]
+        N3[Node 3]
+    end
+
+    Client[客户端] --> Coordinator[协调节点]
+    Coordinator --> N1 & N2 & N3
+
+    style Leader fill:#4285f4,color:#fff
+    style Coordinator fill:#34a853,color:#fff
+```
+
+| 组件       | 协议                      | 特点                  |
+| ---------- | ------------------------- | --------------------- |
+| **元数据** | Raft                      | 强一致性，Leader 选举 |
+| **数据**   | Leaderless (Dynamo-style) | 高可用，最终一致性    |
+
+**一致性可调**：通过 Replication Factor 和 Consistency Level 平衡可用性与一致性。
 
 ## 6. Pinecone
 
@@ -800,6 +936,58 @@ results = index.query(
 - ❌ 数据需传输到云端
 - ❌ 功能相对简单
 
+### 6.8 混合搜索 [27]
+
+Pinecone 支持两种混合搜索实现方式：
+
+| 方式                   | 优势                                 | 劣势                               |
+| ---------------------- | ------------------------------------ | ---------------------------------- |
+| **双索引方式**（推荐） | 灵活、支持单独 sparse 查询、多级重排 | 需管理两个索引                     |
+| **单混合索引**         | 实现简单                             | 不支持 sparse-only、不支持集成嵌入 |
+
+```python
+# 双索引混合搜索
+# 1. 创建 Dense + Sparse 索引
+pc.create_index_for_model(
+    name="dense-index",
+    cloud="aws", region="us-east-1",
+    embed={"model": "llama-text-embed-v2", "field_map": {"text": "chunk_text"}}
+)
+pc.create_index_for_model(
+    name="sparse-index",
+    cloud="aws", region="us-east-1",
+    embed={"model": "pinecone-sparse-english-v0", "field_map": {"text": "chunk_text"}}
+)
+
+# 2. 分别查询后使用 RRF 融合结果
+```
+
+### 6.9 重排序 [28]
+
+Pinecone 支持集成重排序和独立重排序：
+
+```python
+# 集成重排序 - 在 search 中直接使用
+ranked_results = index.search(
+    namespace="example-namespace",
+    query={"inputs": {"text": "Disease prevention"}, "top_k": 4},
+    rerank={
+        "model": "bge-reranker-v2-m3",
+        "top_n": 2,
+        "rank_fields": ["chunk_text"]
+    },
+    fields=["category", "chunk_text"]
+)
+```
+
+**可用重排序模型**：
+
+| 模型                 | 最大 Token | 最大文档数 | 特点                  |
+| -------------------- | ---------- | ---------- | --------------------- |
+| `cohere-rerank-3.5`  | 40,000     | 200        | 高精度、多字段支持    |
+| `bge-reranker-v2-m3` | 1,024      | 100        | 平衡性能与精度        |
+| `pinecone-rerank-v0` | 512        | 100        | Pinecone 自研、低延迟 |
+
 ---
 
 ## 7. 系统性对比分析
@@ -928,32 +1116,42 @@ flowchart TD
 
 基于本项目（Agentic AI 学术研究与工程应用方案定制）的需求分析：
 
-| 需求维度              | 本项目要求         | 推荐方案             |
-| --------------------- | ------------------ | -------------------- |
-| **数据规模**          | 初期 < 1M 向量     | PGVector/VectorChord |
-| **混合检索**          | 向量 + 全文 + 图谱 | PostgreSQL 扩展      |
-| **事务支持**          | 需要 ACID          | PostgreSQL 扩展      |
-| **与 OceanBase 集成** | 三位一体架构       | OceanBase Vector     |
-| **运维复杂度**        | 希望简化           | 单库方案             |
+| 需求维度        | 本项目要求                  | 匹配评估                 |
+| --------------- | --------------------------- | ------------------------ |
+| **数据规模**    | 初期 < 1M，长期 > 10M       | Milvus 支持百亿级扩展    |
+| **混合检索**    | 向量 + 全文 + 图谱          | Milvus BM25 + Neo4j 图谱 |
+| **多模态支持**  | 文本、代码、图像            | Milvus 多向量字段        |
+| **AI 框架集成** | LangChain/LlamaIndex/Cognee | Milvus 全覆盖            |
+| **开发便捷性**  | 本地开发快速迭代            | Milvus Lite 嵌入式       |
+| **生产部署**    | 私有化、高可用              | Milvus Distributed       |
 
-> **推荐**：鉴于本项目已采用 OceanBase 作为核心存储（支持原生向量能力），建议以 OceanBase Vector 为主要向量存储方案，PGVector/VectorChord 作为开发测试的备选方案。
+> **推荐方案**：选择 **Milvus** 作为本项目的向量数据库方案。
+
+**选择理由**：
+
+1. **开发测试便捷**：Milvus Lite 支持纯 Python 嵌入式运行，无需 Docker
+2. **平滑扩展**：从 Lite → Standalone → Distributed 无缝升级
+3. **生态完善**：LangChain/LlamaIndex/Cognee 全面支持
+4. **性能优秀**：10k+ QPS，支持 GPU 加速
+5. **Apache 2.0**：开源协议友好，可商用
 
 ---
 
-## 9. 本项目集成方案 Demo
+## 9. 本项目集成方案
 
 ### 9.1 技术架构概览
 
 ```mermaid
 graph TB
     subgraph "数据层"
-        OB[(OceanBase<br/>向量 + 关系)]
+        MV[(Milvus<br/>向量检索)]
+        PG[(PostgreSQL<br/>关系数据)]
         Neo4j[(Neo4j<br/>知识图谱)]
     end
 
     subgraph "检索层"
-        VEC[向量检索<br/>OceanBase HNSW]
-        FTS[全文检索<br/>OceanBase]
+        VEC[向量检索<br/>Milvus HNSW/IVF]
+        FTS[全文检索<br/>Milvus BM25]
         GRAPH[图谱检索<br/>Neo4j Cypher]
     end
 
@@ -967,102 +1165,126 @@ graph TB
     RRF --> LLM
     LLM --> Result[检索结果]
 
-    style OB fill:#1890ff,color:#fff
+    style MV fill:#00A1EA,color:#fff
+    style PG fill:#336791,color:#fff
     style Neo4j fill:#018bff,color:#fff
 ```
 
-### 9.2 OceanBase 向量检索实现
+### 9.2 Milvus 向量检索实现
 
-#### 9.2.1 表结构设计
+#### 9.2.1 Collection 设计
 
-```sql
--- 内容元数据表
-CREATE TABLE sources (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    source_type ENUM('paper', 'article', 'document', 'code_repo') NOT NULL,
-    title VARCHAR(500) NOT NULL,
-    abstract TEXT,
-    authors JSON,
-    url VARCHAR(1000),
-    status ENUM('pending', 'processing', 'translated', 'analyzed'),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_source_type (source_type),
-    INDEX idx_status (status)
-);
+```python
+from pymilvus import MilvusClient, DataType, FieldSchema, CollectionSchema
 
--- 向量嵌入表
-CREATE TABLE source_embeddings (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    source_id BIGINT NOT NULL,
-    chunk_index INT DEFAULT 0,
-    chunk_text TEXT,
-    embedding VECTOR(1536),  -- OpenAI text-embedding-3-small
-    FOREIGN KEY (source_id) REFERENCES sources(id)
-);
+# 使用 Milvus Lite（本地开发）或连接远程服务
+client = MilvusClient("./agentic_ai.db")  # Lite 模式
 
--- 创建 HNSW 向量索引
-CREATE INDEX idx_source_embedding_hnsw
-ON source_embeddings USING HNSW (embedding vector_cosine_ops)
-WITH (m = 16, ef_construction = 128);
+# 定义 Schema
+fields = [
+    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+    FieldSchema(name="source_id", dtype=DataType.INT64),
+    FieldSchema(name="source_type", dtype=DataType.VARCHAR, max_length=50),
+    FieldSchema(name="title", dtype=DataType.VARCHAR, max_length=500),
+    FieldSchema(name="chunk_text", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=1536),
+]
+
+# 创建 Collection
+client.create_collection(
+    collection_name="source_embeddings",
+    schema=CollectionSchema(fields, description="学术资源向量嵌入"),
+    index_params={
+        "index_type": "HNSW",
+        "metric_type": "COSINE",
+        "params": {"M": 16, "efConstruction": 128}
+    }
 ```
 
-#### 9.2.2 向量检索查询
+#### 9.2.2 向量检索与混合搜索
 
-```sql
--- 语义相似度搜索
-SELECT
-    s.id,
-    s.title,
-    se.chunk_text,
-    se.embedding <=> $query_vector AS distance
-FROM source_embeddings se
-JOIN sources s ON se.source_id = s.id
-WHERE s.source_type = 'paper'
-ORDER BY se.embedding <=> $query_vector
-LIMIT 10;
+```python
+from pymilvus import MilvusClient
+from openai import OpenAI
 
--- 混合检索（向量 + 全文）
-WITH vector_results AS (
-    SELECT source_id, embedding <=> $query_vector AS v_score
-    FROM source_embeddings
-    ORDER BY v_score LIMIT 50
-),
-text_results AS (
-    SELECT id, ts_rank(to_tsvector('english', abstract), query) AS t_score
-    FROM sources, plainto_tsquery('english', $query_text) query
-    WHERE to_tsvector('english', abstract) @@ query
-    LIMIT 50
-)
-SELECT
-    s.*,
-    COALESCE(v.v_score, 1) AS vector_score,
-    COALESCE(t.t_score, 0) AS text_score,
-    -- RRF 融合分数
-    1.0 / (60 + RANK() OVER (ORDER BY v.v_score)) +
-    1.0 / (60 + RANK() OVER (ORDER BY t.t_score DESC)) AS rrf_score
-FROM sources s
-LEFT JOIN vector_results v ON s.id = v.source_id
-LEFT JOIN text_results t ON s.id = t.id
-WHERE v.source_id IS NOT NULL OR t.id IS NOT NULL
-ORDER BY rrf_score DESC
-LIMIT 10;
+client = MilvusClient("./agentic_ai.db")
+openai_client = OpenAI()
+
+def get_embedding(text: str) -> list:
+    """生成文本嵌入向量"""
+    response = openai_client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text
+    )
+    return response.data[0].embedding
+
+def semantic_search(query: str, source_type: str = None, top_k: int = 10):
+    """语义相似度搜索"""
+    query_embedding = get_embedding(query)
+
+    # 构建过滤条件
+    filter_expr = f'source_type == "{source_type}"' if source_type else ""
+
+    results = client.search(
+        collection_name="source_embeddings",
+        data=[query_embedding],
+        limit=top_k,
+        filter=filter_expr,
+        output_fields=["title", "chunk_text", "source_type"]
+    )
+    return results
+
+def hybrid_search(query: str, top_k: int = 10):
+    """混合搜索（向量 + BM25 全文）"""
+    # Milvus 2.4+ 支持 BM25 全文搜索
+    from pymilvus import AnnSearchRequest, RRFRanker
+
+    query_embedding = get_embedding(query)
+
+    # 向量搜索请求
+    vector_req = AnnSearchRequest(
+        data=[query_embedding],
+        anns_field="embedding",
+        param={"metric_type": "COSINE", "params": {"ef": 100}},
+        limit=top_k * 2
+    )
+
+    # BM25 全文搜索请求（需要在 Collection 中启用 BM25）
+    bm25_req = AnnSearchRequest(
+        data=[query],
+        anns_field="chunk_text",
+        param={"metric_type": "BM25"},
+        limit=top_k * 2
+    )
+
+    # 使用 RRF 融合结果
+    results = client.hybrid_search(
+        collection_name="source_embeddings",
+        reqs=[vector_req, bm25_req],
+        ranker=RRFRanker(k=60),
+        limit=top_k,
+        output_fields=["title", "chunk_text"]
+    )
+    return results
 ```
 
 ### 9.3 LlamaIndex 集成示例
 
 ```python
-from llama_index.core import VectorStoreIndex, Document
-from llama_index.vector_stores.oceanbase import OceanBaseVectorStore
+from llama_index.core import VectorStoreIndex, Settings
+from llama_index.vector_stores.milvus import MilvusVectorStore
+from llama_index.embeddings.openai import OpenAIEmbedding
 
-# 配置 OceanBase 连接
-vector_store = OceanBaseVectorStore(
-    host="127.0.0.1",
-    port=2881,
-    user="root@test",
-    password="your_password",
-    database="agentic_ai",
-    table_name="source_embeddings",
-    embedding_dimension=1536
+# 配置嵌入模型
+Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
+
+# 连接 Milvus（支持 Lite / Standalone / Distributed）
+vector_store = MilvusVectorStore(
+    uri="./agentic_ai.db",  # Milvus Lite
+    # uri="http://localhost:19530",  # Milvus Standalone
+    collection_name="source_embeddings",
+    dim=1536,
+    overwrite=False
 )
 
 # 创建索引
@@ -1083,18 +1305,21 @@ print(response)
 ### 9.4 LangChain 集成示例
 
 ```python
-from langchain_oceanbase.vectorstores import OceanBaseVectorStore
+from langchain_milvus import Milvus
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.chains import RetrievalQA
 
 # 初始化嵌入模型
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-# 连接 OceanBase 向量存储
-vector_store = OceanBaseVectorStore(
-    connection_string="mysql+pymysql://root@test:password@127.0.0.1:2881/agentic_ai",
+# 连接 Milvus 向量存储
+vector_store = Milvus(
     embedding_function=embeddings,
-    table_name="source_embeddings"
+    collection_name="source_embeddings",
+    connection_args={
+        "uri": "./agentic_ai.db"  # Milvus Lite
+        # "uri": "http://localhost:19530"  # Milvus Standalone
+    }
 )
 
 # 创建检索器
@@ -1218,15 +1443,22 @@ VACUUM ANALYZE source_embeddings;
 
 [18] **Pinecone Namespaces** - Pinecone. https://docs.pinecone.io/guides/index-data/indexing-overview#namespaces
 
-[19] **OceanBase Vector Database Capabilities** - OceanBase. https://www.oceanbase.com/docs/
+[19] **LlamaIndex Milvus Integration** - LlamaIndex. https://docs.llamaindex.ai/en/stable/examples/vector_stores/MilvusIndexDemo/
 
-[20] **LlamaIndex OceanBase Integration** - LlamaIndex. https://docs.llamaindex.ai/en/stable/examples/vector_stores/OceanBaseVectorStore/
+[20] **LangChain Milvus Integration** - LangChain. https://python.langchain.com/docs/integrations/vectorstores/milvus/
 
-[21] **LangChain OceanBase Integration** - LangChain. https://python.langchain.com/docs/integrations/vectorstores/oceanbase/
+[21] **Milvus Lite: Lightweight Milvus for Local Development** - Zilliz. https://milvus.io/docs/milvus_lite.md
 
----
+[22] **pgvector Filtering and Iterative Scans** - GitHub. https://github.com/pgvector/pgvector#filtering
 
-> **文档维护信息**  
-> **创建日期**：2025-12-23  
-> **最后更新**：2025-12-23  
-> **维护者**：Agentic AI Research Team
+[23] **VectorChord Graph Index** - TensorChord. https://docs.vectorchord.ai/vectorchord/usage/graph-index.html
+
+[24] **VectorChord Prefilter** - TensorChord. https://docs.vectorchord.ai/vectorchord/usage/prefilter.html
+
+[25] **Weaviate Vector Quantization** - Weaviate. https://docs.weaviate.io/weaviate/concepts/vector-quantization
+
+[26] **Weaviate Cluster Architecture** - Weaviate. https://docs.weaviate.io/weaviate/concepts/replication-architecture/cluster-architecture
+
+[27] **Pinecone Hybrid Search** - Pinecone. https://docs.pinecone.io/guides/search/hybrid-search
+
+[28] **Pinecone Rerank Results** - Pinecone. https://docs.pinecone.io/guides/search/rerank-results
