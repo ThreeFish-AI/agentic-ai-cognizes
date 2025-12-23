@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test runner script for the agentic-ai-papers project."""
+"""Test runner script for the agentic-ai-cognizes project."""
 
 import argparse
 import os
@@ -29,7 +29,7 @@ def run_command(cmd, description):
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Run tests for the agentic-ai-papers project",
+        description="Run tests for the agentic-ai-cognizes project",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
