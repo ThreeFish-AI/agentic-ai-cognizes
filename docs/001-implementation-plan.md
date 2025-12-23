@@ -128,9 +128,9 @@ flowchart TD
 
 ```shell
 cognizes/
+├── main.py                        # FastAPI 应用入口
 ├── api/
 │   ├── __init__.py
-│   ├── main.py                    # FastAPI 应用入口
 │   ├── routes/
 │   │   ├── sources.py             # 内容管理 API
 │   │   ├── tasks.py               # 任务管理 API
@@ -202,7 +202,7 @@ cognizes/agents/
 │       └── content_pipeline.py
 └── claude/                        # Claude SDK 实现 (Phase 2)
     ├── skills.py                  # Agent Skills 调用封装
-    └── cognitive_agent.py         # 认知增强 Agent
+    └── cognizes_agent.py          # 认知增强 Agent
 ```
 
 #### 3.3.2 Google ADK 依赖配置

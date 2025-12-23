@@ -918,7 +918,7 @@ flowchart LR
 | **前端**  | Next.js (App Router)         | 16.x         |
 |           | Zustand + immer              | 状态管理     |
 |           | TailwindCSS                  | 样式框架     |
-| **后端**  | FastAPI + asyncio            | Python 3.12  |
+| **后端**  | FastAPI + asyncio            | Python 3.14  |
 |           | Pydantic                     | 数据验证     |
 | **Agent** | Google ADK                   | 生产部署     |
 |           | Claude Agent SDK             | 原型开发     |
@@ -934,19 +934,13 @@ flowchart LR
 ```shell
 agentic-ai-cognizes/
 ├── cognizes/                   # 后端
+│   ├── main.py                 # 应用入口
 │   ├── api/                    # FastAPI 服务
-│   │   ├── main.py             # 应用入口
 │   │   ├── routes/             # API 路由
 │   │   └── services/           # 业务服务
 ├── ├── agents/                 # Agents 核心
 │   │   ├── adk/                # ADK Agent 实现
 │   │   └── claude/             # Claude Agent 实现
-│   │       ├── base.py                 # BaseAgent 基类
-│   │       ├── workflow_agent.py       # 流程编排
-│   │       ├── pdf_agent.py            # PDF 处理
-│   │       ├── translation_agent.py    # 翻译处理
-│   │       ├── heartfelt_agent.py      # 深度分析
-│   │       └── skills.py       # Skill 调用封装
 │   └── core/                   # 核心组件
 │       ├── models/             # Pydantic 模型
 │       ├── config.py           # 配置管理
