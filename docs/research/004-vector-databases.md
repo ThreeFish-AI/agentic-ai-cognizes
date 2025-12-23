@@ -1,11 +1,23 @@
-# 向量数据库深度调研报告
-
-> **报告版本**：v1.0  
-> **调研日期**：2025-12  
-> **调研对象**：PGVector、Vector Chord、Milvus、Weaviate、Pinecone  
-> **调研范围**：产品设计、架构实现、索引算法、性能指标、集成方式、场景推荐
-
 ---
+id: vector-databases
+sidebar_position: 4
+title: 向量数据库深度调研报告
+last_update:
+  author: Aurelius Huang
+  version: 1.0
+  date: 2025-12-23
+  status: Pending Review
+tags:
+  - Vector Databases
+  - ANN Search
+  - PGVector
+  - Vector Chord
+  - Milvus
+  - Weaviate
+  - Pinecone
+---
+
+> **调研范围**：产品设计、架构实现、索引算法、性能指标、集成方式、场景推荐
 
 ## 📋 目录
 
