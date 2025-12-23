@@ -12,7 +12,7 @@ tags:
   - Vector Databases
   - ANN Search
   - PGVector
-  - Vector Chord
+  - VectorChord
   - Milvus
   - Weaviate
   - Pinecone
@@ -47,10 +47,10 @@ tags:
 graph TB
     subgraph "PostgreSQL 扩展方案"
         PGV[PGVector<br/>官方 PostgreSQL 扩展]
-        VC[Vector Chord<br/>高性能 PostgreSQL 扩展]
+        VC[VectorChord<br/>高性能 PostgreSQL 扩展]
     end
 
-    subgraph "专用向量数据库"
+    subgraph "Specialized Vector DB"
         MV[Milvus<br/>开源分布式向量数据库]
         WV[Weaviate<br/>开源 AI-Native 向量数据库]
         PC[Pinecone<br/>全托管向量数据库服务]
@@ -63,13 +63,13 @@ graph TB
     style PC fill:#5048E5,color:#fff
 ```
 
-| 类型                | 产品         | 核心特点                             |
-| ------------------- | ------------ | ------------------------------------ |
-| **PostgreSQL 扩展** | PGVector     | 官方扩展，与现有 PostgreSQL 完美集成 |
-| **PostgreSQL 扩展** | Vector Chord | 高性能扩展，突破 PGVector 性能瓶颈   |
-| **专用向量数据库**  | Milvus       | 开源分布式，支持百亿级向量           |
-| **专用向量数据库**  | Weaviate     | AI-Native，内置向量化模块            |
-| **专用向量数据库**  | Pinecone     | 全托管 SaaS，零运维                  |
+| 类型                            | 产品        | 核心特点                             |
+| ------------------------------- | ----------- | ------------------------------------ |
+| **PostgreSQL Extension**        | PGVector    | 官方扩展，与现有 PostgreSQL 完美集成 |
+| **PostgreSQL Extension**        | VectorChord | 高性能扩展，突破 PGVector 性能瓶颈   |
+| **Specialized Vector DataBase** | Milvus      | 开源分布式，支持百亿级向量           |
+| **Specialized Vector DataBase** | Weaviate    | AI-Native，内置向量化模块            |
+| **Specialized Vector DataBase** | Pinecone    | 全托管 SaaS，零运维                  |
 
 ---
 
