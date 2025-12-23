@@ -80,7 +80,11 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     """健康检查接口."""
-    return {"status": "healthy", "service": "agentic-ai-papers-api", "version": "1.0.0"}
+    return {
+        "status": "healthy",
+        "service": "agentic-ai-cognizes-api",
+        "version": "1.0.0",
+    }
 
 
 app.include_router(papers.router, prefix="/api/papers", tags=["papers"])

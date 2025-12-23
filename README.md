@@ -32,8 +32,8 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/ThreeFish-AI/agentic-ai-papers.git
-cd agentic-ai-papers
+git clone https://github.com/ThreeFish-AI/agentic-ai-cognizes.git
+cd agentic-ai-cognizes
 
 # 2. 配置环境变量
 cp .env.example .env
@@ -213,7 +213,7 @@ flowchart TD
 ## 📁 项目结构
 
 ```
-agentic-ai-papers/
+agentic-ai-cognizes/
 ├── agents/              # 核心后端实现
 │   ├── api/            # FastAPI 路由和服务
 │   ├── claude/         # Agent 实现
@@ -265,7 +265,7 @@ agentic-ai-papers/
 
 ## 📞 联系我们
 
-- 问题反馈: [GitHub Issues](https://github.com/ThreeFish-AI/agentic-ai-papers/issues)
+- 问题反馈: [GitHub Issues](https://github.com/ThreeFish-AI/agentic-ai-cognizes/issues)
 - 邮箱: threefish.ai@gmail.com
 
 ---
