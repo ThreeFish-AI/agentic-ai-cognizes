@@ -28,7 +28,7 @@
 
 ### 1.1 产品简介
 
-OceanBase 是由蚂蚁集团自主研发的企业级原生分布式关系数据库，于 2010 年开始研发，至今已有超过 15 年的发展历程[1]。它是中国首个自主研发的通用关系型数据库，具备完全自主知识产权，被广泛应用于金融、电信、政务、零售等核心业务场景[2]。
+OceanBase 是由蚂蚁集团自主研发的企业级原生分布式关系数据库，于 2010 年开始研发，至今已有超过 15 年的发展历程<sup>[[1]](#ref1)</sup>。它是中国首个自主研发的通用关系型数据库，具备完全自主知识产权，被广泛应用于金融、电信、政务、零售等核心业务场景<sup>[[2]](#ref2)</sup>。
 
 ### 1.2 核心定位
 
@@ -75,7 +75,7 @@ graph TB
 
 ### 2.1 整体架构
 
-OceanBase 采用 **Shared-Nothing** 分布式架构，各节点完全对等，通过 Paxos 协议保证数据强一致性[3]。
+OceanBase 采用 **Shared-Nothing** 分布式架构，各节点完全对等，通过 Paxos 协议保证数据强一致性<sup>[[3]](#ref3)</sup>。
 
 ```mermaid
 graph TB
@@ -121,7 +121,7 @@ graph TB
 
 ### 2.2 LSM-Tree 存储引擎
 
-OceanBase 采用**基于 LSM-Tree（Log-Structured Merge-Tree）** 的存储引擎，这是其高性能写入和 HTAP 能力的核心基础[4][5]。
+OceanBase 采用**基于 LSM-Tree（Log-Structured Merge-Tree）** 的存储引擎，这是其高性能写入和 HTAP 能力的核心基础<sup>[[4]](#ref4)</sup><sup>[[5]](#ref5)</sup>。
 
 ```mermaid
 graph TB
@@ -160,7 +160,7 @@ graph TB
 
 ### 2.3 分布式一致性
 
-OceanBase 采用 **Multi-Paxos** 协议保证数据强一致性[6]：
+OceanBase 采用 **Multi-Paxos** 协议保证数据强一致性<sup>[[6]](#ref6)</sup>：
 
 ```mermaid
 sequenceDiagram
@@ -189,7 +189,7 @@ sequenceDiagram
 
 ### 3.1 事务处理特性
 
-OceanBase 在事务处理方面具备金融级能力，已在支付宝核心交易链路验证超过 10 年[7]。
+OceanBase 在事务处理方面具备金融级能力，已在支付宝核心交易链路验证超过 10 年<sup>[[7]](#ref7)</sup>。
 
 #### 核心事务特性
 
@@ -239,7 +239,7 @@ graph LR
 
 ### 4.1 HTAP 混合负载架构
 
-OceanBase 的 HTAP 能力基于**行列混合存储**和**资源隔离**技术实现[8][9]。
+OceanBase 的 HTAP 能力基于**行列混合存储**和**资源隔离**技术实现<sup>[[8]](#ref8)</sup><sup>[[9]](#ref9)</sup>。
 
 ```mermaid
 graph TB
@@ -302,7 +302,7 @@ mindmap
 
 ### 5.1 向量能力概述
 
-OceanBase 从 V4.3.3 版本开始原生支持向量数据类型和向量索引，V4.5 版本进一步增强了向量搜索能力[10][11]。
+OceanBase 从 V4.3.3 版本开始原生支持向量数据类型和向量索引，V4.5 版本进一步增强了向量搜索能力<sup>[[10]](#ref10)</sup><sup>[[11]](#ref11)</sup>。
 
 ```mermaid
 graph LR
@@ -343,7 +343,7 @@ VALUES (1, 'AI 技术发展', '...', '[0.1, 0.2, ..., 0.3]');
 
 #### HNSW（Hierarchical Navigable Small World）
 
-HNSW 是一种基于图的近似最近邻（ANN）算法，通过构建多层导航图实现高效搜索[12]。
+HNSW 是一种基于图的近似最近邻（ANN）算法，通过构建多层导航图实现高效搜索<sup>[[12]](#ref12)</sup>。
 
 ```mermaid
 graph TB
@@ -379,7 +379,7 @@ WITH (m = 16, ef_construction = 128);
 
 #### IVF（Inverted File Flat）
 
-IVF 通过聚类将向量划分到不同的桶中，查询时只搜索最相关的桶[13]。
+IVF 通过聚类将向量划分到不同的桶中，查询时只搜索最相关的桶<sup>[[13]](#ref13)</sup>。
 
 ```mermaid
 graph TB
@@ -459,7 +459,7 @@ LIMIT 10;
 
 ### 6.1 统一数据平台
 
-传统架构需要多个独立系统处理不同类型的工作负载，而 OceanBase 三位一体架构实现了真正的统一[14]。
+传统架构需要多个独立系统处理不同类型的工作负载，而 OceanBase 三位一体架构实现了真正的统一<sup>[[14]](#ref14)</sup>。
 
 ```mermaid
 graph TB
@@ -546,7 +546,7 @@ LIMIT 100;
 
 ### 7.1 TPC-C 性能 (OLTP)
 
-OceanBase 在 TPC-C 基准测试中创造了多项世界纪录[15][16]。
+OceanBase 在 TPC-C 基准测试中创造了多项世界纪录<sup>[[15]](#ref15)</sup><sup>[[16]](#ref16)</sup>。
 
 | 测试项         | OceanBase | MySQL 企业版 | 对比倍数 |
 | -------------- | --------- | ------------ | -------- |
@@ -563,7 +563,7 @@ OceanBase 在 TPC-C 基准测试中创造了多项世界纪录[15][16]。
 
 ### 7.3 向量搜索性能
 
-基于 VectorDBBench 基准测试数据[17]：
+基于 VectorDBBench 基准测试数据<sup>[[17]](#ref17)</sup>：
 
 | 指标          | OceanBase | pgvector | 说明           |
 | ------------- | --------- | -------- | -------------- |
@@ -579,7 +579,7 @@ OceanBase 在 TPC-C 基准测试中创造了多项世界纪录[15][16]。
 
 #### LlamaIndex 集成
 
-OceanBase 提供官方 LlamaIndex 集成包 `llama-index-vector-stores-oceanbase`[18]。
+OceanBase 提供官方 LlamaIndex 集成包 `llama-index-vector-stores-oceanbase`<sup>[[18]](#ref18)</sup>。
 
 ```python
 # 安装
@@ -610,7 +610,7 @@ response = query_engine.query("什么是 OceanBase?")
 
 #### LangChain 集成
 
-OceanBase 提供官方 LangChain 集成包 `langchain-oceanbase`[19]。
+OceanBase 提供官方 LangChain 集成包 `langchain-oceanbase`<sup>[[19]](#ref19)</sup>。
 
 ```python
 # 安装
@@ -1065,47 +1065,47 @@ FROM oceanbase.GV$OB_SERVERS;
 
 ## References
 
-[1] OceanBase 官方文档 - OceanBase 简介, https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475486
+<a id="ref1"></a>**[1]** OceanBase. _OceanBase 简介_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475486](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475486)
 
-[2] OceanBase 数据库 V4.5.0 - OceanBase 简介 PDF
+<a id="ref2"></a>**[2]** OceanBase 数据库 V4.5.0. _OceanBase 简介_. PDF 文档.
 
-[3] OceanBase 官方文档 - 分布式架构, https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475689
+<a id="ref3"></a>**[3]** OceanBase. _分布式架构_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475689](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475689)
 
-[4] OceanBase 技术博客 - LSM-Tree 存储引擎原理, https://open.oceanbase.com/blog/200126
+<a id="ref4"></a>**[4]** OceanBase 技术博客. _LSM-Tree 存储引擎原理_. [https://open.oceanbase.com/blog/200126](https://open.oceanbase.com/blog/200126)
 
-[5] 墨天轮 - OceanBase 存储引擎深度解析, https://www.modb.pro/db/oceanbase
+<a id="ref5"></a>**[5]** 墨天轮. _OceanBase 存储引擎深度解析_. [https://www.modb.pro/db/oceanbase](https://www.modb.pro/db/oceanbase)
 
-[6] OceanBase 官方文档 - Paxos 一致性协议, https://www.oceanbase.com/docs
+<a id="ref6"></a>**[6]** OceanBase. _Paxos 一致性协议_. [https://www.oceanbase.com/docs](https://www.oceanbase.com/docs)
 
-[7] OceanBase 数据库 V4.5.0 - 实践教程 PDF
+<a id="ref7"></a>**[7]** OceanBase 数据库 V4.5.0. _实践教程_. PDF 文档.
 
-[8] OceanBase 官方文档 - HTAP 架构, https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475691
+<a id="ref8"></a>**[8]** OceanBase. _HTAP 架构_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475691](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475691)
 
-[9] OceanBase 数据库 V4.5.0 - OceanBase AP PDF
+<a id="ref9"></a>**[9]** OceanBase 数据库 V4.5.0. _OceanBase AP_. PDF 文档.
 
-[10] OceanBase 官方文档 - 向量搜索概述, https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475693
+<a id="ref10"></a>**[10]** OceanBase. _向量搜索概述_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475693](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475693)
 
-[11] OceanBase 数据库 V4.5.0 - 向量搜索 PDF
+<a id="ref11"></a>**[11]** OceanBase 数据库 V4.5.0. _向量搜索_. PDF 文档.
 
-[12] Wikipedia - Hierarchical Navigable Small World graphs, https://en.wikipedia.org/wiki/HNSW
+<a id="ref12"></a>**[12]** Wikipedia. _Hierarchical Navigable Small World graphs_. [https://en.wikipedia.org/wiki/HNSW](https://en.wikipedia.org/wiki/HNSW)
 
-[13] Milvus 文档 - IVF 索引原理, https://milvus.io/docs/index.md
+<a id="ref13"></a>**[13]** Milvus. _IVF 索引原理_. [https://milvus.io/docs/index.md](https://milvus.io/docs/index.md)
 
-[14] OceanBase 官方文档 - 三位一体架构, https://www.oceanbase.com/docs
+<a id="ref14"></a>**[14]** OceanBase. _三位一体架构_. [https://www.oceanbase.com/docs](https://www.oceanbase.com/docs)
 
-[15] TPC-C 官方记录 - OceanBase 性能, https://www.tpc.org/tpcc/results/tpcc_results5.asp
+<a id="ref15"></a>**[15]** TPC. _TPC-C 官方记录 - OceanBase 性能_. [https://www.tpc.org/tpcc/results/tpcc_results5.asp](https://www.tpc.org/tpcc/results/tpcc_results5.asp)
 
-[16] Medium - OceanBase 性能对比分析, https://medium.com/@oceanbase
+<a id="ref16"></a>**[16]** Medium. _OceanBase 性能对比分析_. [https://medium.com/@oceanbase](https://medium.com/@oceanbase)
 
-[17] VectorDBBench - 向量数据库基准测试, https://github.com/zilliztech/VectorDBBench
+<a id="ref17"></a>**[17]** Zilliz. _VectorDBBench - 向量数据库基准测试_. GitHub. [https://github.com/zilliztech/VectorDBBench](https://github.com/zilliztech/VectorDBBench)
 
-[18] LlamaHub - OceanBase Vector Store, https://llamahub.ai/l/vector_stores/llama-index-vector-stores-oceanbase
+<a id="ref18"></a>**[18]** LlamaHub. _OceanBase Vector Store_. [https://llamahub.ai/l/vector_stores/llama-index-vector-stores-oceanbase](https://llamahub.ai/l/vector_stores/llama-index-vector-stores-oceanbase)
 
-[19] LangChain 文档 - OceanBase 集成, https://python.langchain.com/docs/integrations/vectorstores/oceanbase
+<a id="ref19"></a>**[19]** LangChain. _OceanBase 集成_. [https://python.langchain.com/docs/integrations/vectorstores/oceanbase](https://python.langchain.com/docs/integrations/vectorstores/oceanbase)
 
-[20] OceanBase 数据库 V4.5.0 - 部署数据库 PDF
+<a id="ref20"></a>**[20]** OceanBase 数据库 V4.5.0. _部署数据库_. PDF 文档.
 
-[21] OceanBase GitHub 仓库, https://github.com/oceanbase/oceanbase
+<a id="ref21"></a>**[21]** OceanBase. _GitHub 仓库_. [https://github.com/oceanbase/oceanbase](https://github.com/oceanbase/oceanbase)
 
 ---
 

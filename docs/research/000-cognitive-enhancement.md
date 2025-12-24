@@ -209,7 +209,7 @@ Level 2: 具体主题摘要（如"ReAct框架"、"Tool Use模式"）
 
 #### 2.3.1 Agent 核心特征
 
-根据《Agentic Design Patterns》[10]，Agent 区别于传统软件的核心是：
+根据《Agentic Design Patterns》<sup>[[10]](#ref10)</sup>，Agent 区别于传统软件的核心是：
 
 > **代理性（Agency）**：能够感知环境、做出决策、采取行动以自主实现目标
 
@@ -1124,7 +1124,7 @@ vectorstore = OceanBase.from_documents(
 
 > 在技术选型清晰后，本章归纳構建智能系统的核心设计模式。这些模式是跨框架的通用方法论，可与前述框架和数据库组合应用。
 
-基于《Agentic Design Patterns: A Hands-On Guide to Building Intelligent Systems》[10] 整理。
+基于《Agentic Design Patterns: A Hands-On Guide to Building Intelligent Systems》<sup>[[10]](#ref10)</sup> 整理。
 
 ### 6.1 Prompt Chaining（提示链）
 

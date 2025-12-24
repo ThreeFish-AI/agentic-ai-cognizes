@@ -5,21 +5,6 @@
 > **报告作者**: Agentic Infra Team  
 > **审阅状态**: 待审阅
 >
-> **学术论文**:
->
-> - [SII-GAIR. (2025). _Context Engineering 2.0: The Context of Context Engineering_](<../assets/context-engineering/Context Engineering 2.0: The Context of Context Engineering.pdf>)
-> - [Vaswani, A., et al. (2017). _Attention Is All You Need_](<../assets/context-engineering/Attention Is All You Need.pdf>)
-> - [Dey, A. K. (2001). _Understanding and Using Context_](<../assets/context-engineering/Understanding and Using Context.pdf>)
->
-> **官方文档**:
->
-> - [Google ADK - Context](https://google.github.io/adk-docs/context/)
-> - [Google ADK - Sessions, State, Memory](https://google.github.io/adk-docs/sessions/)
-> - [Agno - Context Engineering](https://docs.agno.com/basics/context/overview)
-> - [Agno - Memory](https://docs.agno.com/basics/memory/overview)
-> - [LangChain - Context Engineering](https://docs.langchain.com/oss/python/langchain/context-engineering)
-> - [LangGraph - Memory](https://docs.langchain.com/oss/python/langgraph/add-memory)
->
 > **内联文档**:
 >
 > - [docs/000-roadmap.md](../docs/000-roadmap.md)
@@ -29,7 +14,7 @@
 
 **Context Engineering（上下文工程）** 是构建可靠、可扩展 AI Agent 系统的核心学科。它从传统的 Prompt Engineering 演进而来，专注于**系统性地设计和优化 AI 系统运行时所需的信息环境**——包括上下文的收集、管理、存储和使用。
 
-本报告结合学术论文《Context Engineering 2.0》与主流 Agent 框架（Google ADK、Agno、LangChain）的实践，系统性地梳理 Context Engineering 的：
+本报告结合学术论文《Context Engineering 2.0》<sup>[[1]](#ref1)</sup>与主流 Agent 框架（Google ADK<sup>[[4]](#ref4)</sup><sup>[[5]](#ref5)</sup>、Agno<sup>[[6]](#ref6)</sup><sup>[[7]](#ref7)</sup>、LangChain<sup>[[8]](#ref8)</sup>/LangGraph<sup>[[9]](#ref9)</sup>）的实践，系统性地梳理 Context Engineering 的：
 
 1. **理论框架与核心定义**
 2. **主流框架的实现方案对比**
@@ -41,7 +26,7 @@
 
 ### 2.1 核心定义（基于 SII-GAIR 论文）
 
-论文《Context Engineering 2.0: The Context of Context Engineering》提供了严谨的形式化定义：
+论文《Context Engineering 2.0: The Context of Context Engineering》<sup>[[1]](#ref1)</sup>提供了严谨的形式化定义：
 
 **定义 1: 上下文 (Context)**
 
@@ -138,7 +123,7 @@ graph TD
 
 #### 3.2.1 分层记忆架构（Layered Memory Architecture）
 
-论文提出了关键的记忆分层模型，这与 Google ADK 的设计高度一致：
+论文<sup>[[1]](#ref1)</sup>提出了关键的记忆分层模型，这与 Google ADK<sup>[[5]](#ref5)</sup> 的设计高度一致：
 
 **定义 5.1: 短期记忆 (Short-term Memory)**
 
@@ -207,7 +192,7 @@ $$f_{transfer}: M_s \rightarrow M_l$$
 
 ## 4. 主流 Agent 框架的 Context Engineering 实现对比
 
-### 4.1 Google ADK (Agent Development Kit)
+### 4.1 Google ADK (Agent Development Kit) <sup>[[4]](#ref4)</sup><sup>[[5]](#ref5)</sup>
 
 #### 4.1.1 核心概念体系
 
@@ -282,7 +267,7 @@ app = App(
 )
 ```
 
-### 4.2 Agno Framework
+### 4.2 Agno Framework <sup>[[6]](#ref6)</sup><sup>[[7]](#ref7)</sup>
 
 #### 4.2.1 Context 组成要素
 
@@ -352,7 +337,7 @@ Agno 将 Knowledge（知识库/RAG）与 Memory（记忆）区分：
 - **Knowledge**: 外部知识源（文档、数据库），用于增强 Agent 能力
 - **Memory**: 从交互中学习的用户偏好和上下文
 
-### 4.3 LangChain / LangGraph
+### 4.3 LangChain / LangGraph <sup>[[8]](#ref8)</sup><sup>[[9]](#ref9)</sup>
 
 #### 4.3.1 Memory 类型体系
 
@@ -564,3 +549,23 @@ LIMIT 10;
 2. **HTAP 能力**：高频写入 + 复杂分析查询的统一处理
 3. **多地多活 (Paxos)**：跨区域记忆一致性
 4. **Hybrid Search**：SQL + Vector 的原生混合检索
+
+## References
+
+<a id="ref1"></a>**[1]** SII-GAIR. (2025). _Context Engineering 2.0: The Context of Context Engineering_. [PDF](../assets/context-engineering/Context%20Engineering%202.0:%20The%20Context%20of%20Context%20Engineering.pdf)
+
+<a id="ref2"></a>**[2]** Vaswani, A., et al. (2017). _Attention Is All You Need_. [PDF](../assets/context-engineering/Attention%20Is%20All%20You%20Need.pdf)
+
+<a id="ref3"></a>**[3]** Dey, A. K. (2001). _Understanding and Using Context_. [PDF](../assets/context-engineering/Understanding%20and%20Using%20Context.pdf)
+
+<a id="ref4"></a>**[4]** Google. _Google ADK - Context_. [https://google.github.io/adk-docs/context/](https://google.github.io/adk-docs/context/)
+
+<a id="ref5"></a>**[5]** Google. _Google ADK - Sessions, State, Memory_. [https://google.github.io/adk-docs/sessions/](https://google.github.io/adk-docs/sessions/)
+
+<a id="ref6"></a>**[6]** Agno. _Agno - Context Engineering_. [https://docs.agno.com/basics/context/overview](https://docs.agno.com/basics/context/overview)
+
+<a id="ref7"></a>**[7]** Agno. _Agno - Memory_. [https://docs.agno.com/basics/memory/overview](https://docs.agno.com/basics/memory/overview)
+
+<a id="ref8"></a>**[8]** LangChain. _LangChain - Context Engineering_. [https://docs.langchain.com/oss/python/langchain/context-engineering](https://docs.langchain.com/oss/python/langchain/context-engineering)
+
+<a id="ref9"></a>**[9]** LangGraph. _LangGraph - Memory_. [https://docs.langchain.com/oss/python/langgraph/add-memory](https://docs.langchain.com/oss/python/langgraph/add-memory)

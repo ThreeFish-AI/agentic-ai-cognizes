@@ -1,7 +1,7 @@
 # BettaFish（微舆）深度调研报告
 
 > 调研日期：2025-12-21  
-> 项目地址：[https://github.com/666ghj/BettaFish](https://github.com/666ghj/BettaFish)  
+> 项目地址：[https://github.com/666ghj/BettaFish](https://github.com/666ghj/BettaFish)<sup>[[1]](#ref1)</sup>  
 > 版本：v2.1.0（截至 2025-12-09）  
 > GitHub 数据：⭐ 33.2K Stars | 👁 190 Watching | 🍴 6.4K Forks | 👥 35+ 贡献者
 >
@@ -27,7 +27,7 @@
 5. [技术亮点](#5-技术亮点)
 6. [项目心得与启示](#6-项目心得与启示)
 7. [与同类产品对比](#7-与同类产品对比)
-8. [参考资料](#8-参考资料)
+8. [References](#8-references)
 
 ---
 
@@ -159,7 +159,7 @@ sequenceDiagram
     R-->>U: 9. 返回交互式报告
 ```
 
-### 2.4 ForumEngine 论坛协作机制深度解析
+### 2.4 ForumEngine 论坛协作机制深度解析 <sup>[[1]](#ref1)</sup>
 
 ForumEngine 是 BettaFish 最具创新性的设计之一，其核心理念：
 
@@ -488,30 +488,26 @@ class CustomBusinessDBTool:
 | 报告自动生成  |    ✅     |  ❌   |   ❌    |     ❌     |
 | 开源可控      |    ✅     |  ❌   |   ❌    |     ❌     |
 
-> 参考：[开源项目(微舆)与 manus|minimax|ChatGPT|Perplexity 对比](https://linux.do/t/topic/1148040)
+> 参考：[开源项目(微舆)与 manus|minimax|ChatGPT|Perplexity 对比]<sup>[[8]](#ref8)</sup>
 
 ---
 
-## 8. 参考资料
+## References
 
-### 8.1 官方资源
+<a id="ref1"></a>**[1]** BettaFish. _666ghj/BettaFish GitHub Repository_. [https://github.com/666ghj/BettaFish](https://github.com/666ghj/BettaFish)
 
-- **GitHub 仓库**：[666ghj/BettaFish](https://github.com/666ghj/BettaFish)
-- **贡献指南**：[CONTRIBUTING.md](https://github.com/666ghj/BettaFish/blob/main/CONTRIBUTING.md)
-- **爬虫文档**：[MindSpider/README.md](https://github.com/666ghj/BettaFish/blob/main/MindSpider/README.md)
-- **FAQ**：[Issues #185](https://github.com/666ghj/BettaFish/issues/185)
+<a id="ref2"></a>**[2]** BettaFish. _CONTRIBUTING.md_. [https://github.com/666ghj/BettaFish/blob/main/CONTRIBUTING.md](https://github.com/666ghj/BettaFish/blob/main/CONTRIBUTING.md)
 
-### 8.2 示例报告
+<a id="ref3"></a>**[3]** BettaFish. _MindSpider README_. [https://github.com/666ghj/BettaFish/blob/main/MindSpider/README.md](https://github.com/666ghj/BettaFish/blob/main/MindSpider/README.md)
 
-- [武汉大学品牌声誉深度分析报告](https://github.com/666ghj/BettaFish/blob/main/final_reports/final_report__20250827_131630.html)
-- [视频演示](https://www.bilibili.com/video/BV1TH1WBxEWN/)
+<a id="ref4"></a>**[4]** BettaFish Issues. _FAQ #185_. [https://github.com/666ghj/BettaFish/issues/185](https://github.com/666ghj/BettaFish/issues/185)
 
-### 8.3 社区讨论
+<a id="ref5"></a>**[5]** BettaFish Example Report. _武汉大学品牌声誉深度分析报告_. [HTML 链接](https://github.com/666ghj/BettaFish/blob/main/final_reports/final_report__20250827_131630.html)
 
-- [L 站项目讨论帖](https://linux.do/t/topic/1009280)
-- [产品对比评测](https://linux.do/t/topic/1148040)
+<a id="ref6"></a>**[6]** BettaFish Demo. _视频演示_. [Bilibili 链接](https://www.bilibili.com/video/BV1TH1WBxEWN/)
 
-### 8.4 联系方式
+<a id="ref7"></a>**[7]** L Station. _BettaFish 项目讨论帖_. [https://linux.do/t/topic/1009280](https://linux.do/t/topic/1009280)
 
-- **邮箱**：hangjiang@bupt.edu.cn
-- **QQ 群**：见项目 README 二维码
+<a id="ref8"></a>**[8]** L Station. _开源项目(微舆)与 manus|minimax|ChatGPT|Perplexity 对比_. [https://linux.do/t/topic/1148040](https://linux.do/t/topic/1148040)
+
+<a id="ref9"></a>**[9]** BettaFish Contact. _hangjiang@bupt.edu.cn_.
