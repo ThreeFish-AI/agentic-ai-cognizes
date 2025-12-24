@@ -358,10 +358,6 @@ def agent_node(state):
 
 ### 5.4 上下文隔离
 
-论文 [1] 提出通过 **Sub-Agent 架构** 解决上下文窗口限制：
-
-> "Each sub-agent has its own focused context window, and the main agent coordinates through efficient communication."
-
 #### 5.4.1 LangGraph Subgraph
 
 ```python
@@ -503,17 +499,6 @@ class ContextManager:
 
 ### 6.1 检索与选择策略
 
-论文 [1] 强调多维度的检索依据：
-
-| 检索依据                 | 描述                       | 实现方式      |
-| :----------------------- | :------------------------- | :------------ |
-| **语义相似度**           | 基于向量嵌入的相似度搜索   | Vector Search |
-| **时间邻近性 (Recency)** | 最近使用的信息优先级更高   | 时间戳排序    |
-| **访问频率 (Frequency)** | 高频访问的信息保持高可用性 | 访问计数器    |
-| **重要性评分**           | 预计算的重要性权重         | LLM 评估      |
-| **逻辑依赖**             | 追踪推理步骤之间的依赖关系 | 依赖图        |
-| **信息去重**             | 过滤传达相同含义的重复信息 | 语义去重      |
-
 ### 6.2 混合检索实现
 
 ```python
@@ -572,41 +557,6 @@ class HybridRetriever:
 ```
 
 ### 6.3 动态上下文组装
-
-```mermaid
-graph LR
-    subgraph Inputs["输入源"]
-        I1["System Instruction"]
-        I2["User Message"]
-        I3["Chat History"]
-        I4["Memories"]
-        I5["Knowledge (RAG)"]
-        I6["Tools"]
-    end
-
-    subgraph Assembler["Context Assembler"]
-        A1["Token 预算计算"]
-        A2["优先级排序"]
-        A3["截断与填充"]
-        A4["格式化输出"]
-    end
-
-    subgraph Output["输出"]
-        O1["Formatted Prompt"]
-    end
-
-    I1 --> A1
-    I2 --> A1
-    I3 --> A1
-    I4 --> A1
-    I5 --> A1
-    I6 --> A1
-    A1 --> A2 --> A3 --> A4 --> O1
-
-    style Inputs fill:#065f46,stroke:#34d399,color:#fff
-    style Assembler fill:#7c2d12,stroke:#fb923c,color:#fff
-    style Output fill:#581c87,stroke:#c084fc,color:#fff
-```
 
 ```python
 # Agentic AI Engine - 动态上下文组装器
@@ -703,10 +653,6 @@ class ContextAssembler:
 
 ### 6.4 主动意图推断
 
-论文 [1] 强调 Context Engineering 应使 Agent 能够**主动推断**用户未明确表达的需求：
-
-> "Proactive Intent Inference: learn user preference from dialogue history and personal data; infer hidden goals from related queries; detect user struggles and offer proactive assistance."
-
 ```python
 # Agentic AI Engine - 意图推断器
 class IntentInferrer:
@@ -754,50 +700,6 @@ Return as JSON.
 ---
 
 ## 7. 主流框架对比总结
-
-### 7.1 核心概念映射
-
-| 概念           | Google ADK [3-6]       | Agno [7-10]                   | LangGraph [11-12]         |
-| :------------- | :--------------------- | :---------------------------- | :------------------------ |
-| **会话容器**   | Session                | Session (session_id)          | Thread (checkpointer)     |
-| **临时状态**   | session.state          | session_state                 | State (graph state)       |
-| **对话历史**   | session.events         | chat_history                  | messages                  |
-| **长期记忆**   | MemoryService          | Memory (enable_user_memories) | Store                     |
-| **知识库/RAG** | (需自行实现)           | Knowledge                     | VectorStore / Retriever   |
-| **上下文缓存** | ContextCacheConfig     | 依赖 LLM Provider             | 依赖 LLM Provider         |
-| **上下文压缩** | EventsCompactionConfig | session_summary               | trim_messages / summarize |
-| **持久化**     | SessionService         | Database                      | Checkpointer              |
-
-### 7.2 各框架优劣势
-
-| 框架           | 优势                                                                           | 劣势                                              |
-| :------------- | :----------------------------------------------------------------------------- | :------------------------------------------------ |
-| **Google ADK** | ✅ 清晰的 Service 抽象<br>✅ 与 Vertex AI 深度集成<br>✅ 多语言支持 [3]        | ❌ MemoryBank 强依赖 Vertex AI<br>❌ 社区生态较新 |
-| **Agno**       | ✅ 开发体验极佳（配置驱动）<br>✅ Memory 开箱即用<br>✅ Team 多 Agent 支持 [7] | ❌ 相对封闭的生态<br>❌ 文档深度有限              |
-| **LangGraph**  | ✅ 状态管理优秀<br>✅ 复杂工作流支持<br>✅ 社区活跃 [11]                       | ❌ 配置复杂度高<br>❌ 调试困难                    |
-
-### 7.3 选型建议
-
-```mermaid
-graph TD
-    Q1{需要 Google Cloud 集成?}
-    Q2{需要复杂工作流?}
-    Q3{需要快速开发?}
-
-    Q1 -->|是| ADK["选择 Google ADK"]
-    Q1 -->|否| Q2
-
-    Q2 -->|是| LG["选择 LangGraph"]
-    Q2 -->|否| Q3
-
-    Q3 -->|是| AGNO["选择 Agno"]
-    Q3 -->|否| CUSTOM["自定义实现"]
-
-    style ADK fill:#4285f4,stroke:#1a73e8,color:#fff
-    style LG fill:#ff6b35,stroke:#e85a2e,color:#fff
-    style AGNO fill:#10b981,stroke:#059669,color:#fff
-    style CUSTOM fill:#6366f1,stroke:#4f46e5,color:#fff
-```
 
 ---
 

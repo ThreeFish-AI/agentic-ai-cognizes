@@ -77,8 +77,8 @@ SII-GAIR 论文《Context Engineering 2.0: The Context of Context Engineering》
 >
 > - $E_{rel} \subseteq E$ 是与交互相关的实体集合
 > - $Char(e)$ 返回描述实体 $e$ 的信息集合
->
-> **解读**: 上下文是"可用于描述与用户和应用之间交互相关的实体情况的任何信息"。这包括用户输入、应用配置、环境状态、外部工具、记忆模块等。
+
+> [!IMPORTANT] > 解读：上下文是"可用于描述与用户和应用之间交互相关的实体情况的任何信息"。这包括用户输入、应用配置、环境状态、外部工具、记忆模块等。
 
 > [!NOTE] > Context Engineering
 >
@@ -205,8 +205,8 @@ graph TD
 >
 > - 高时间相关性
 > - 快速检索，但可能快速变得不相关
->
-> **解读**：对应各框架的**对话历史 (Chat History)** 和 **会话状态 (Session State)**
+
+> [!IMPORTANT] > 解读：对应各框架的**对话历史 (Chat History)** 和 **会话状态 (Session State)**
 
 > [!NOTE] 定义 2：长期记忆 (Long-term Memory)
 >
@@ -214,8 +214,8 @@ graph TD
 >
 > - 高重要性
 > - 经过抽象和压缩处理
->
-> **解读**：对应各框架 **Memory Service** 中的 **持久化存储 (Persistent Storage)**
+
+> [!IMPORTANT] > 解读：对应各框架 **Memory Service** 中的 **持久化存储 (Persistent Storage)**
 
 > [!NOTE] 定义 3：记忆迁移 (Memory Transfer)
 >
@@ -223,8 +223,8 @@ graph TD
 >
 > - 巩固过程：高频访问或高重要性的短期记忆经处理后成为长期记忆
 > - 受重复频率、情感意义、与现有知识结构的相关性等因素影响
->
-> **解读**：对应 Google Memory Bank 中 **"Session → Insight" 的异步记忆提炼（巩固）过程**。
+
+> [!IMPORTANT] > 解读：对应 Google Memory Bank 中 **"Session → Insight" 的异步记忆提炼（巩固）过程**。
 
 #### 2.2.2 Context Compression Strategies（上下文压缩策略）
 
@@ -238,47 +238,91 @@ graph TD
 | **层次化笔记**                    | 树状结构组织信息                   | ✅ 清晰展示；❌ 不捕捉逻辑关联     |
 | **QA 对压缩**                     | 将上下文转换为问答对               | ✅ 检索友好；❌ 破坏信息流         | 自定义实现           |
 
-#### 2.2.3 上下文隔离（Context Isolation）
+#### 2.2.3 Context Isolation（上下文隔离）
 
-通过 **Sub-Agent 架构** 解决上下文窗口限制：
+论文 [[1]](#ref1) 提出通过 **Sub-Agent 架构** 隔离上下文，减少单一 Agent 的上下文负载：
 
-- 每个 Sub-Agent 拥有独立的、聚焦的上下文窗口
-- 主 Agent 通过高效通信协调各 Sub-Agent
-- 减少单一 Agent 的上下文负载
+> [!TIP] > Sub-Agent 架构
+>
+> "Each sub-agent has its own focused context window, and the main agent coordinates through efficient communication."
+>
+> ---
+>
+> 每个 Sub-Agent 拥有独立的、聚焦的上下文窗口，主 Agent 通过高效通信协调各 Sub-Agent。
 
-> [!IMPORTANT] > **架构启示**：这解释了为什么 Google ADK 支持 Multi-Agent 和 Agent-to-Agent Protocol，以及为什么 LangGraph 的 Subgraph 设计如此重要。
+> [!IMPORTANT] > 解读：对应 Google 的 Agent-to-Agent Protocol，以及 ADK 的 Multi-Agent、LangGraph 的 Subgraph 等设计。
 
 ### 2.3 Context Usage（上下文使用）
 
-使用阶段关注如何在推理时选择和应用上下文：
-
 #### 2.3.1 Retrieval and Selection（记忆检索与选择）
 
-| 检索依据                 | 描述                                 |
-| :----------------------- | :----------------------------------- |
-| **语义相似度**           | 基于向量嵌入的相似度搜索             |
-| **逻辑依赖**             | 追踪推理步骤之间的依赖关系（依赖图） |
-| **时间邻近性 (Recency)** | 最近使用的信息优先级更高             |
-| **访问频率 (Frequency)** | 高频访问的信息保持高可用性           |
-| **信息去重**             | 过滤传达相同含义的重复信息           |
-| **用户偏好**             | 根据用户反馈和习惯调整               |
+上下文使用关注如何在推理时**选择**和**应用**上下文。论文 [[1]](#ref1) 强调多维度的检索依据：
 
-#### 2.3.2 主动用户需求推断
+| 检索依据                 | 描述                       | 实现方式       |
+| :----------------------- | :------------------------- | :------------- |
+| **语义相似度**           | 基于向量嵌入的相似度搜索   | Vector Search  |
+| **时间邻近性 (Recency)** | 最近使用的信息优先级更高   | 时间戳排序     |
+| **访问频率 (Frequency)** | 高频访问的信息保持高可用性 | 访问计数器     |
+| **重要性评分**           | 预计算的重要性权重         | LLM 评估       |
+| **逻辑依赖**             | 追踪推理步骤之间的依赖关系 | 依赖图（图库） |
+| **信息去重**             | 过滤传达相同含义的重复信息 | 语义去重       |
+| **用户偏好**             | 根据用户反馈和习惯调整     |
 
-论文强调 Context Engineering 应使 Agent 能够**主动推断**用户未明确表达的需求：
+#### 2.3.2 Proactive Intent Inference（主动意图推断）
 
-- **学习用户偏好**：分析对话历史和个人数据，识别沟通风格、兴趣和决策模式
-- **从相关问题推断隐藏目标**：分析查询序列，预测更广泛的目标
-- **主动提供帮助**：检测用户困境（犹豫、多次尝试），主动提供工具或建议
+论文 [[1]](#ref1) 强调 Context Engineering 应使 Agent 能够**主动推断**用户未明确表达的需求。
 
-## 4. 主流 Agent 框架的 Context Engineering 实现对比
+> [!TIP] > Proactive User Need Inference（主动用户需求推断）
+>
+> - **学习用户偏好**：分析对话历史和个人数据，识别沟通风格、兴趣和决策模式
+> - **从相关问题推断隐藏目标**：分析查询序列，预测更广泛的目标
+> - **主动提供帮助**：检测用户困境（犹豫、多次尝试），主动提供工具或建议
 
-### 4.1 Google ADK (Agent Development Kit) <sup>[[4]](#ref4)</sup><sup>[[5]](#ref5)</sup>
-
-#### 4.1.1 核心概念体系
+#### 2.3.3 Dynamic Context Assembly（动态上下文组装）
 
 ```mermaid
-graph TD
+graph LR
+    subgraph Inputs["输入源"]
+        I1["System Instruction"]
+        I2["User Message"]
+        I3["Chat History"]
+        I4["Memories"]
+        I5["Knowledge (RAG)"]
+        I6["Tools"]
+    end
+
+    subgraph Assembler["Context Assembler"]
+        A1["Token 预算计算"]
+        A2["优先级排序"]
+        A3["截断与填充"]
+        A4["格式化输出"]
+    end
+
+    subgraph Output["输出"]
+        O1["Formatted Prompt"]
+    end
+
+    I1 --> A1
+    I2 --> A1
+    I3 --> A1
+    I4 --> A1
+    I5 --> A1
+    I6 --> A1
+    A1 --> A2 --> A3 --> A4 --> O1
+
+    style Inputs fill:#065f46,stroke:#34d399,color:#fff
+    style Assembler fill:#7c2d12,stroke:#fb923c,color:#fff
+    style Output fill:#581c87,stroke:#c084fc,color:#fff
+```
+
+## 3. Context Engineering 的主流框架（Agent Framework）
+
+### 3.1 Google ADK (Agent Development Kit) <sup>[[4]](#ref4)</sup><sup>[[5]](#ref5)</sup>
+
+#### 3.1.1 核心概念体系
+
+```mermaid
+graph LR
     IC[InvocationContext] --> S[Session]
     IC --> ST[State]
     IC --> M[Memory]
@@ -348,7 +392,7 @@ app = App(
 )
 ```
 
-### 4.2 Agno Framework <sup>[[6]](#ref6)</sup><sup>[[7]](#ref7)</sup>
+### 3.2 Agno Framework <sup>[[6]](#ref6)</sup><sup>[[7]](#ref7)</sup>
 
 #### 4.2.1 Context 组成要素
 
@@ -418,7 +462,7 @@ Agno 将 Knowledge（知识库/RAG）与 Memory（记忆）区分：
 - **Knowledge**: 外部知识源（文档、数据库），用于增强 Agent 能力
 - **Memory**: 从交互中学习的用户偏好和上下文
 
-### 4.3 LangChain / LangGraph <sup>[[8]](#ref8)</sup><sup>[[9]](#ref9)</sup>
+### 3.3 LangChain / LangGraph <sup>[[8]](#ref8)</sup><sup>[[9]](#ref9)</sup>
 
 #### 4.3.1 Memory 类型体系
 
@@ -458,24 +502,48 @@ graph LR
 
 ### 5.1 核心概念映射
 
-| 概念           | Google ADK             | Agno                          | LangChain/LangGraph       |
-| :------------- | :--------------------- | :---------------------------- | :------------------------ |
-| **会话容器**   | Session                | Session (session_id)          | Thread (checkpointer)     |
-| **临时状态**   | session.state          | session_state                 | State (graph state)       |
-| **对话历史**   | session.events         | chat_history                  | messages / Memory         |
-| **长期记忆**   | MemoryService          | Memory (enable_user_memories) | Long-term Memory Store    |
-| **知识库/RAG** | (需自行实现)           | Knowledge                     | VectorStore / Retriever   |
-| **上下文缓存** | ContextCacheConfig     | 依赖 LLM Provider             | 依赖 LLM Provider         |
-| **上下文压缩** | EventsCompactionConfig | session_summary               | ConversationSummaryMemory |
+| 概念           | Google ADK<sup>[[3]](#ref3)</sup> | Agno<sup>[[7]](#ref7)</sup>   | LangGraph<sup>[[11]](#ref11)</sup> / LangGraph<sup>[[12]](#ref12)</sup> |
+| :------------- | :-------------------------------- | :---------------------------- | :---------------------------------------------------------------------- |
+| **会话容器**   | Session                           | Session (session_id)          | Thread (checkpointer)                                                   |
+| **临时状态**   | session.state                     | session_state                 | State (graph state)                                                     |
+| **对话历史**   | session.events                    | chat_history                  | messages                                                                |
+| **长期记忆**   | MemoryService                     | Memory (enable_user_memories) | Long-term Memory Store                                                  |
+| **知识库/RAG** | (需自行实现)                      | Knowledge                     | VectorStore / Retriever                                                 |
+| **上下文缓存** | ContextCacheConfig                | 依赖 LLM Provider             | 依赖 LLM Provider                                                       |
+| **上下文压缩** | EventsCompactionConfig            | session_summary               | trim_messages / summarize                                               |
+| **持久化**     | SessionService                    | Database                      | Checkpointer                                                            |
 
-### 5.2 各框架优劣势
+### 5.2 各框架横评
 
 | 框架           | 优势                                                                                                                        | 劣势                                              |
 | :------------- | :-------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------ |
 | **Google ADK** | ✅ 清晰的 Service 抽象（SessionService, MemoryService）<br>✅ 与 Vertex AI 深度集成<br>✅ 多语言支持 (Python, Go, Java, TS) | ❌ MemoryBank 强依赖 Vertex AI<br>❌ 社区生态较新 |
 | **Agno**       | ✅ 开发体验极佳（配置驱动）<br>✅ Memory 开箱即用<br>✅ Team/Workflow 多 Agent 支持                                         | ❌ 相对封闭的生态<br>❌ 文档深度有限              |
 | **LangChain**  | ✅ 最成熟的生态系统<br>✅ 丰富的 Memory 类型<br>✅ 与各种 Vector DB 集成                                                    | ❌ 抽象层多，学习曲线陡<br>❌ Memory 碎片化       |
-| **LangGraph**  | ✅ 状态管理优秀（checkpointer）<br>✅ 复杂工作流支持<br>✅ Context Engineering 策略完备                                     | ❌ 配置复杂度高<br>❌ 调试困难                    |
+| **LangGraph**  | ✅ 状态管理优秀（checkpointer）<br>✅ 复杂工作流支持<br>✅ Context Engineering 策略完备<br>✅ 社区活跃                      | ❌ 配置复杂度高<br>❌ 调试困难                    |
+
+### 5.3 选型建议
+
+```mermaid
+graph LR
+    Q1{Google Cloud 集成?}
+    Q2{复杂工作流?}
+    Q3{快速开发?}
+
+    Q1 -->|是| ADK["Google ADK"]
+    Q1 -->|否| Q2
+
+    Q2 -->|是| LG["LangGraph"]
+    Q2 -->|否| Q3
+
+    Q3 -->|是| AGNO["Agno"]
+    Q3 -->|否| CUSTOM["自定义实现"]
+
+    style ADK fill:#4285f4,stroke:#1a73e8,color:#fff
+    style LG fill:#ff6b35,stroke:#e85a2e,color:#fff
+    style AGNO fill:#10b981,stroke:#059669,color:#fff
+    style CUSTOM fill:#6366f1,stroke:#4f46e5,color:#fff
+```
 
 ## 6. 与 Agentic AI Engine Roadmap 的结合建议
 
