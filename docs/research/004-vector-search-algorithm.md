@@ -1,10 +1,10 @@
 ---
 id: vector-search-algorithm
-sidebar_position: 4
+sidebar_position: 4.1
 title: 向量数据库原理与算法深度解析
 last_update:
   author: Aurelius Huang
-  version: 1.0
+  version: 1.1
   created_at: 2025-12-24
   updated_at: 2025-12-24
   status: In Progress
@@ -40,7 +40,7 @@ tags:
 
 ### 1.1 大语言模型的固有缺陷
 
-尽管以 GPT 为代表的大语言模型（LLM）展现了惊人的文本理解与生成能力，但它们存在几个关键的固有缺陷 [1]：
+尽管以 GPT 为代表的大语言模型（LLM）展现了惊人的文本理解与生成能力，但它们存在几个关键的固有缺陷<sup>[[1]](#ref1)</sup>：
 
 ```mermaid
 mindmap
@@ -77,7 +77,7 @@ mindmap
 
 ### 1.2 Embedding：连接语义与计算的桥梁
 
-**Embedding（嵌入向量）** 是解决上述问题的关键技术之一。它将文本、图像、音频等非结构化数据转换为高维向量空间中的数值表示 [4]。
+**Embedding（嵌入向量）** 是解决上述问题的关键技术之一。它将文本、图像、音频等非结构化数据转换为高维向量空间中的数值表示<sup>[[4]](#ref4)</sup>。
 
 #### 1.2.1 Embedding 的数学本质
 
@@ -95,7 +95,7 @@ $$
 
 #### 1.2.2 语义相似性的向量化
 
-Embedding 的核心价值在于：**语义相似的对象在向量空间中距离更近** [5]。
+Embedding 的核心价值在于：**语义相似的对象在向量空间中距离更近**<sup>[[5]](#ref5)</sup>。
 
 ```mermaid
 graph LR
@@ -123,7 +123,7 @@ graph LR
 
 ### 1.3 RAG：弥补 LLM 缺陷的关键架构
 
-**检索增强生成（Retrieval-Augmented Generation, RAG）** 通过将外部知识注入 LLM 的上下文，有效解决了上述缺陷 [6]：
+**检索增强生成（Retrieval-Augmented Generation, RAG）** 通过将外部知识注入 LLM 的上下文，有效解决了上述缺陷<sup>[[2]](#ref2)</sup>：
 
 ```mermaid
 flowchart LR
@@ -655,7 +655,7 @@ graph LR
 
 #### 4.1.1 HNSW 核心思想
 
-**分层导航小世界图（Hierarchical Navigable Small World, HNSW）** 是当前最流行的高性能 ANN 算法，由 Yury Malkov 在 2016 年提出 [12]。
+**分层导航小世界图（Hierarchical Navigable Small World, HNSW）** 是当前最流行的高性能 ANN 算法，由 Yury Malkov 在 2016 年提出<sup>[[12]](#ref12)</sup>。
 
 HNSW 的核心创新是将 NSW 与 Skip List 数据结构相结合，构建**多层图结构**：
 
@@ -956,7 +956,7 @@ class IVFFlat:
 
 #### 4.3.1 PQ 核心思想
 
-**乘积量化（Product Quantization, PQ）** 是一种极具效率的向量压缩技术，将高维向量分割为多个子向量，分别量化后用紧凑的码字表示 [14]。
+**乘积量化（Product Quantization, PQ）** 是一种极具效率的向量压缩技术，将高维向量分割为多个子向量，分别量化后用紧凑的码字表示<sup>[[13]](#ref13)</sup>。
 
 **核心思想**：将 d 维向量分割为 M 个子向量，每个子向量独立进行 K 均值聚类：
 
@@ -1203,7 +1203,7 @@ $$
 
 #### 5.2.1 ScaNN 核心技术
 
-**ScaNN（Scalable Nearest Neighbors）** 是 Google 开发的高效向量搜索库，其核心创新是**各向异性向量量化（Anisotropic Vector Quantization）** [17]。
+**ScaNN（Scalable Nearest Neighbors）** 是 Google 开发的高效向量搜索库，其核心创新是**各向异性向量量化（Anisotropic Vector Quantization）**<sup>[[17]](#ref17)</sup>。
 
 传统 PQ 优化的是**重构误差**：
 
@@ -1470,17 +1470,188 @@ def normalized_dot_product(a, b):
     return np.dot(a_norm, b_norm)
 ```
 
-### 6.4 度量方式对比与选择
+### 6.4 曼哈顿距离（Manhattan Distance / L1 Distance）
 
-#### 6.4.1 综合对比表
+#### 6.4.1 数学定义
 
-| 度量方式     | 关注点      | 范围                 | 相似性含义     | 计算复杂度 |
-| ------------ | ----------- | -------------------- | -------------- | ---------- |
-| **欧几里得** | 长度 + 方向 | $[0, +\infty)$       | 距离越小越相似 | O(d)       |
-| **余弦**     | 仅方向      | $[-1, 1]$            | 值越大越相似   | O(d)       |
-| **点积**     | 长度 + 方向 | $(-\infty, +\infty)$ | 值越大越相似   | O(d)       |
+**曼哈顿距离**（也称 L1 距离、城市街区距离）计算两点之间沿坐标轴的绝对差值之和<sup>[[19]](#ref19)</sup>：
 
-#### 6.4.2 归一化向量的等价性
+$$
+d_{L1}(a, b) = \sum_{i=1}^{d} |a_i - b_i| = \|a - b\|_1
+$$
+
+#### 6.4.2 几何意义
+
+```mermaid
+graph LR
+    subgraph "曼哈顿距离 vs 欧几里得距离"
+        A["点 A (0,0)"] --> |"L1: |3|+|4|=7"| B["点 B (3,4)"]
+        A --> |"L2: √(9+16)=5"| B
+    end
+
+    style A fill:#ffe58f
+    style B fill:#b7eb8f
+```
+
+#### 6.4.3 特性分析
+
+| 特性           | 描述                             |
+| -------------- | -------------------------------- |
+| **尺度敏感**   | 对向量长度敏感                   |
+| **离群值鲁棒** | 比欧几里得距离更不易受极端值影响 |
+| **高维适用**   | 在高维稀疏数据中表现更稳定       |
+| **范围**       | $[0, +\infty)$，距离越小越相似   |
+
+#### 6.4.4 适用场景
+
+- **高维稀疏数据**：TF-IDF 向量、词袋模型
+- **城市路径规划**：网格状道路距离计算
+- **图像处理**：像素差异度量
+
+```python
+def manhattan_distance(a, b):
+    return np.sum(np.abs(a - b))
+```
+
+### 6.5 汉明距离（Hamming Distance）
+
+#### 6.5.1 数学定义
+
+**汉明距离** 计算两个等长序列中对应位置不同元素的数量<sup>[[25]](#ref25)</sup>：
+
+$$
+d_H(a, b) = \sum_{i=1}^{d} \mathbf{1}[a_i \neq b_i]
+$$
+
+其中 $\mathbf{1}[\cdot]$ 是指示函数，当条件为真时返回 1，否则返回 0。
+
+#### 6.5.2 二进制向量的高效计算
+
+对于二进制向量，汉明距离可以通过异或（XOR）运算和位计数高效实现：
+
+$$
+d_H(a, b) = \text{popcount}(a \oplus b)
+$$
+
+```python
+def hamming_distance_binary(a, b):
+    """二进制向量的汉明距离"""
+    xor_result = np.bitwise_xor(a, b)
+    return np.sum(xor_result)
+
+def hamming_distance_general(a, b):
+    """通用汉明距离"""
+    return np.sum(a != b)
+```
+
+#### 6.5.3 特性分析
+
+| 特性         | 描述                       |
+| ------------ | -------------------------- |
+| **离散度量** | 仅适用于离散/二进制数据    |
+| **等长要求** | 输入序列必须等长           |
+| **极速计算** | 二进制向量可用硬件指令加速 |
+| **范围**     | $[0, d]$，d 为向量维度     |
+
+#### 6.5.4 适用场景
+
+- **二进制哈希码**：SimHash、LSH 的快速比较
+- **纠错编码**：检测传输错误的位数
+- **DNA 序列比对**：基因突变检测
+- **文档去重**：快速识别近似重复
+
+### 6.6 Jaccard 相似度（Jaccard Similarity）
+
+#### 6.6.1 数学定义
+
+**Jaccard 相似度**（也称 Jaccard 系数）衡量两个集合的交集与并集之比<sup>[[26]](#ref26)</sup>：
+
+$$
+J(A, B) = \frac{|A \cap B|}{|A \cup B|} = \frac{|A \cap B|}{|A| + |B| - |A \cap B|}
+$$
+
+**Jaccard 距离** 是其补集：
+
+$$
+d_J(A, B) = 1 - J(A, B)
+$$
+
+#### 6.6.2 几何意义
+
+```mermaid
+graph TB
+    subgraph "Jaccard 相似度"
+        A["集合 A: {1,2,3,4}"]
+        B["集合 B: {3,4,5,6}"]
+        I["交集: {3,4} = 2 个元素"]
+        U["并集: {1,2,3,4,5,6} = 6 个元素"]
+        R["J(A,B) = 2/6 = 0.33"]
+    end
+
+    A --> I
+    B --> I
+    A --> U
+    B --> U
+    I --> R
+    U --> R
+
+    style R fill:#52c41a,color:#fff
+```
+
+#### 6.6.3 MinHash 加速
+
+对于大规模集合，可使用 **MinHash** 近似计算 Jaccard 相似度：
+
+1. 对集合元素应用多个哈希函数
+2. 记录每个哈希函数的最小值
+3. 比较最小值签名的相等比例
+
+```python
+def jaccard_similarity(set_a, set_b):
+    """精确 Jaccard 相似度"""
+    intersection = len(set_a & set_b)
+    union = len(set_a | set_b)
+    return intersection / union if union > 0 else 0
+
+def jaccard_similarity_binary(a, b):
+    """二进制向量的 Jaccard 相似度"""
+    intersection = np.sum(a & b)
+    union = np.sum(a | b)
+    return intersection / union if union > 0 else 0
+```
+
+#### 6.6.4 特性分析
+
+| 特性         | 描述                     |
+| ------------ | ------------------------ |
+| **集合度量** | 适用于集合或二进制向量   |
+| **对称性**   | $J(A,B) = J(B,A)$        |
+| **忽略缺失** | 不考虑两者都为 0 的维度  |
+| **范围**     | $[0, 1]$，1 表示完全相同 |
+
+#### 6.6.5 适用场景
+
+- **文档相似度**：基于词集合的文档比较
+- **推荐系统**：用户行为集合的相似性
+- **重复检测**：MinHash + LSH 的快速去重
+- **生物信息学**：基因集合比较
+
+### 6.7 度量方式对比与选择
+
+#### 6.7.1 综合对比表
+
+| 度量方式     | 关注点      | 范围                 | 相似性含义     | 计算复杂度 | 数据类型        |
+| ------------ | ----------- | -------------------- | -------------- | ---------- | --------------- |
+| **欧几里得** | 长度 + 方向 | $[0, +\infty)$       | 距离越小越相似 | O(d)       | 连续向量        |
+| **余弦**     | 仅方向      | $[-1, 1]$            | 值越大越相似   | O(d)       | 连续向量        |
+| **点积**     | 长度 + 方向 | $(-\infty, +\infty)$ | 值越大越相似   | O(d)       | 连续向量        |
+| **曼哈顿**   | 绝对差异    | $[0, +\infty)$       | 距离越小越相似 | O(d)       | 连续/稀疏向量   |
+| **汉明**     | 不同位数    | $[0, d]$             | 距离越小越相似 | O(d/64)\*  | 二进制/离散向量 |
+| **Jaccard**  | 重叠比例    | $[0, 1]$             | 值越大越相似   | O(d)       | 集合/二进制向量 |
+
+> \*汉明距离在二进制向量上可使用硬件 POPCNT 指令加速至 O(d/64)
+
+#### 6.7.2 归一化向量的等价性
 
 当所有向量都归一化（$\|v\| = 1$）时：
 
@@ -1502,7 +1673,7 @@ graph LR
     style DOT fill:#ffd591
 ```
 
-#### 6.4.3 选择决策树
+#### 6.7.3 选择决策树
 
 ```mermaid
 flowchart TD
@@ -1518,7 +1689,7 @@ flowchart TD
     style USE_COS fill:#1890ff,color:#fff
 ```
 
-#### 6.4.4 常见向量模型的推荐度量
+#### 6.7.4 常见向量模型的推荐度量
 
 | 模型/任务                 | 推荐度量   | 原因                   |
 | ------------------------- | ---------- | ---------------------- |
@@ -1536,7 +1707,7 @@ flowchart TD
 
 ### 7.1 混合搜索概述
 
-**混合搜索（Hybrid Search）** 结合向量相似性搜索与传统结构化/非结构化查询 [20]：
+**混合搜索（Hybrid Search）** 结合向量相似性搜索与传统结构化/非结构化查询<sup>[[20]](#ref20)</sup>：
 
 ```mermaid
 graph TB
@@ -2199,46 +2370,62 @@ loaded_index = faiss.read_index("hnsw.index")
 
 ## References
 
-[1] LearnPrompting. "Limitations of LLMs." https://learnprompting.org/docs/basics/limitations
+<a id="ref1"></a>**[1]** Brown, T. et al. (2020). _Language Models are Few-Shot Learners_. NeurIPS. [arXiv:2005.14165](https://arxiv.org/abs/2005.14165)
 
-[2] Amazon AWS. "Retrieval Augmented Generation (RAG)." https://aws.amazon.com/what-is/retrieval-augmented-generation/
+<a id="ref2"></a>**[2]** Lewis, P. et al. (2020). _Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks_. NeurIPS. [arXiv:2005.11401](https://arxiv.org/abs/2005.11401)
 
-[3] Medium. "Overcoming LLM Limitations with RAG." https://medium.com/@thakermadhav/overcoming-llm-limitations-with-rag
+<a id="ref3"></a>**[3]** Amazon AWS. _What is Retrieval Augmented Generation (RAG)?_ [AWS Documentation](https://aws.amazon.com/what-is/retrieval-augmented-generation/)
 
-[4] Couchbase. "What Are Vector Embeddings?" https://www.couchbase.com/blog/what-are-vector-embeddings/
+<a id="ref4"></a>**[4]** Mikolov, T. et al. (2013). _Efficient Estimation of Word Representations in Vector Space_. [arXiv:1301.3781](https://arxiv.org/abs/1301.3781)
 
-[5] Weights & Biases. "Embeddings in Machine Learning." https://wandb.ai/site/articles/embeddings
+<a id="ref5"></a>**[5]** Reimers, N. & Gurevych, I. (2019). _Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks_. EMNLP. [arXiv:1908.10084](https://arxiv.org/abs/1908.10084)
 
-[6] DeepLearning.AI. "Retrieval Augmented Generation." https://www.deeplearning.ai/short-courses/langchain-chat-with-your-data/
+<a id="ref6"></a>**[6]** Karpukhin, V. et al. (2020). _Dense Passage Retrieval for Open-Domain Question Answering_. EMNLP. [arXiv:2004.04906](https://arxiv.org/abs/2004.04906)
 
-[7] Writer. "What is a Vector Database?" https://writer.com/ai-glossary/vector-database/
+<a id="ref7"></a>**[7]** Writer. _What is a Vector Database?_ [Writer AI Glossary](https://writer.com/ai-glossary/vector-database/)
 
-[8] Milvus. "Vector Index Overview." https://milvus.io/docs/index.md
+<a id="ref8"></a>**[8]** Milvus Documentation. _Vector Index Overview_. [Milvus Docs](https://milvus.io/docs/index.md)
 
-[9] Wikipedia. "k-means clustering." https://en.wikipedia.org/wiki/K-means_clustering
+<a id="ref9"></a>**[9]** Lloyd, S. (1982). _Least Squares Quantization in PCM_. IEEE Transactions on Information Theory, 28(2), 129-137. [DOI:10.1109/TIT.1982.1056489](https://doi.org/10.1109/TIT.1982.1056489)
 
-[10] Pinecone. "Locality Sensitive Hashing." https://www.pinecone.io/learn/locality-sensitive-hashing/
+<a id="ref10"></a>**[10]** Indyk, P. & Motwani, R. (1998). _Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality_. STOC. [ACM Digital Library](https://dl.acm.org/doi/10.1145/276698.276876)
 
-[11] Wikipedia. "Hierarchical Navigable Small World." https://en.wikipedia.org/wiki/Hierarchical_navigable_small_world
+<a id="ref11"></a>**[11]** Kleinberg, J. (2000). _Navigation in a Small World_. Nature, 406, 845. [DOI:10.1038/35022643](https://doi.org/10.1038/35022643)
 
-[12] Malkov, Y. A., & Yashunin, D. A. (2018). "Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs." IEEE TPAMI.
+<a id="ref12"></a>**[12]** Malkov, Y. A. & Yashunin, D. A. (2020). _Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs_. IEEE TPAMI, 42(4), 824-836. [DOI:10.1109/TPAMI.2018.2889473](https://doi.org/10.1109/TPAMI.2018.2889473)
 
-[13] Zilliz. "IVF Index." https://zilliz.com/learn/ivf-index-explained
+<a id="ref13"></a>**[13]** Jégou, H. et al. (2010). _Product Quantization for Nearest Neighbor Search_. IEEE TPAMI, 33(1), 117-128. [DOI:10.1109/TPAMI.2010.57](https://doi.org/10.1109/TPAMI.2010.57)
 
-[14] Pinecone. "Product Quantization." https://www.pinecone.io/learn/product-quantization/
+<a id="ref14"></a>**[14]** Zilliz. _Understanding IVF Index_. [Zilliz Learn](https://zilliz.com/learn/ivf-index-explained)
 
-[15] TensorChord. "RaBitQ: Randomized Bit Quantization." https://www.tensorchord.ai/blog/rabitq
+<a id="ref15"></a>**[15]** TensorChord. _RaBitQ: Randomized Binary Quantization_. [TensorChord Blog](https://www.tensorchord.ai/blog/rabitq)
 
-[16] Milvus. "DiskANN: A Disk-based ANNS Solution." https://milvus.io/docs/disk_index.md
+<a id="ref16"></a>**[16]** Subramanya, S. J. et al. (2019). _DiskANN: Fast Accurate Billion-point Nearest Neighbor Search on a Single Node_. NeurIPS. [Microsoft Research](https://www.microsoft.com/en-us/research/publication/diskann-fast-accurate-billion-point-nearest-neighbor-search-on-a-single-node/)
 
-[17] Google Research. "ScaNN: Efficient Vector Similarity Search." https://research.google/pubs/pub49056/
+<a id="ref17"></a>**[17]** Guo, R. et al. (2020). _Accelerating Large-Scale Inference with Anisotropic Vector Quantization_. ICML. [arXiv:1908.10396](https://arxiv.org/abs/1908.10396)
 
-[18] NVIDIA. "CAGRA: GPU-Accelerated Graph Index." https://docs.nvidia.com/deeplearning/raft/
+<a id="ref18"></a>**[18]** NVIDIA. _CAGRA: GPU-Accelerated Graph Index for Vector Search_. [NVIDIA RAFT Documentation](https://docs.nvidia.com/deeplearning/raft/)
 
-[19] Pinecone. "Vector Similarity Explained." https://www.pinecone.io/learn/vector-similarity/
+<a id="ref19"></a>**[19]** Pinecone. _Vector Similarity Explained_. [Pinecone Learn](https://www.pinecone.io/learn/vector-similarity/)
 
-[20] Weaviate. "Hybrid Search Explained." https://weaviate.io/developers/weaviate/search/hybrid
+<a id="ref20"></a>**[20]** Weaviate. _Hybrid Search Explained_. [Weaviate Documentation](https://weaviate.io/developers/weaviate/search/hybrid)
 
-[21] Qdrant. "Filtering in Vector Search." https://qdrant.tech/articles/filtered-vector-search/
+<a id="ref21"></a>**[21]** Qdrant. _Filtered Vector Search_. [Qdrant Articles](https://qdrant.tech/articles/filtered-vector-search/)
 
-[22] Medium. "Vector Database Benchmark Comparison." https://medium.com/@thakermadhav/vector-database-benchmark
+<a id="ref22"></a>**[22]** ANN-Benchmarks. _Benchmarking Nearest Neighbor Algorithms_. [ANN-Benchmarks](https://ann-benchmarks.com/)
+
+<a id="ref23"></a>**[23]** Bernhardsson, E. (2015). _Annoy: Approximate Nearest Neighbors in C++/Python_. [GitHub - Spotify/Annoy](https://github.com/spotify/annoy)
+
+<a id="ref24"></a>**[24]** Johnson, J. et al. (2019). _Billion-scale similarity search with GPUs_. IEEE Transactions on Big Data. [arXiv:1702.08734](https://arxiv.org/abs/1702.08734)
+
+<a id="ref25"></a>**[25]** Hamming, R. W. (1950). _Error Detecting and Error Correcting Codes_. Bell System Technical Journal, 29(2), 147-160. [DOI:10.1002/j.1538-7305.1950.tb00463.x](https://doi.org/10.1002/j.1538-7305.1950.tb00463.x)
+
+<a id="ref26"></a>**[26]** Jaccard, P. (1901). _Étude comparative de la distribution florale dans une portion des Alpes et du Jura_. Bulletin de la Société Vaudoise des Sciences Naturelles, 37, 547-579.
+
+<a id="ref27"></a>**[27]** Milvus Documentation. _Filtered Vector Search_. [Milvus Docs](https://milvus.io/docs/filtered_search.md)
+
+<a id="ref28"></a>**[28]** VectorDBBench. _Vector Database Benchmarking Tool_. [GitHub](https://github.com/zilliztech/VectorDBBench)
+
+<a id="ref29"></a>**[29]** OpenAI. _Embeddings Guide_. [OpenAI Documentation](https://platform.openai.com/docs/guides/embeddings)
+
+<a id="ref30"></a>**[30]** Ge, T. et al. (2013). _Optimized Product Quantization_. IEEE TPAMI, 36(4), 744-755. [DOI:10.1109/TPAMI.2013.240](https://doi.org/10.1109/TPAMI.2013.240)
