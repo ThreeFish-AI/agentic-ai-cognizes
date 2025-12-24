@@ -17,7 +17,6 @@
 ```bash
 # 本地终端示例 (需安装 gcloud SDK):
 # gcloud compute ssh --zone "YOUR_ZONE" "YOUR_INSTANCE_NAME" --project "YOUR_PROJECT_ID"
-gcloud compute ssh --zone "us-west1-b" "vector-db-testing" --project "aftership-team-data"
 ```
 
 **2. 安装 Docker 与 MySQL Client (如未安装)**

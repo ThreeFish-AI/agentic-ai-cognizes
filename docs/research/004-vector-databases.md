@@ -20,19 +20,6 @@ tags:
 
 > **调研范围**：架构设计、产品实现、索引算法、性能指标、集成方式、场景推荐
 
-## 📋 目录
-
-1. [调研概述](#1-调研概述)
-2. [PostgreSQL + PGVector](#2-postgresql--pgvector)
-3. [VectorChord(pgvecto.rs)](#3-vectorchord)
-4. [Milvus](#4-milvus)
-5. [Weaviate](#5-weaviate)
-6. [Pinecone](#6-pinecone)
-7. [系统性对比分析](#7-系统性对比分析)
-8. [场景推荐与选型指南](#8-场景推荐与选型指南)
-9. [本项目集成方案](#9-本项目集成方案)
-10. [References](#references)
-
 ---
 
 ## 1. 调研概述
