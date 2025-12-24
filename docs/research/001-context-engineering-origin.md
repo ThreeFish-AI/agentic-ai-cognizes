@@ -1,14 +1,3 @@
-> [!IMPORTANT] > 执行摘要：Context Engineering（上下文工程）是构建可靠、可扩展 AI Agent 系统的核心学科。它从传统的"写 Prompt"演进为系统性地设计和优化 AI 系统运行时所需的整个动态信息生态系统——涵盖上下文的收集（Collection）、管理（Management）和使用（Usage）。
-
-> [!IMPORTANT] > 核心洞察：Context Engineering 不仅仅是 Prompt 设计，更是一个涵盖记忆系统（Memory）、会话管理（Session）、状态持久化（Persistence）、知识检索（RAG）的完整架构问题。对于 Agentic AI Engine 项目而言，OceanBase 的统一存储架构需要同时解决这些挑战。
-
-> [!IMPORTANT] > 本报告基于：
->
-> - **学术论文**：《Context Engineering 2.0: The Context of Context Engineering》[1] 和 《Understanding and Using Context》[2]
-> - **主流框架文档**：Google ADK [3-6]、Agno [7-10]、LangGraph [11-12]
-
----
-
 ## 2. Context Engineering 的演进与定义
 
 ### 2.1 历史回顾：从 HCI 到 HAI
@@ -1266,29 +1255,3 @@ Context Engineering 是 AI Agent 系统从"玩具"迈向"生产"的关键技术�
 > 4. 集成至 Google ADK 框架
 
 ---
-
-## 参考文献
-
-[1] SII-GAIR. (2025). _Context Engineering 2.0: The Context of Context Engineering_. arXiv preprint. [本地文件](../assets/context-engineering/Context%20Engineering%202.0:%20The%20Context%20of%20Context%20Engineering.pdf)
-
-[2] Dey, A. K. (2001). _Understanding and Using Context_. Personal and Ubiquitous Computing, 5(1), 4-7. [本地文件](../assets/context-engineering/Understanding%20and%20Using%20Context.pdf)
-
-[3] Google ADK - Context. https://google.github.io/adk-docs/context/
-
-[4] Google ADK - Sessions, State, Memory Overview. https://google.github.io/adk-docs/sessions/
-
-[5] Google ADK - State. https://google.github.io/adk-docs/sessions/state/
-
-[6] Google ADK - Memory. https://google.github.io/adk-docs/sessions/memory/
-
-[7] Agno - Context Engineering. https://docs.agno.com/basics/context/overview
-
-[8] Agno - Memory. https://docs.agno.com/basics/memory/overview
-
-[9] Agno - Knowledge. https://docs.agno.com/basics/knowledge/overview
-
-[10] Agno - Sessions. https://docs.agno.com/basics/sessions
-
-[11] LangGraph - Overview. https://docs.langchain.com/oss/python/langgraph/overview
-
-[12] LangGraph - Persistence & Memory. https://langchain-ai.github.io/langgraph/ (通过浏览器采集)

@@ -14,21 +14,36 @@ tags:
   - 主流框架
 ---
 
-## 1. 执行摘要
+> [!IMPORTANT] > 执行摘要：
+>
+> **Context Engineering（上下文工程）** 是构建可靠、可扩展 AI Agent 系统的核心学科。它从传统的"写 Prompt"演进为**系统性地设计和优化 AI 系统运行时所需的整个动态信息生态系统**——涵盖上下文的收集（Collection）、管理（Management）和使用（Usage）。
 
-**Context Engineering（上下文工程）** 是构建可靠、可扩展 AI Agent 系统的核心学科。它从传统的 Prompt Engineering 演进而来，专注于**系统性地设计和优化 AI 系统运行时所需的信息环境**——包括上下文的收集、管理、存储和使用。
+> [!IMPORTANT] > 核心洞察：
+>
+> Context Engineering 不仅仅是 Prompt 设计，更是一个涵盖记忆系统（**Memory**）、会话管理（**Session**）、状态持久化（**Persistence**）、知识检索（**RAG**）的完整架构问题。
 
-本报告结合学术论文《Context Engineering 2.0》<sup>[[1]](#ref1)</sup>与主流 Agent 框架（Google ADK<sup>[[4]](#ref4)</sup><sup>[[5]](#ref5)</sup>、Agno<sup>[[6]](#ref6)</sup><sup>[[7]](#ref7)</sup>、LangChain<sup>[[8]](#ref8)</sup>/LangGraph<sup>[[9]](#ref9)</sup>）的实践，系统性地梳理 Context Engineering 的：
+> [!IMPORTANT] > 本调研基于：
+>
+> - **学术论文**：
+>   - 《Context Engineering 2.0: The Context of Context Engineering》<sup>[[1]](#ref1)</sup>
+>   - 《Understanding and Using Context》<sup>[[2]](#ref2)</sup>
+> - **主流框架**：
+>   - Google ADK<sup>[[4]](#ref4)</sup><sup>[[5]](#ref5)</sup>
+>   - Agno<sup>[[6]](#ref6)</sup><sup>[[7]](#ref7)</sup>
+>   - LangChain<sup>[[8]](#ref8)</sup>
+>   - LangGraph<sup>[[9]](#ref9)</sup>
 
-1. **理论框架与核心定义**
-2. **主流框架的实现方案对比**
-3. **与项目 Roadmap 的结合建议**
+> [!IMPORTANT] > 系统性梳理：
+>
+> - **理论框架与核心定义**
+> - **主流框架的落地方案**
+> - **项目实施指引**
 
-> [!IMPORTANT] > **核心洞察**: Context Engineering 已从"写 System Prompt"升级为"架构整个动态信息生态系统"。对于 Agentic AI Engine 项目而言，这意味着 **Memory Management、Session State、RAG Pipeline 都是 Context Engineering 的子问题**，OceanBase 的统一架构需要同时解决这些挑战。
+---
 
-## 2. 理论框架：Context Engineering 的学术定义
+## 1. 理论框架：Context Engineering 的学术定义
 
-### 2.1 核心定义（基于 SII-GAIR 论文）
+### 1.1 核心定义（基于 SII-GAIR 论文）
 
 论文《Context Engineering 2.0: The Context of Context Engineering》<sup>[[1]](#ref1)</sup>提供了严谨的形式化定义：
 
@@ -558,18 +573,24 @@ LIMIT 10;
 
 <a id="ref1"></a>**[1]** SII-GAIR. (2025). _Context Engineering 2.0: The Context of Context Engineering_. [PDF](../assets/context-engineering/Context%20Engineering%202.0:%20The%20Context%20of%20Context%20Engineering.pdf)
 
-<a id="ref2"></a>**[2]** Vaswani, A., et al. (2017). _Attention Is All You Need_. [PDF](../assets/context-engineering/Attention%20Is%20All%20You%20Need.pdf)
+<a id="ref2"></a>**[2]** Dey, A. K. (2001). Understanding and Using Context. Personal and Ubiquitous Computing, 5(1), 4-7. [PDF](../assets/context-engineering/Understanding%20and%20Using%20Context.pdf)
 
-<a id="ref3"></a>**[3]** Dey, A. K. (2001). _Understanding and Using Context_. [PDF](../assets/context-engineering/Understanding%20and%20Using%20Context.pdf)
+<a id="ref3"></a>**[3]** Google ADK - Context. https://google.github.io/adk-docs/context/
 
-<a id="ref4"></a>**[4]** Google. _Google ADK - Context_. [https://google.github.io/adk-docs/context/](https://google.github.io/adk-docs/context/)
+<a id="ref4"></a>**[4]** Google ADK - Sessions, State, Memory Overview. https://google.github.io/adk-docs/sessions/
 
-<a id="ref5"></a>**[5]** Google. _Google ADK - Sessions, State, Memory_. [https://google.github.io/adk-docs/sessions/](https://google.github.io/adk-docs/sessions/)
+<a id="ref5"></a>**[5]** Google ADK - State. https://google.github.io/adk-docs/sessions/state/
 
-<a id="ref6"></a>**[6]** Agno. _Agno - Context Engineering_. [https://docs.agno.com/basics/context/overview](https://docs.agno.com/basics/context/overview)
+<a id="ref6"></a>**[6]** Google ADK - Memory. https://google.github.io/adk-docs/sessions/memory/
 
-<a id="ref7"></a>**[7]** Agno. _Agno - Memory_. [https://docs.agno.com/basics/memory/overview](https://docs.agno.com/basics/memory/overview)
+<a id="ref7"></a>**[7]** Agno - Context Engineering. https://docs.agno.com/basics/context/overview
 
-<a id="ref8"></a>**[8]** LangChain. _LangChain - Context Engineering_. [https://docs.langchain.com/oss/python/langchain/context-engineering](https://docs.langchain.com/oss/python/langchain/context-engineering)
+<a id="ref8"></a>**[8]** Agno - Memory. https://docs.agno.com/basics/memory/overview
 
-<a id="ref9"></a>**[9]** LangGraph. _LangGraph - Memory_. [https://docs.langchain.com/oss/python/langgraph/add-memory](https://docs.langchain.com/oss/python/langgraph/add-memory)
+<a id="ref9"></a>**[9]** Agno - Knowledge. https://docs.agno.com/basics/knowledge/overview
+
+<a id="ref10"></a>**[10]** Agno - Sessions. https://docs.agno.com/basics/sessions
+
+<a id="ref11"></a>**[11]** LangChain - Context Engineering. [https://docs.langchain.com/oss/python/langchain/context-engineering](https://docs.langchain.com/oss/python/langchain/context-engineering)
+
+<a id="ref12"></a>**[12]** LangGraph - Memory. [https://docs.langchain.com/oss/python/langgraph/add-memory](https://docs.langchain.com/oss/python/langgraph/add-memory)
