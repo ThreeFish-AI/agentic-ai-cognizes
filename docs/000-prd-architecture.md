@@ -4,9 +4,10 @@ sidebar_position: 0
 title: 产品需求与概要设计（PRD & Architecture）
 last_update:
   author: Aurelius Huang
-  date: 2025-12-22
+  created_at: 2025-12-22
+  updated_at: 2025-12-23
   version: 1.1
-  status: Review
+  status: Reviewed
 tags:
   - PRD
   - Architecture

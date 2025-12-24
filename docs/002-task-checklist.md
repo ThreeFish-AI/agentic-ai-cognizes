@@ -4,9 +4,10 @@ sidebar_position: 2
 title: Agentic AI 学术研究与工程应用平台 - 任务执行清单
 last_update:
   author: Aurelius Huang
-  date: 2025-12-22
+  created_at: 2025-12-22
+  updated_at: 2025-12-23
   version: 1.1
-  status: Review
+  status: Reviewed
 tags:
   - Task Checklist
 ---
