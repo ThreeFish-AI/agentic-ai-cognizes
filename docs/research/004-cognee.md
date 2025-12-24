@@ -826,26 +826,20 @@ async def visualize_knowledge_graph():
 
 ## 9. References
 
-### 官方文档
+<a id="ref1"></a>[1] Cognee Documentation, "Getting started - Introduction," 2024. [Online]. Available: https://docs.cognee.ai/getting-started/introduction
 
-<a id="ref1"></a>**[1]** Cognee Documentation. _Getting Started - Introduction_. [https://docs.cognee.ai/getting-started/introduction](https://docs.cognee.ai/getting-started/introduction)
+<a id="ref2"></a>[2] Cognee Documentation, "Core concepts - Architecture," 2024. [Online]. Available: https://docs.cognee.ai/core-concepts/architecture
 
-<a id="ref2"></a>**[2]** Cognee Documentation. _Core Concepts - Architecture_. [https://docs.cognee.ai/core-concepts/architecture](https://docs.cognee.ai/core-concepts/architecture)
+<a id="ref3"></a>[3] Cognee Documentation, "Core concepts - Main operations," 2024. [Online]. Available: https://docs.cognee.ai/core-concepts/main-operations
 
-<a id="ref3"></a>**[3]** Cognee Documentation. _Core Concepts - Main Operations_. [https://docs.cognee.ai/core-concepts/main-operations](https://docs.cognee.ai/core-concepts/main-operations)
+<a id="ref4"></a>[4] Cognee Documentation, "Core concepts - Building blocks (DataPoints)," 2024. [Online]. Available: https://docs.cognee.ai/core-concepts/building-blocks
 
-<a id="ref4"></a>**[4]** Cognee Documentation. _Core Concepts - Building Blocks (DataPoints)_. [https://docs.cognee.ai/core-concepts/building-blocks](https://docs.cognee.ai/core-concepts/building-blocks)
+<a id="ref5"></a>[5] Cognee Documentation, "Setup & configuration - Graph stores," 2024. [Online]. Available: https://docs.cognee.ai/setup-configuration/graph-stores
 
-<a id="ref5"></a>**[5]** Cognee Documentation. _Setup & Configuration - Graph Stores_. [https://docs.cognee.ai/setup-configuration/graph-stores](https://docs.cognee.ai/setup-configuration/graph-stores)
+<a id="ref6"></a>[6] Cognee Documentation, "Core concepts - Further concepts (Node sets & ontologies)," 2024. [Online]. Available: https://docs.cognee.ai/core-concepts/further-concepts
 
-<a id="ref6"></a>**[6]** Cognee Documentation. _Core Concepts - Further Concepts (Node Sets & Ontologies)_. [https://docs.cognee.ai/core-concepts/further-concepts](https://docs.cognee.ai/core-concepts/further-concepts)
+<a id="ref7"></a>[7] topoteretes, "Cognee - Build dynamic AI memory," _GitHub Repository_, 2024. [Online]. Available: https://github.com/topoteretes/cognee
 
-### 开源项目
+<a id="ref8"></a>[8] V. Chaudhri et al., "Knowledge graphs: Introduction, history, and perspectives," _AI Mag._, vol. 44, no. 1, pp. 1–20, 2023.
 
-<a id="ref7"></a>**[7]** topoteretes. _Cognee - Build dynamic AI memory_. GitHub. [https://github.com/topoteretes/cognee](https://github.com/topoteretes/cognee)
-
-### 相关论文
-
-<a id="ref8"></a>**[8]** Chaudhri, V. et al. (2022). _Knowledge Graphs: Introduction, History, and Perspectives_. AI Magazine.
-
-<a id="ref9"></a>**[9]** Edge, D. et al. (2024). _From Local to Global: A Graph RAG Approach to Query-Focused Summarization_. Microsoft Research. [arXiv:2404.16130](https://arxiv.org/abs/2404.16130)
+<a id="ref9"></a>[9] D. Edge et al., "From local to global: A Graph RAG approach to query-focused summarization," _arXiv preprint arXiv:2404.16130_, 2024.

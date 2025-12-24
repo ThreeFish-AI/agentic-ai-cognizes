@@ -491,20 +491,20 @@ class CustomBusinessDBTool:
 
 ## References
 
-<a id="ref1"></a>**[1]** BettaFish. _666ghj/BettaFish GitHub Repository_. [https://github.com/666ghj/BettaFish](https://github.com/666ghj/BettaFish)
+<a id="ref1"></a>[1] 666ghj, "BettaFish," _GitHub Repository_, 2025. [Online]. Available: https://github.com/666ghj/BettaFish
 
-<a id="ref2"></a>**[2]** BettaFish. _CONTRIBUTING.md_. [https://github.com/666ghj/BettaFish/blob/main/CONTRIBUTING.md](https://github.com/666ghj/BettaFish/blob/main/CONTRIBUTING.md)
+<a id="ref2"></a>[2] 666ghj, "CONTRIBUTING.md," _GitHub Repository_, 2025. [Online]. Available: https://github.com/666ghj/BettaFish/blob/main/CONTRIBUTING.md
 
-<a id="ref3"></a>**[3]** BettaFish. _MindSpider README_. [https://github.com/666ghj/BettaFish/blob/main/MindSpider/README.md](https://github.com/666ghj/BettaFish/blob/main/MindSpider/README.md)
+<a id="ref3"></a>[3] 666ghj, "MindSpider README," _GitHub Repository_, 2025. [Online]. Available: https://github.com/666ghj/BettaFish/blob/main/MindSpider/README.md
 
-<a id="ref4"></a>**[4]** BettaFish Issues. _FAQ #185_. [https://github.com/666ghj/BettaFish/issues/185](https://github.com/666ghj/BettaFish/issues/185)
+<a id="ref4"></a>[4] 666ghj, "BettaFish issues - FAQ #185," _GitHub Repository_, 2025. [Online]. Available: https://github.com/666ghj/BettaFish/issues/185
 
-<a id="ref5"></a>**[5]** BettaFish Example Report. _武汉大学品牌声誉深度分析报告_. [HTML 链接](https://github.com/666ghj/BettaFish/blob/main/final_reports/final_report__20250827_131630.html)
+<a id="ref5"></a>[5] 666ghj, "BettaFish example report - 武汉大学品牌声誉深度分析报告," _GitHub Repository_, 2025. [Online]. Available: https://github.com/666ghj/BettaFish/blob/main/final_reports/final_report__20250827_131630.html
 
-<a id="ref6"></a>**[6]** BettaFish Demo. _视频演示_. [Bilibili 链接](https://www.bilibili.com/video/BV1TH1WBxEWN/)
+<a id="ref6"></a>[6] 666ghj, "BettaFish demo - 视频演示," Bilibili, 2025. [Online]. Available: https://www.bilibili.com/video/BV1TH1WBxEWN/
 
-<a id="ref7"></a>**[7]** L Station. _BettaFish 项目讨论帖_. [https://linux.do/t/topic/1009280](https://linux.do/t/topic/1009280)
+<a id="ref7"></a>[7] L Station, "BettaFish 项目讨论帖," 2025. [Online]. Available: https://linux.do/t/topic/1009280
 
-<a id="ref8"></a>**[8]** L Station. _开源项目(微舆)与 manus|minimax|ChatGPT|Perplexity 对比_. [https://linux.do/t/topic/1148040](https://linux.do/t/topic/1148040)
+<a id="ref8"></a>[8] L Station, "开源项目(微舆)与 manus|minimax|ChatGPT|Perplexity 对比," 2025. [Online]. Available: https://linux.do/t/topic/1148040
 
-<a id="ref9"></a>**[9]** BettaFish Contact. _hangjiang@bupt.edu.cn_.
+<a id="ref9"></a>[9] BettaFish Contact, hangjiang@bupt.edu.cn.

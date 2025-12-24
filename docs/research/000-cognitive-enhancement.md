@@ -1807,63 +1807,57 @@ class HybridRetriever:
 
 ## 9. References
 
-### 学术论文
+<a id="ref1"></a>[1] V. Chaudhri et al., "Knowledge Graphs: Introduction, History, and Perspectives," _AI Magazine_, vol. 44, no. 1, pp. 1–20, 2023.
 
-<a id="ref1"></a>**[1]** Chaudhri, V. et al. (2022). _Knowledge Graphs: Introduction, History, and Perspectives_. AI Magazine. [DOI:10.1002/aaai.12033](https://doi.org/10.1002/aaai.12033)
+<a id="ref2"></a>[2] D. Edge et al., "From Local to Global: A Graph RAG Approach to Query-Focused Summarization," _arXiv preprint arXiv:2404.16130_, 2024.
 
-<a id="ref2"></a>**[2]** Edge, D. et al. (2024). _From Local to Global: A Graph RAG Approach to Query-Focused Summarization_. Microsoft Research. [arXiv:2404.16130](https://arxiv.org/abs/2404.16130)
+<a id="ref3"></a>[3] Z. Liu et al., "Graph-Guided Concept Selection for Efficient Retrieval-Augmented Generation," _arXiv preprint arXiv:2510.24120_, 2025.
 
-<a id="ref3"></a>**[3]** Liu, Z. et al. (2025). _Graph-Guided Concept Selection for Efficient Retrieval-Augmented Generation_. Huawei Cloud. [arXiv:2510.24120](https://arxiv.org/abs/2510.24120)
+<a id="ref4"></a>[4] C. Packer et al., "MemGPT: Towards LLMs as Operating Systems," _arXiv preprint arXiv:2310.08560_, 2023.
 
-<a id="ref4"></a>**[4]** Packer, C. et al. (2023). _MemGPT: Towards LLMs as Operating Systems_. UC Berkeley. [arXiv:2310.08560](https://arxiv.org/abs/2310.08560)
+<a id="ref5"></a>[5] S. Yao et al., "ReAct: Synergizing Reasoning and Acting in Language Models," _arXiv preprint arXiv:2210.03629_, 2022.
 
-<a id="ref5"></a>**[5]** Yao, S. et al. (2023). _ReAct: Synergizing Reasoning and Acting in Language Models_. Google/Princeton. [arXiv:2210.03629](https://arxiv.org/abs/2210.03629)
+<a id="ref6"></a>[6] J. Wei et al., "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models," _Adv. Neural Inf. Process. Syst._, vol. 35, pp. 15483–15501, 2022.
 
-<a id="ref6"></a>**[6]** Wei, J. et al. (2022). _Chain-of-Thought Prompting Elicits Reasoning in Large Language Models_. Google. [arXiv:2201.11903](https://arxiv.org/abs/2201.11903)
+<a id="ref7"></a>[7] L. Wang et al., "A Survey on Large Language Model Based Autonomous Agents," _arXiv preprint arXiv:2308.11432_, 2023.
 
-<a id="ref7"></a>**[7]** Wang, L. et al. (2023). _A Survey on Large Language Model Based Autonomous Agents_. Tsinghua University. [arXiv:2308.11432](https://arxiv.org/abs/2308.11432)
+<a id="ref8"></a>[8] A. Asai et al., "Self-RAG: Learning to Retrieve, Generate, and Critique Through Self-Reflection," _arXiv preprint arXiv:2310.11511_, 2023.
 
-<a id="ref8"></a>**[8]** Asai, A. et al. (2024). _Self-RAG: Learning to Retrieve, Generate, and Critique Through Self-Reflection_. University of Washington. [arXiv:2310.11511](https://arxiv.org/abs/2310.11511)
+<a id="ref9"></a>[9] S. Yan et al., "Corrective Retrieval Augmented Generation," _arXiv preprint arXiv:2401.15884_, 2024.
 
-<a id="ref9"></a>**[9]** Yan, S. et al. (2024). _Corrective Retrieval Augmented Generation_. Baidu. [arXiv:2401.15884](https://arxiv.org/abs/2401.15884)
+<a id="ref10"></a>[10] Goldman Sachs Engineering Team, "Agentic Design Patterns: A Hands-On Guide to Building Intelligent Systems," _Goldman Sachs Engineering Blog_, 2024.
 
-<a id="ref10"></a>**[10]** Goldman Sachs Engineering Team. (2024). _Agentic Design Patterns: A Hands-On Guide to Building Intelligent Systems_.
+<a id="ref11"></a>[11] Cognee, "Cognee Documentation," 2024. [Online]. Available: https://docs.cognee.ai/
 
-### 技术文档
+<a id="ref12"></a>[12] Microsoft, "GraphRAG Documentation," 2024. [Online]. Available: https://microsoft.github.io/graphrag/
 
-<a id="ref11"></a>**[11]** Cognee. _Documentation_. [https://docs.cognee.ai/](https://docs.cognee.ai/)
+<a id="ref13"></a>[13] Neo4j, "Neo4j Documentation," 2024. [Online]. Available: https://neo4j.com/docs/
 
-<a id="ref12"></a>**[12]** Microsoft. _GraphRAG Documentation_. [https://microsoft.github.io/graphrag/](https://microsoft.github.io/graphrag/)
+<a id="ref14"></a>[14] LlamaIndex, "LlamaIndex Documentation," 2024. [Online]. Available: https://docs.llamaindex.ai/
 
-<a id="ref13"></a>**[13]** Neo4j. _Documentation_. [https://neo4j.com/docs/](https://neo4j.com/docs/)
+<a id="ref15"></a>[15] LangChain, "LangGraph Documentation," 2024. [Online]. Available: https://langchain-ai.github.io/langgraph/
 
-<a id="ref14"></a>**[14]** LlamaIndex. _Documentation_. [https://docs.llamaindex.ai/](https://docs.llamaindex.ai/)
+<a id="ref16"></a>[16] Letta AI, "MemGPT Documentation," 2024. [Online]. Available: https://docs.letta.com/
 
-<a id="ref15"></a>**[15]** LangChain. _LangGraph Documentation_. [https://langchain-ai.github.io/langgraph/](https://langchain-ai.github.io/langgraph/)
+<a id="ref17"></a>[17] OceanBase, "OceanBase Vector Search Documentation," 2024. [Online]. Available: https://www.oceanbase.com/docs/
 
-<a id="ref16"></a>**[16]** Letta AI. _MemGPT Documentation_. [https://docs.letta.com/](https://docs.letta.com/)
+<a id="ref18"></a>[18] FalkorDB, "FalkorDB Documentation," 2024. [Online]. Available: https://docs.falkordb.com/
 
-<a id="ref17"></a>**[17]** OceanBase. _Vector Search Documentation_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004827710](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004827710)
+<a id="ref19"></a>[19] Kuzu, "Kuzu Documentation," 2024. [Online]. Available: https://kuzudb.github.io/docs/
 
-<a id="ref18"></a>**[18]** FalkorDB. _Documentation_. [https://docs.falkordb.com/](https://docs.falkordb.com/)
+<a id="ref20"></a>[20] topoteretes, "Cognee," _GitHub Repository_, 2024. [Online]. Available: https://github.com/topoteretes/cognee
 
-<a id="ref19"></a>**[19]** Kuzu. _Documentation_. [https://kuzudb.github.io/docs/tutorials/](https://kuzudb.github.io/docs/tutorials/)
+<a id="ref21"></a>[21] Microsoft, "GraphRAG," _GitHub Repository_, 2024. [Online]. Available: https://github.com/microsoft/graphrag
 
-### 开源项目
+<a id="ref22"></a>[22] run-llama, "LlamaIndex," _GitHub Repository_, 2024. [Online]. Available: https://github.com/run-llama/llama_index
 
-<a id="ref20"></a>**[20]** topoteretes. _Cognee_. GitHub. [https://github.com/topoteretes/cognee](https://github.com/topoteretes/cognee)
+<a id="ref23"></a>[23] langchain-ai, "LangGraph," _GitHub Repository_, 2024. [Online]. Available: https://github.com/langchain-ai/langgraph
 
-<a id="ref21"></a>**[21]** Microsoft. _GraphRAG_. GitHub. [https://github.com/microsoft/graphrag](https://github.com/microsoft/graphrag)
+<a id="ref24"></a>[24] cpacker, "MemGPT/Letta," _GitHub Repository_, 2024. [Online]. Available: https://github.com/cpacker/MemGPT
 
-<a id="ref22"></a>**[22]** run-llama. _LlamaIndex_. GitHub. [https://github.com/run-llama/llama_index](https://github.com/run-llama/llama_index)
+<a id="ref25"></a>[25] FalkorDB, "FalkorDB," _GitHub Repository_, 2024. [Online]. Available: https://github.com/FalkorDB/FalkorDB
 
-<a id="ref23"></a>**[23]** langchain-ai. _LangGraph_. GitHub. [https://github.com/langchain-ai/langgraph](https://github.com/langchain-ai/langgraph)
-
-<a id="ref24"></a>**[24]** cpacker. _MemGPT/Letta_. GitHub. [https://github.com/cpacker/MemGPT](https://github.com/cpacker/MemGPT)
-
-<a id="ref25"></a>**[25]** FalkorDB. _FalkorDB_. GitHub. [https://github.com/FalkorDB/FalkorDB](https://github.com/FalkorDB/FalkorDB)
-
-<a id="ref26"></a>**[26]** kuzudb. _Kuzu_. GitHub. [https://github.com/kuzudb/kuzu](https://github.com/kuzudb/kuzu)
+<a id="ref26"></a>[26] kuzudb, "Kuzu," _GitHub Repository_, 2024. [Online]. Available: https://github.com/kuzudb/kuzu
 
 ---
 

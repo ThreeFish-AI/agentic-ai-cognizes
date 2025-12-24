@@ -2356,62 +2356,62 @@ loaded_index = faiss.read_index("hnsw.index")
 
 ## References
 
-<a id="ref1"></a>**[1]** Brown, T. et al. (2020). _Language Models are Few-Shot Learners_. NeurIPS. [arXiv:2005.14165](https://arxiv.org/abs/2005.14165)
+<a id="ref1"></a>[1] T. Brown et al., "Language models are few-shot learners," in _Adv. Neural Inf. Process. Syst._, vol. 33, pp. 1877–1901, 2020.
 
-<a id="ref2"></a>**[2]** Lewis, P. et al. (2020). _Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks_. NeurIPS. [arXiv:2005.11401](https://arxiv.org/abs/2005.11401)
+<a id="ref2"></a>[2] P. Lewis et al., "Retrieval-augmented generation for knowledge-intensive NLP tasks," in _Adv. Neural Inf. Process. Syst._, vol. 33, pp. 9459–9474, 2020.
 
-<a id="ref3"></a>**[3]** Amazon AWS. _What is Retrieval Augmented Generation (RAG)?_ [AWS Documentation](https://aws.amazon.com/what-is/retrieval-augmented-generation/)
+<a id="ref3"></a>[3] Amazon AWS, "What is retrieval augmented generation (RAG)?" _AWS Documentation_, 2024. [Online]. Available: https://aws.amazon.com/what-is/retrieval-augmented-generation/
 
-<a id="ref4"></a>**[4]** Mikolov, T. et al. (2013). _Efficient Estimation of Word Representations in Vector Space_. [arXiv:1301.3781](https://arxiv.org/abs/1301.3781)
+<a id="ref4"></a>[4] T. Mikolov et al., "Efficient estimation of word representations in vector space," _arXiv preprint arXiv:1301.3781_, 2013.
 
-<a id="ref5"></a>**[5]** Reimers, N. & Gurevych, I. (2019). _Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks_. EMNLP. [arXiv:1908.10084](https://arxiv.org/abs/1908.10084)
+<a id="ref5"></a>[5] N. Reimers and I. Gurevych, "Sentence-BERT: Sentence embeddings using siamese BERT-networks," in _Proc. Conf. Empirical Methods Nat. Lang. Process._, pp. 3982–3992, 2019.
 
-<a id="ref6"></a>**[6]** Karpukhin, V. et al. (2020). _Dense Passage Retrieval for Open-Domain Question Answering_. EMNLP. [arXiv:2004.04906](https://arxiv.org/abs/2004.04906)
+<a id="ref6"></a>[6] V. Karpukhin et al., "Dense passage retrieval for open-domain question answering," in _Proc. Conf. Empirical Methods Nat. Lang. Process._, pp. 6769–6781, 2020.
 
-<a id="ref7"></a>**[7]** Writer. _What is a Vector Database?_ [Writer AI Glossary](https://writer.com/ai-glossary/vector-database/)
+<a id="ref7"></a>[7] Writer, "What is a vector database?" _Writer AI Glossary_, 2024. [Online]. Available: https://writer.com/ai-glossary/vector-database/
 
-<a id="ref8"></a>**[8]** Milvus Documentation. _Vector Index Overview_. [Milvus Docs](https://milvus.io/docs/index.md)
+<a id="ref8"></a>[8] Milvus Documentation, "Vector index overview," 2024. [Online]. Available: https://milvus.io/docs/index.md
 
-<a id="ref9"></a>**[9]** Lloyd, S. (1982). _Least Squares Quantization in PCM_. IEEE Transactions on Information Theory, 28(2), 129-137. [DOI:10.1109/TIT.1982.1056489](https://doi.org/10.1109/TIT.1982.1056489)
+<a id="ref9"></a>[9] S. Lloyd, "Least squares quantization in PCM," _IEEE Trans. Inf. Theory_, vol. 28, no. 2, pp. 129–137, Mar. 1982.
 
-<a id="ref10"></a>**[10]** Indyk, P. & Motwani, R. (1998). _Approximate Nearest Neighbors: Towards Removing the Curse of Dimensionality_. STOC. [ACM Digital Library](https://dl.acm.org/doi/10.1145/276698.276876)
+<a id="ref10"></a>[10] P. Indyk and R. Motwani, "Approximate nearest neighbors: Towards removing the curse of dimensionality," in _Proc. 30th Annu. ACM Symp. Theory Comput._, pp. 604–613, 1998.
 
-<a id="ref11"></a>**[11]** Kleinberg, J. (2000). _Navigation in a Small World_. Nature, 406, 845. [DOI:10.1038/35022643](https://doi.org/10.1038/35022643)
+<a id="ref11"></a>[11] J. Kleinberg, "Navigation in a small world," _Nature_, vol. 406, no. 6798, p. 845, Aug. 2000.
 
-<a id="ref12"></a>**[12]** Malkov, Y. A. & Yashunin, D. A. (2020). _Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs_. IEEE TPAMI, 42(4), 824-836. [DOI:10.1109/TPAMI.2018.2889473](https://doi.org/10.1109/TPAMI.2018.2889473)
+<a id="ref12"></a>[12] Y. A. Malkov and D. A. Yashunin, "Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs," _IEEE Trans. Pattern Anal. Mach. Intell._, vol. 42, no. 4, pp. 824–836, Apr. 2020.
 
-<a id="ref13"></a>**[13]** Jégou, H. et al. (2010). _Product Quantization for Nearest Neighbor Search_. IEEE TPAMI, 33(1), 117-128. [DOI:10.1109/TPAMI.2010.57](https://doi.org/10.1109/TPAMI.2010.57)
+<a id="ref13"></a>[13] H. Jégou, M. Douze, and C. Schmid, "Product quantization for nearest neighbor search," _IEEE Trans. Pattern Anal. Mach. Intell._, vol. 33, no. 1, pp. 117–128, Jan. 2011.
 
-<a id="ref14"></a>**[14]** Zilliz. _Understanding IVF Index_. [Zilliz Learn](https://zilliz.com/learn/ivf-index-explained)
+<a id="ref14"></a>[14] Zilliz, "Understanding IVF index," 2024. [Online]. Available: https://zilliz.com/learn/ivf-index-explained
 
-<a id="ref15"></a>**[15]** TensorChord. _RaBitQ: Randomized Binary Quantization_. [TensorChord Blog](https://www.tensorchord.ai/blog/rabitq)
+<a id="ref15"></a>[15] TensorChord, "RaBitQ: Randomized binary quantization," 2024. [Online]. Available: https://www.tensorchord.ai/blog/rabitq
 
-<a id="ref16"></a>**[16]** Subramanya, S. J. et al. (2019). _DiskANN: Fast Accurate Billion-point Nearest Neighbor Search on a Single Node_. NeurIPS. [Microsoft Research](https://www.microsoft.com/en-us/research/publication/diskann-fast-accurate-billion-point-nearest-neighbor-search-on-a-single-node/)
+<a id="ref16"></a>[16] S. J. Subramanya et al., "DiskANN: Fast accurate billion-point nearest neighbor search on a single node," in _Adv. Neural Inf. Process. Syst._, vol. 32, 2019.
 
-<a id="ref17"></a>**[17]** Guo, R. et al. (2020). _Accelerating Large-Scale Inference with Anisotropic Vector Quantization_. ICML. [arXiv:1908.10396](https://arxiv.org/abs/1908.10396)
+<a id="ref17"></a>[17] R. Guo et al., "Accelerating large-scale inference with anisotropic vector quantization," in _Proc. Int. Conf. Mach. Learn._, vol. 119, pp. 3747–3756, 2020.
 
-<a id="ref18"></a>**[18]** NVIDIA. _CAGRA: GPU-Accelerated Graph Index for Vector Search_. [NVIDIA RAFT Documentation](https://docs.nvidia.com/deeplearning/raft/)
+<a id="ref18"></a>[18] NVIDIA, "CAGRA: GPU-accelerated graph index for vector search," _NVIDIA RAFT Documentation_, 2024. [Online]. Available: https://docs.nvidia.com/deeplearning/raft/
 
-<a id="ref19"></a>**[19]** Pinecone. _Vector Similarity Explained_. [Pinecone Learn](https://www.pinecone.io/learn/vector-similarity/)
+<a id="ref19"></a>[19] Pinecone, "Vector similarity explained," 2024. [Online]. Available: https://www.pinecone.io/learn/vector-similarity/
 
-<a id="ref20"></a>**[20]** Weaviate. _Hybrid Search Explained_. [Weaviate Documentation](https://weaviate.io/developers/weaviate/search/hybrid)
+<a id="ref20"></a>[20] Weaviate, "Hybrid search explained," 2024. [Online]. Available: https://weaviate.io/developers/weaviate/search/hybrid
 
-<a id="ref21"></a>**[21]** Qdrant. _Filtered Vector Search_. [Qdrant Articles](https://qdrant.tech/articles/filtered-vector-search/)
+<a id="ref21"></a>[21] Qdrant, "Filtered vector search," 2024. [Online]. Available: https://qdrant.tech/articles/filtered-vector-search/
 
-<a id="ref22"></a>**[22]** ANN-Benchmarks. _Benchmarking Nearest Neighbor Algorithms_. [ANN-Benchmarks](https://ann-benchmarks.com/)
+<a id="ref22"></a>[22] ANN-Benchmarks, "Benchmarking nearest neighbor algorithms," 2024. [Online]. Available: https://ann-benchmarks.com/
 
-<a id="ref23"></a>**[23]** Bernhardsson, E. (2015). _Annoy: Approximate Nearest Neighbors in C++/Python_. [GitHub - Spotify/Annoy](https://github.com/spotify/annoy)
+<a id="ref23"></a>[23] E. Bernhardsson, "Annoy: Approximate nearest neighbors in C++/Python," _GitHub Repository_, 2015. [Online]. Available: https://github.com/spotify/annoy
 
-<a id="ref24"></a>**[24]** Johnson, J. et al. (2019). _Billion-scale similarity search with GPUs_. IEEE Transactions on Big Data. [arXiv:1702.08734](https://arxiv.org/abs/1702.08734)
+<a id="ref24"></a>[24] J. Johnson et al., "Billion-scale similarity search with GPUs," _IEEE Trans. Big Data_, vol. 5, no. 1, pp. 107–118, Mar. 2019.
 
-<a id="ref25"></a>**[25]** Hamming, R. W. (1950). _Error Detecting and Error Correcting Codes_. Bell System Technical Journal, 29(2), 147-160. [DOI:10.1002/j.1538-7305.1950.tb00463.x](https://doi.org/10.1002/j.1538-7305.1950.tb00463.x)
+<a id="ref25"></a>[25] R. W. Hamming, "Error detecting and error correcting codes," _Bell Syst. Tech. J._, vol. 29, no. 2, pp. 147–160, Apr. 1950.
 
-<a id="ref26"></a>**[26]** Jaccard, P. (1901). _Étude comparative de la distribution florale dans une portion des Alpes et du Jura_. Bulletin de la Société Vaudoise des Sciences Naturelles, 37, 547-579.
+<a id="ref26"></a>[26] P. Jaccard, "Étude comparative de la distribution florale dans une portion des Alpes et du Jura," _Bull. Soc. Vaudoise Sci. Nat._, vol. 37, pp. 547–579, 1901.
 
-<a id="ref27"></a>**[27]** Milvus Documentation. _Filtered Vector Search_. [Milvus Docs](https://milvus.io/docs/filtered_search.md)
+<a id="ref27"></a>[27] Milvus Documentation, "Filtered vector search," 2024. [Online]. Available: https://milvus.io/docs/filtered_search.md
 
-<a id="ref28"></a>**[28]** VectorDBBench. _Vector Database Benchmarking Tool_. [GitHub](https://github.com/zilliztech/VectorDBBench)
+<a id="ref28"></a>[28] VectorDBBench, "Vector database benchmarking tool," _GitHub Repository_, 2024. [Online]. Available: https://github.com/zilliztech/VectorDBBench
 
-<a id="ref29"></a>**[29]** OpenAI. _Embeddings Guide_. [OpenAI Documentation](https://platform.openai.com/docs/guides/embeddings)
+<a id="ref29"></a>[29] OpenAI, "Embeddings guide," _OpenAI Documentation_, 2024. [Online]. Available: https://platform.openai.com/docs/guides/embeddings
 
-<a id="ref30"></a>**[30]** Ge, T. et al. (2013). _Optimized Product Quantization_. IEEE TPAMI, 36(4), 744-755. [DOI:10.1109/TPAMI.2013.240](https://doi.org/10.1109/TPAMI.2013.240)
+<a id="ref30"></a>[30] T. Ge et al., "Optimized product quantization," _IEEE Trans. Pattern Anal. Mach. Intell._, vol. 36, no. 4, pp. 744–755, Apr. 2014.

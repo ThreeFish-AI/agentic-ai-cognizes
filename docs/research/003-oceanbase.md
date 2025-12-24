@@ -1057,47 +1057,47 @@ FROM oceanbase.GV$OB_SERVERS;
 
 ## References
 
-<a id="ref1"></a>**[1]** OceanBase. _OceanBase 简介_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475486](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475486)
+<a id="ref1"></a>[1] OceanBase, "OceanBase 简介," _OceanBase Documentation_, 2024. [Online]. Available: https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475486
 
-<a id="ref2"></a>**[2]** OceanBase 数据库 V4.5.0. _OceanBase 简介_. PDF 文档.
+<a id="ref2"></a>[2] OceanBase, _OceanBase 数据库 V4.5.0: Introduction_, 2024.
 
-<a id="ref3"></a>**[3]** OceanBase. _分布式架构_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475689](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475689)
+<a id="ref3"></a>[3] OceanBase, "分布式架构," _OceanBase Documentation_, 2024. [Online]. Available: https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475689
 
-<a id="ref4"></a>**[4]** OceanBase 技术博客. _LSM-Tree 存储引擎原理_. [https://open.oceanbase.com/blog/200126](https://open.oceanbase.com/blog/200126)
+<a id="ref4"></a>[4] OceanBase Technical Blog, "LSM-Tree 存储引擎原理," 2024. [Online]. Available: https://open.oceanbase.com/blog/200126
 
-<a id="ref5"></a>**[5]** 墨天轮. _OceanBase 存储引擎深度解析_. [https://www.modb.pro/db/oceanbase](https://www.modb.pro/db/oceanbase)
+<a id="ref5"></a>[5] 墨天轮, "OceanBase 存储引擎深度解析," 2024. [Online]. Available: https://www.modb.pro/db/oceanbase
 
-<a id="ref6"></a>**[6]** OceanBase. _Paxos 一致性协议_. [https://www.oceanbase.com/docs](https://www.oceanbase.com/docs)
+<a id="ref6"></a>[6] OceanBase, "Paxos 一致性协议," _OceanBase Documentation_, 2024.
 
-<a id="ref7"></a>**[7]** OceanBase 数据库 V4.5.0. _实践教程_. PDF 文档.
+<a id="ref7"></a>[7] OceanBase, _OceanBase 数据库 V4.5.0: 实践教程_, 2024.
 
-<a id="ref8"></a>**[8]** OceanBase. _HTAP 架构_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475691](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475691)
+<a id="ref8"></a>[8] OceanBase, "HTAP 架构," _OceanBase Documentation_, 2024. [Online]. Available: https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475691
 
-<a id="ref9"></a>**[9]** OceanBase 数据库 V4.5.0. _OceanBase AP_. PDF 文档.
+<a id="ref9"></a>[9] OceanBase, _OceanBase 数据库 V4.5.0: OceanBase AP_, 2024.
 
-<a id="ref10"></a>**[10]** OceanBase. _向量搜索概述_. [https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475693](https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475693)
+<a id="ref10"></a>[10] OceanBase, "向量搜索概述," _OceanBase Documentation_, 2024. [Online]. Available: https://www.oceanbase.com/docs/common-oceanbase-database-cn-1000000004475693
 
-<a id="ref11"></a>**[11]** OceanBase 数据库 V4.5.0. _向量搜索_. PDF 文档.
+<a id="ref11"></a>[11] OceanBase, _OceanBase 数据库 V4.5.0: 向量搜索_, 2024.
 
-<a id="ref12"></a>**[12]** Wikipedia. _Hierarchical Navigable Small World graphs_. [https://en.wikipedia.org/wiki/HNSW](https://en.wikipedia.org/wiki/HNSW)
+<a id="ref12"></a>[12] Wikipedia, "Hierarchical Navigable Small World graphs," _Wikipedia_, 2024. [Online]. Available: https://en.wikipedia.org/wiki/HNSW
 
-<a id="ref13"></a>**[13]** Milvus. _IVF 索引原理_. [https://milvus.io/docs/index.md](https://milvus.io/docs/index.md)
+<a id="ref13"></a>[13] Milvus, "IVF 索引原理," _Milvus Documentation_, 2024. [Online]. Available: https://milvus.io/docs/index.md
 
-<a id="ref14"></a>**[14]** OceanBase. _三位一体架构_. [https://www.oceanbase.com/docs](https://www.oceanbase.com/docs)
+<a id="ref14"></a>[14] OceanBase, "三位一体架构," _OceanBase Documentation_, 2024.
 
-<a id="ref15"></a>**[15]** TPC. _TPC-C 官方记录 - OceanBase 性能_. [https://www.tpc.org/tpcc/results/tpcc_results5.asp](https://www.tpc.org/tpcc/results/tpcc_results5.asp)
+<a id="ref15"></a>[15] TPC, "TPC-C 官方记录 - OceanBase 性能," _TPC Benchmark Results_, 2024. [Online]. Available: https://www.tpc.org/tpcc/results/tpcc_results5.asp
 
-<a id="ref16"></a>**[16]** Medium. _OceanBase 性能对比分析_. [https://medium.com/@oceanbase](https://medium.com/@oceanbase)
+<a id="ref16"></a>[16] Medium, "OceanBase 性能对比分析," 2024. [Online]. Available: https://medium.com/@oceanbase
 
-<a id="ref17"></a>**[17]** Zilliz. _VectorDBBench - 向量数据库基准测试_. GitHub. [https://github.com/zilliztech/VectorDBBench](https://github.com/zilliztech/VectorDBBench)
+<a id="ref17"></a>[17] Zilliz, "VectorDBBench - 向量数据库基准测试," _GitHub Repository_, 2024. [Online]. Available: https://github.com/zilliztech/VectorDBBench
 
-<a id="ref18"></a>**[18]** LlamaHub. _OceanBase Vector Store_. [https://llamahub.ai/l/vector_stores/llama-index-vector-stores-oceanbase](https://llamahub.ai/l/vector_stores/llama-index-vector-stores-oceanbase)
+<a id="ref18"></a>[18] LlamaHub, "OceanBase Vector Store," 2024. [Online]. Available: https://llamahub.ai/l/vector_stores/llama-index-vector-stores-oceanbase
 
-<a id="ref19"></a>**[19]** LangChain. _OceanBase 集成_. [https://python.langchain.com/docs/integrations/vectorstores/oceanbase](https://python.langchain.com/docs/integrations/vectorstores/oceanbase)
+<a id="ref19"></a>[19] LangChain, "OceanBase 集成," 2024. [Online]. Available: https://python.langchain.com/docs/integrations/vectorstores/oceanbase
 
-<a id="ref20"></a>**[20]** OceanBase 数据库 V4.5.0. _部署数据库_. PDF 文档.
+<a id="ref20"></a>[20] OceanBase, _OceanBase 数据库 V4.5.0: 部署数据库_, 2024.
 
-<a id="ref21"></a>**[21]** OceanBase. _GitHub 仓库_. [https://github.com/oceanbase/oceanbase](https://github.com/oceanbase/oceanbase)
+<a id="ref21"></a>[21] OceanBase, "OceanBase," _GitHub Repository_, 2024. [Online]. Available: https://github.com/oceanbase/oceanbase
 
 ---
 

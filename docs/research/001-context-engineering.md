@@ -571,26 +571,26 @@ LIMIT 10;
 
 ## References
 
-<a id="ref1"></a>**[1]** SII-GAIR. (2025). _Context Engineering 2.0: The Context of Context Engineering_. [PDF](../assets/context-engineering/Context%20Engineering%202.0:%20The%20Context%20of%20Context%20Engineering.pdf)
+<a id="ref1"></a>[1] SII-GAIR, "Context Engineering 2.0: The Context of Context Engineering," _SII-GAIR Technical Report_, 2025.
 
-<a id="ref2"></a>**[2]** Dey, A. K. (2001). Understanding and Using Context. Personal and Ubiquitous Computing, 5(1), 4-7. [PDF](../assets/context-engineering/Understanding%20and%20Using%20Context.pdf)
+<a id="ref2"></a>[2] A. K. Dey, "Understanding and Using Context," _Pers. Ubiquitous Comput._, vol. 5, no. 1, pp. 4–7, 2001.
 
-<a id="ref3"></a>**[3]** Google ADK - Context. https://google.github.io/adk-docs/context/
+<a id="ref3"></a>[3] Google, "Google ADK - Context," 2024. [Online]. Available: https://google.github.io/adk-docs/context/
 
-<a id="ref4"></a>**[4]** Google ADK - Sessions, State, Memory Overview. https://google.github.io/adk-docs/sessions/
+<a id="ref4"></a>[4] Google, "Google ADK - Sessions, State, Memory Overview," 2024. [Online]. Available: https://google.github.io/adk-docs/sessions/
 
-<a id="ref5"></a>**[5]** Google ADK - State. https://google.github.io/adk-docs/sessions/state/
+<a id="ref5"></a>[5] Google, "Google ADK - State," 2024. [Online]. Available: https://google.github.io/adk-docs/sessions/state/
 
-<a id="ref6"></a>**[6]** Google ADK - Memory. https://google.github.io/adk-docs/sessions/memory/
+<a id="ref6"></a>[6] Google, "Google ADK - Memory," 2024. [Online]. Available: https://google.github.io/adk-docs/sessions/memory/
 
-<a id="ref7"></a>**[7]** Agno - Context Engineering. https://docs.agno.com/basics/context/overview
+<a id="ref7"></a>[7] Agno, "Agno - Context Engineering," 2024. [Online]. Available: https://docs.agno.com/basics/context/overview
 
-<a id="ref8"></a>**[8]** Agno - Memory. https://docs.agno.com/basics/memory/overview
+<a id="ref8"></a>[8] Agno, "Agno - Memory," 2024. [Online]. Available: https://docs.agno.com/basics/memory/overview
 
-<a id="ref9"></a>**[9]** Agno - Knowledge. https://docs.agno.com/basics/knowledge/overview
+<a id="ref9"></a>[9] Agno, "Agno - Knowledge," 2024. [Online]. Available: https://docs.agno.com/basics/knowledge/overview
 
-<a id="ref10"></a>**[10]** Agno - Sessions. https://docs.agno.com/basics/sessions
+<a id="ref10"></a>[10] Agno, "Agno - Sessions," 2024. [Online]. Available: https://docs.agno.com/basics/sessions
 
-<a id="ref11"></a>**[11]** LangChain - Context Engineering. [https://docs.langchain.com/oss/python/langchain/context-engineering](https://docs.langchain.com/oss/python/langchain/context-engineering)
+<a id="ref11"></a>[11] LangChain, "LangChain - Context Engineering," 2024. [Online]. Available: https://docs.langchain.com/oss/python/langchain/context-engineering
 
-<a id="ref12"></a>**[12]** LangGraph - Memory. [https://docs.langchain.com/oss/python/langgraph/add-memory](https://docs.langchain.com/oss/python/langgraph/add-memory)
+<a id="ref12"></a>[12] LangChain, "LangGraph - Memory," 2024. [Online]. Available: https://docs.langchain.com/oss/python/langgraph/add-memory

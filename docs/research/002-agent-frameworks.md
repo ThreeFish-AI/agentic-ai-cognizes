@@ -1315,36 +1315,36 @@ graph TB
 
 ## 8. References
 
-<a id="ref1"></a>**[1]** Google. _Agent Development Kit (ADK) Documentation_. [https://google.github.io/adk-docs/](https://google.github.io/adk-docs/)
+<a id="ref1"></a>[1] Google, "Agent Development Kit (ADK) Documentation," 2024. [Online]. Available: https://google.github.io/adk-docs/
 
-<a id="ref2"></a>**[2]** Anthropic. _Claude Agent SDK Overview_. [https://platform.claude.com/docs/en/agent-sdk/overview](https://platform.claude.com/docs/en/agent-sdk/overview)
+<a id="ref2"></a>[2] Anthropic, "Claude Agent SDK Overview," 2024. [Online]. Available: https://platform.claude.com/docs/en/agent-sdk/overview
 
-<a id="ref3"></a>**[3]** Anthropic. _Agent Skills Overview_. [https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
+<a id="ref3"></a>[3] Anthropic, "Agent Skills Overview," 2024. [Online]. Available: https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview
 
-<a id="ref4"></a>**[4]** Google ADK. _Agents Documentation_. [https://google.github.io/adk-docs/agents/](https://google.github.io/adk-docs/agents/)
+<a id="ref4"></a>[4] Google, "Google ADK - Agents Documentation," 2024. [Online]. Available: https://google.github.io/adk-docs/agents/
 
-<a id="ref5"></a>**[5]** Google ADK. _LLM Agents_. [https://google.github.io/adk-docs/agents/llm-agents/](https://google.github.io/adk-docs/agents/llm-agents/)
+<a id="ref5"></a>[5] Google, "Google ADK - LLM Agents," 2024. [Online]. Available: https://google.github.io/adk-docs/agents/llm-agents/
 
-<a id="ref6"></a>**[6]** Google ADK. _Workflow Agents_. [https://google.github.io/adk-docs/agents/workflow-agents/](https://google.github.io/adk-docs/agents/workflow-agents/)
+<a id="ref6"></a>[6] Google, "Google ADK - Workflow Agents," 2024. [Online]. Available: https://google.github.io/adk-docs/agents/workflow-agents/
 
-<a id="ref7"></a>**[7]** Google ADK. _Tools for Agents_. [https://google.github.io/adk-docs/tools/](https://google.github.io/adk-docs/tools/)
+<a id="ref7"></a>[7] Google, "Google ADK - Tools for Agents," 2024. [Online]. Available: https://google.github.io/adk-docs/tools/
 
-<a id="ref8"></a>**[8]** Google ADK. _Sessions & Memory_. [https://google.github.io/adk-docs/sessions/](https://google.github.io/adk-docs/sessions/)
+<a id="ref8"></a>[8] Google, "Google ADK - Sessions & Memory," 2024. [Online]. Available: https://google.github.io/adk-docs/sessions/
 
-<a id="ref9"></a>**[9]** Google ADK. _Memory Service_. [https://google.github.io/adk-docs/sessions/memory/](https://google.github.io/adk-docs/sessions/memory/)
+<a id="ref9"></a>[9] Google, "Google ADK - Memory Service," 2024. [Online]. Available: https://google.github.io/adk-docs/sessions/memory/
 
-<a id="ref10"></a>**[10]** Google ADK. _Context Management_. [https://google.github.io/adk-docs/context/](https://google.github.io/adk-docs/context/)
+<a id="ref10"></a>[10] Google, "Google ADK - Context Management," 2024. [Online]. Available: https://google.github.io/adk-docs/context/
 
-<a id="ref11"></a>**[11]** Google ADK. _Multi-Agent Systems_. [https://google.github.io/adk-docs/agents/multi-agents/](https://google.github.io/adk-docs/agents/multi-agents/)
+<a id="ref11"></a>[11] Google, "Google ADK - Multi-Agent Systems," 2024. [Online]. Available: https://google.github.io/adk-docs/agents/multi-agents/
 
-<a id="ref12"></a>**[12]** Google ADK. _MCP Protocol Support_. [https://google.github.io/adk-docs/mcp/](https://google.github.io/adk-docs/mcp/)
+<a id="ref12"></a>[12] Google, "Google ADK - MCP Protocol Support," 2024. [Online]. Available: https://google.github.io/adk-docs/mcp/
 
-<a id="ref13"></a>**[13]** Google ADK. _A2A Protocol Support_. [https://google.github.io/adk-docs/a2a/](https://google.github.io/adk-docs/a2a/)
+<a id="ref13"></a>[13] Google, "Google ADK - A2A Protocol Support," 2024. [Online]. Available: https://google.github.io/adk-docs/a2a/
 
-<a id="ref14"></a>**[14]** Google ADK. _Deployment Guide_. [https://google.github.io/adk-docs/deploy/](https://google.github.io/adk-docs/deploy/)
+<a id="ref14"></a>[14] Google, "Google ADK - Deployment Guide," 2024. [Online]. Available: https://google.github.io/adk-docs/deploy/
 
-<a id="ref15"></a>**[15]** Google ADK. _Evaluation Framework_. [https://google.github.io/adk-docs/evaluate/](https://google.github.io/adk-docs/evaluate/)
+<a id="ref15"></a>[15] Google, "Google ADK - Evaluation Framework," 2024. [Online]. Available: https://google.github.io/adk-docs/evaluate/
 
-<a id="ref16"></a>**[16]** Google ADK. _Safety Best Practices_. [https://google.github.io/adk-docs/safety/](https://google.github.io/adk-docs/safety/)
+<a id="ref16"></a>[16] Google, "Google ADK - Safety Best Practices," 2024. [Online]. Available: https://google.github.io/adk-docs/safety/
 
-<a id="ref17"></a>**[17]** Anthropic. _Claude Agent SDK Quickstart_. [https://platform.claude.com/docs/en/agent-sdk/quickstart](https://platform.claude.com/docs/en/agent-sdk/quickstart)
+<a id="ref17"></a>[17] Anthropic, "Claude Agent SDK Quickstart," 2024. [Online]. Available: https://platform.claude.com/docs/en/agent-sdk/quickstart
