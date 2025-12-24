@@ -26,7 +26,7 @@
 
 ### 1.1 Cognee 是什么
 
-Cognee 是一个开源的 **AI 记忆层框架**，将非结构化数据转化为可搜索、可推理的知识图谱 [1]。
+Cognee 是一个开源的 **AI 记忆层框架**，将非结构化数据转化为可搜索、可推理的知识图谱<sup>[[1]](#ref1)</sup>。
 
 > **核心理念**：将文档转换为 AI 记忆，构建确定性知识图谱与语义检索能力
 
@@ -68,7 +68,7 @@ mindmap
 
 ### 2.1 三存储架构
 
-Cognee 采用三个互补的存储系统 [2]：
+Cognee 采用三个互补的存储系统<sup>[[2]](#ref2)</sup>：
 
 ```mermaid
 flowchart TB
@@ -121,7 +121,7 @@ flowchart TB
 
 ## 3. 核心操作详解
 
-Cognee 提供四个核心操作 [3]：
+Cognee 提供四个核心操作<sup>[[3]](#ref3)</sup>：
 
 ```mermaid
 flowchart LR
@@ -245,7 +245,7 @@ results = await cognee.search(
 
 ### 4.1 DataPoints - 原子知识单元
 
-DataPoints 是 Cognee 中知识的原子单位 [4]：
+DataPoints 是 Cognee 中知识的原子单位<sup>[[4]](#ref4)</sup>：
 
 **核心特征**：
 
@@ -339,7 +339,7 @@ await pipeline.run(documents)
 
 ### 5.1 Graph Store 配置
 
-Cognee 支持多种图数据库 [5]：
+Cognee 支持多种图数据库<sup>[[5]](#ref5)</sup>：
 
 **Neo4j 配置**：
 
@@ -432,7 +432,7 @@ cognee.config.set_azure_endpoint("https://your-resource.openai.azure.com")
 
 ### 6.1 Node Sets - 节点分组
 
-Node Sets 提供标记和组织系统，帮助分类和过滤知识库内容 [6]：
+Node Sets 提供标记和组织系统，帮助分类和过滤知识库内容<sup>[[6]](#ref6)</sup>：
 
 ```python
 # 为数据点分配 Node Set
@@ -447,7 +447,7 @@ results = await cognee.search(
 
 ### 6.2 Ontologies - 外部知识接入
 
-通过 RDF/XML 本体连接外部知识结构 [6]：
+通过 RDF/XML 本体连接外部知识结构<sup>[[6]](#ref6)</sup>：
 
 ```python
 # 加载外部本体
@@ -829,28 +829,28 @@ async def visualize_knowledge_graph():
 
 ---
 
-## 9. 参考资料
+## 9. References
 
 ### 官方文档
 
-[1] Cognee Documentation - Introduction. https://docs.cognee.ai/getting-started/introduction
+<a id="ref1"></a>**[1]** Cognee Documentation. _Getting Started - Introduction_. [https://docs.cognee.ai/getting-started/introduction](https://docs.cognee.ai/getting-started/introduction)
 
-[2] Cognee Documentation - Architecture. https://docs.cognee.ai/core-concepts/architecture
+<a id="ref2"></a>**[2]** Cognee Documentation. _Core Concepts - Architecture_. [https://docs.cognee.ai/core-concepts/architecture](https://docs.cognee.ai/core-concepts/architecture)
 
-[3] Cognee Documentation - Main Operations. https://docs.cognee.ai/core-concepts/main-operations
+<a id="ref3"></a>**[3]** Cognee Documentation. _Core Concepts - Main Operations_. [https://docs.cognee.ai/core-concepts/main-operations](https://docs.cognee.ai/core-concepts/main-operations)
 
-[4] Cognee Documentation - DataPoints. https://docs.cognee.ai/core-concepts/building-blocks
+<a id="ref4"></a>**[4]** Cognee Documentation. _Core Concepts - Building Blocks (DataPoints)_. [https://docs.cognee.ai/core-concepts/building-blocks](https://docs.cognee.ai/core-concepts/building-blocks)
 
-[5] Cognee Documentation - Graph Stores. https://docs.cognee.ai/setup-configuration/graph-stores
+<a id="ref5"></a>**[5]** Cognee Documentation. _Setup & Configuration - Graph Stores_. [https://docs.cognee.ai/setup-configuration/graph-stores](https://docs.cognee.ai/setup-configuration/graph-stores)
 
-[6] Cognee Documentation - Further Concepts. https://docs.cognee.ai/core-concepts/further-concepts
+<a id="ref6"></a>**[6]** Cognee Documentation. _Core Concepts - Further Concepts (Node Sets & Ontologies)_. [https://docs.cognee.ai/core-concepts/further-concepts](https://docs.cognee.ai/core-concepts/further-concepts)
 
 ### 开源项目
 
-[7] Cognee GitHub Repository. https://github.com/topoteretes/cognee
+<a id="ref7"></a>**[7]** topoteretes. _Cognee - Build dynamic AI memory_. GitHub. [https://github.com/topoteretes/cognee](https://github.com/topoteretes/cognee)
 
 ### 相关论文
 
-[8] Chaudhri, V., et al. "Knowledge Graphs: Introduction, History, and Perspectives." AI Magazine, 2022.
+<a id="ref8"></a>**[8]** Chaudhri, V. et al. (2022). _Knowledge Graphs: Introduction, History, and Perspectives_. AI Magazine.
 
-[9] Edge, D., et al. "From Local to Global: A Graph RAG Approach." Microsoft Research, 2024.
+<a id="ref9"></a>**[9]** Edge, D. et al. (2024). _From Local to Global: A Graph RAG Approach to Query-Focused Summarization_. Microsoft Research. [arXiv:2404.16130](https://arxiv.org/abs/2404.16130)

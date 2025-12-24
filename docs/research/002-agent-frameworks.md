@@ -25,9 +25,9 @@
 
 随着大语言模型（LLM）能力的快速发展，AI Agent 已成为实现复杂自动化任务的关键技术方向。Google 和 Anthropic 作为 AI 领域的领先企业，分别推出了各自的 Agent 开发框架：
 
-- **Google Agent Development Kit (ADK)**：一个开源的、模块化的框架，支持构建、评估和部署复杂的 AI Agent 应用 [1]
-- **Claude Agent SDK**：基于 Claude Code 的编程接口，提供与 Claude Code 相同的工具和上下文管理能力 [2]
-- **Agent Skills**：Claude 的模块化能力扩展系统，通过文件系统架构实现渐进式内容加载 [3]
+- **Google Agent Development Kit (ADK)**：一个开源的、模块化的框架，支持构建、评估和部署复杂的 AI Agent 应用<sup>[[1]](#ref1)</sup>
+- **Claude Agent SDK**：基于 Claude Code 的编程接口，提供与 Claude Code 相同的工具和上下文管理能力<sup>[[2]](#ref2)</sup>
+- **Agent Skills**：Claude 的模块化能力扩展系统，通过文件系统架构实现渐进式内容加载<sup>[[3]](#ref3)</sup>
 
 ### 1.2 调研目标
 
@@ -81,7 +81,7 @@ mindmap
 
 ### 2.1 架构概览
 
-Google Agent Development Kit (ADK) 是一个灵活的、模块化的框架，专为构建和部署 AI Agent 而设计 [1]。ADK 的核心设计理念包括：
+Google Agent Development Kit (ADK) 是一个灵活的、模块化的框架，专为构建和部署 AI Agent 而设计<sup>[[1]](#ref1)</sup>。ADK 的核心设计理念包括：
 
 - **模块化架构**：各组件可独立使用和组合
 - **多语言支持**：Python（主要）、TypeScript、Go、Java
@@ -129,11 +129,11 @@ graph TB
 
 ### 2.2 Agent 类型体系
 
-ADK 提供三种核心 Agent 类型，每种类型针对不同的使用场景 [4]：
+ADK 提供三种核心 Agent 类型，每种类型针对不同的使用场景<sup>[[4]](#ref4)</sup>：
 
 #### 2.2.1 LLM Agent（LlmAgent / Agent）
 
-LLM Agent 是 ADK 的核心组件，使用大语言模型作为"思考引擎"，进行推理、决策和生成响应 [5]。
+LLM Agent 是 ADK 的核心组件，使用大语言模型作为"思考引擎"，进行推理、决策和生成响应<sup>[[5]](#ref5)</sup>。
 
 **核心特性**：
 
@@ -177,7 +177,7 @@ capital_agent = LlmAgent(
 
 #### 2.2.2 Workflow Agent（Sequential / Parallel / Loop）
 
-Workflow Agent 是专门用于编排子 Agent 执行流程的控制器，本身不使用 LLM 进行决策，而是遵循预定义的执行模式 [6]。
+Workflow Agent 是专门用于编排子 Agent 执行流程的控制器，本身不使用 LLM 进行决策，而是遵循预定义的执行模式<sup>[[6]](#ref6)</sup>。
 
 **三种工作流模式**：
 
@@ -597,7 +597,7 @@ ADK 安全框架涵盖 [16]：
 
 ### 3.1 SDK 概述
 
-Claude Agent SDK（原 Claude Code SDK）是 Anthropic 提供的 Agent 开发框架，允许开发者以编程方式使用 Claude Code 的全部能力 [2]。
+Claude Agent SDK（原 Claude Code SDK）是 Anthropic 提供的 Agent 开发框架，允许开发者以编程方式使用 Claude Code 的全部能力<sup>[[2]](#ref2)</sup>。
 
 **核心定位**：
 
@@ -780,7 +780,7 @@ options = ClaudeAgentOptions(
 
 ### 4.1 Skills 概念与价值
 
-Agent Skills 是 Claude 的模块化能力扩展系统，提供可复用的领域专业知识 [3]：
+Agent Skills 是 Claude 的模块化能力扩展系统，提供可复用的领域专业知识<sup>[[3]](#ref3)</sup>：
 
 **核心价值**：
 
@@ -803,7 +803,7 @@ graph TB
 
 ### 4.2 三层渐进加载架构
 
-Skills 采用独特的三层渐进加载机制，优化上下文使用 [3]：
+Skills 采用独特的三层渐进加载机制，优化上下文使用<sup>[[3]](#ref3)</sup>：
 
 ```mermaid
 sequenceDiagram
@@ -1314,24 +1314,38 @@ graph TB
 
 ---
 
-## 8. 参考文献
+## 8. References
 
-| 序号 | 来源                        | URL                                                                        |
-| ---- | --------------------------- | -------------------------------------------------------------------------- |
-| [1]  | Google ADK 官方文档 - 首页  | https://google.github.io/adk-docs/                                         |
-| [2]  | Claude Agent SDK 概述       | https://platform.claude.com/docs/en/agent-sdk/overview                     |
-| [3]  | Agent Skills 概述           | https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview |
-| [4]  | ADK Agents 文档             | https://google.github.io/adk-docs/agents/                                  |
-| [5]  | LLM Agents 详解             | https://google.github.io/adk-docs/agents/llm-agents/                       |
-| [6]  | Workflow Agents 详解        | https://google.github.io/adk-docs/agents/workflow-agents/                  |
-| [7]  | Tools for Agents            | https://google.github.io/adk-docs/tools/                                   |
-| [8]  | Sessions & Memory 概述      | https://google.github.io/adk-docs/sessions/                                |
-| [9]  | Memory Service 详解         | https://google.github.io/adk-docs/sessions/memory/                         |
-| [10] | Context 管理                | https://google.github.io/adk-docs/context/                                 |
-| [11] | Multi-Agent Systems         | https://google.github.io/adk-docs/agents/multi-agents/                     |
-| [12] | MCP 协议支持                | https://google.github.io/adk-docs/mcp/                                     |
-| [13] | A2A 协议支持                | https://google.github.io/adk-docs/a2a/                                     |
-| [14] | 部署指南                    | https://google.github.io/adk-docs/deploy/                                  |
-| [15] | 评估框架                    | https://google.github.io/adk-docs/evaluate/                                |
-| [16] | 安全最佳实践                | https://google.github.io/adk-docs/safety/                                  |
-| [17] | Claude Agent SDK Quickstart | https://platform.claude.com/docs/en/agent-sdk/quickstart                   |
+<a id="ref1"></a>**[1]** Google. _Agent Development Kit (ADK) Documentation_. [https://google.github.io/adk-docs/](https://google.github.io/adk-docs/)
+
+<a id="ref2"></a>**[2]** Anthropic. _Claude Agent SDK Overview_. [https://platform.claude.com/docs/en/agent-sdk/overview](https://platform.claude.com/docs/en/agent-sdk/overview)
+
+<a id="ref3"></a>**[3]** Anthropic. _Agent Skills Overview_. [https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
+
+<a id="ref4"></a>**[4]** Google ADK. _Agents Documentation_. [https://google.github.io/adk-docs/agents/](https://google.github.io/adk-docs/agents/)
+
+<a id="ref5"></a>**[5]** Google ADK. _LLM Agents_. [https://google.github.io/adk-docs/agents/llm-agents/](https://google.github.io/adk-docs/agents/llm-agents/)
+
+<a id="ref6"></a>**[6]** Google ADK. _Workflow Agents_. [https://google.github.io/adk-docs/agents/workflow-agents/](https://google.github.io/adk-docs/agents/workflow-agents/)
+
+<a id="ref7"></a>**[7]** Google ADK. _Tools for Agents_. [https://google.github.io/adk-docs/tools/](https://google.github.io/adk-docs/tools/)
+
+<a id="ref8"></a>**[8]** Google ADK. _Sessions & Memory_. [https://google.github.io/adk-docs/sessions/](https://google.github.io/adk-docs/sessions/)
+
+<a id="ref9"></a>**[9]** Google ADK. _Memory Service_. [https://google.github.io/adk-docs/sessions/memory/](https://google.github.io/adk-docs/sessions/memory/)
+
+<a id="ref10"></a>**[10]** Google ADK. _Context Management_. [https://google.github.io/adk-docs/context/](https://google.github.io/adk-docs/context/)
+
+<a id="ref11"></a>**[11]** Google ADK. _Multi-Agent Systems_. [https://google.github.io/adk-docs/agents/multi-agents/](https://google.github.io/adk-docs/agents/multi-agents/)
+
+<a id="ref12"></a>**[12]** Google ADK. _MCP Protocol Support_. [https://google.github.io/adk-docs/mcp/](https://google.github.io/adk-docs/mcp/)
+
+<a id="ref13"></a>**[13]** Google ADK. _A2A Protocol Support_. [https://google.github.io/adk-docs/a2a/](https://google.github.io/adk-docs/a2a/)
+
+<a id="ref14"></a>**[14]** Google ADK. _Deployment Guide_. [https://google.github.io/adk-docs/deploy/](https://google.github.io/adk-docs/deploy/)
+
+<a id="ref15"></a>**[15]** Google ADK. _Evaluation Framework_. [https://google.github.io/adk-docs/evaluate/](https://google.github.io/adk-docs/evaluate/)
+
+<a id="ref16"></a>**[16]** Google ADK. _Safety Best Practices_. [https://google.github.io/adk-docs/safety/](https://google.github.io/adk-docs/safety/)
+
+<a id="ref17"></a>**[17]** Anthropic. _Claude Agent SDK Quickstart_. [https://platform.claude.com/docs/en/agent-sdk/quickstart](https://platform.claude.com/docs/en/agent-sdk/quickstart)

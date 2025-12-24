@@ -39,7 +39,7 @@ tags:
 
 ### 1.1 调研背景
 
-随着大语言模型（LLM）和 RAG（Retrieval-Augmented Generation）技术的快速发展，向量数据库已成为 AI 应用的核心基础设施 [1]。本调研旨在深入分析当前主流向量数据库解决方案，为本项目的技术选型提供决策依据。
+随着大语言模型（LLM）和 RAG（Retrieval-Augmented Generation）技术的快速发展，向量数据库已成为 AI 应用的核心基础设施<sup>[[1]](#ref1)</sup>。本调研旨在深入分析当前主流向量数据库解决方案，为本项目的技术选型提供决策依据。
 
 ### 1.2 调研对象分类
 
@@ -77,7 +77,7 @@ graph TB
 
 ### 2.1 产品概述
 
-PGVector 是 PostgreSQL 的开源向量相似性搜索扩展，由社区开发维护 [2]。它允许用户在 PostgreSQL 中存储向量数据并执行相似性搜索，同时享受 PostgreSQL 的所有企业级特性。
+PGVector 是 PostgreSQL 的开源向量相似性搜索扩展，由社区开发维护<sup>[[2]](#ref2)</sup>。它允许用户在 PostgreSQL 中存储向量数据并执行相似性搜索，同时享受 PostgreSQL 的所有企业级特性。
 
 **核心定位**：为已使用 PostgreSQL 的用户提供零迁移成本的向量搜索能力。
 
@@ -140,7 +140,7 @@ INSERT INTO items (embedding) VALUES ('[1,2,3,...]');
 
 #### 2.5.1 HNSW 索引
 
-HNSW（Hierarchical Navigable Small World）是一种基于图的近似最近邻算法 [3]：
+HNSW（Hierarchical Navigable Small World）是一种基于图的近似最近邻算法<sup>[[3]](#ref3)</sup>：
 
 ```mermaid
 graph TB
@@ -408,7 +408,7 @@ SET vchordrq.prefilter = on;
 
 ### 4.1 产品概述
 
-Milvus 是由 Zilliz 开发的开源、云原生分布式向量数据库 [9]。它是 LF AI & Data Foundation 的毕业项目，专为大规模向量相似性搜索设计，支持百亿级向量的高性能检索。
+Milvus 是由 Zilliz 开发的开源、云原生分布式向量数据库<sup>[[9]](#ref9)</sup>。它是 LF AI & Data Foundation 的毕业项目，专为大规模向量相似性搜索设计，支持百亿级向量的高性能检索。
 
 **核心定位**：企业级分布式向量数据库，为 AI 应用提供可扩展的向量检索基础设施。
 
@@ -597,7 +597,7 @@ results = client.search(
 
 ### 5.1 产品概述
 
-Weaviate 是一款开源的 AI-Native 向量数据库，专为构建 AI 应用而设计 [13]。它的核心特点是内置向量化模块，可以自动将数据转化为向量嵌入。
+Weaviate 是一款开源的 AI-Native 向量数据库，专为构建 AI 应用而设计<sup>[[13]](#ref13)</sup>。它的核心特点是内置向量化模块，可以自动将数据转化为向量嵌入。
 
 **核心定位**：AI-Native 向量数据库，提供开箱即用的语义搜索和 RAG 能力。
 
@@ -791,7 +791,7 @@ graph TB
 
 ### 6.1 产品概述
 
-Pinecone 是一款全托管的向量数据库服务，专为生产环境中的 AI 应用设计 [16]。它提供 Serverless 架构，用户无需管理基础设施即可使用高性能向量搜索。
+Pinecone 是一款全托管的向量数据库服务，专为生产环境中的 AI 应用设计<sup>[[16]](#ref16)</sup>。它提供 Serverless 架构，用户无需管理基础设施即可使用高性能向量搜索。
 
 **核心定位**：零运维、高性能的全托管向量数据库 SaaS 服务。
 
@@ -1407,58 +1407,58 @@ VACUUM ANALYZE source_embeddings;
 
 ## References
 
-[1] **Vector Databases in AI Applications** - LlamaIndex Documentation. https://docs.llamaindex.ai/
+<a id="ref1"></a>**[1]** LlamaIndex. _Vector Databases in AI Applications_. [https://docs.llamaindex.ai/](https://docs.llamaindex.ai/)
 
-[2] **pgvector: Open-source vector similarity search for Postgres** - GitHub. https://github.com/pgvector/pgvector
+<a id="ref2"></a>**[2]** pgvector. _Open-source vector similarity search for Postgres_. GitHub. [https://github.com/pgvector/pgvector](https://github.com/pgvector/pgvector)
 
-[3] **Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs** - Yu. A. Malkov, D. A. Yashunin. https://arxiv.org/abs/1603.09320
+<a id="ref3"></a>**[3]** Malkov, Y. A. & Yashunin, D. A. (2018). _Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs_. IEEE TPAMI. [arXiv:1603.09320](https://arxiv.org/abs/1603.09320)
 
-[4] **Product Quantization for Nearest Neighbor Search** - Jégou, H., Douze, M., & Schmid, C. (2011). IEEE TPAMI.
+<a id="ref4"></a>**[4]** Jégou, H., Douze, M., & Schmid, C. (2011). _Product Quantization for Nearest Neighbor Search_. IEEE TPAMI.
 
-[5] **pgvecto.rs: Scalable Vector Search in Postgres** - TensorChord. https://docs.vectorchord.ai/getting-started/overview.html
+<a id="ref5"></a>**[5]** TensorChord. _pgvecto.rs: Scalable Vector Search in Postgres_. [https://docs.vectorchord.ai/getting-started/overview.html](https://docs.vectorchord.ai/getting-started/overview.html)
 
-[6] **VectorChord: High-Performance Vector Search** - TensorChord. https://docs.vectorchord.ai/vectorchord/getting-started/overview.html
+<a id="ref6"></a>**[6]** TensorChord. _VectorChord: High-Performance Vector Search_. [https://docs.vectorchord.ai/vectorchord/getting-started/overview.html](https://docs.vectorchord.ai/vectorchord/getting-started/overview.html)
 
-[7] **RaBitQ: Quantizing High-Dimensional Vectors with a Theoretical Error Bound** - Gao, J., & Long, C. (2024). Proceedings of the ACM on Management of Data.
+<a id="ref7"></a>**[7]** Gao, J. & Long, C. (2024). _RaBitQ: Quantizing High-Dimensional Vectors with a Theoretical Error Bound_. Proceedings of the ACM on Management of Data.
 
-[8] **pgvector vs. pgvecto.rs Comparison** - TensorChord. https://docs.vectorchord.ai/faqs/comparison-pgvector.html
+<a id="ref8"></a>**[8]** TensorChord. _pgvector vs. pgvecto.rs Comparison_. [https://docs.vectorchord.ai/faqs/comparison-pgvector.html](https://docs.vectorchord.ai/faqs/comparison-pgvector.html)
 
-[9] **Milvus: The World's Most Advanced Open-Source Vector Database** - Zilliz. https://milvus.io/docs/overview.md
+<a id="ref9"></a>**[9]** Zilliz. _Milvus: The World's Most Advanced Open-Source Vector Database_. [https://milvus.io/docs/overview.md](https://milvus.io/docs/overview.md)
 
-[10] **Milvus Architecture Overview** - Zilliz. https://milvus.io/docs/architecture_overview.md
+<a id="ref10"></a>**[10]** Zilliz. _Milvus Architecture Overview_. [https://milvus.io/docs/architecture_overview.md](https://milvus.io/docs/architecture_overview.md)
 
-[11] **Milvus Index Explained** - Zilliz. https://milvus.io/docs/index-explained.md
+<a id="ref11"></a>**[11]** Zilliz. _Milvus Index Explained_. [https://milvus.io/docs/index-explained.md](https://milvus.io/docs/index-explained.md)
 
-[12] **Milvus Performance Benchmarks** - Zilliz. https://milvus.io/docs/benchmark.md
+<a id="ref12"></a>**[12]** Zilliz. _Milvus Performance Benchmarks_. [https://milvus.io/docs/benchmark.md](https://milvus.io/docs/benchmark.md)
 
-[13] **Weaviate: The AI-Native Vector Database** - Weaviate. https://docs.weaviate.io/weaviate/introduction
+<a id="ref13"></a>**[13]** Weaviate. _The AI-Native Vector Database_. [https://docs.weaviate.io/weaviate/introduction](https://docs.weaviate.io/weaviate/introduction)
 
-[14] **Weaviate Vector Indexing** - Weaviate. https://docs.weaviate.io/weaviate/concepts/vector-index
+<a id="ref14"></a>**[14]** Weaviate. _Vector Indexing_. [https://docs.weaviate.io/weaviate/concepts/vector-index](https://docs.weaviate.io/weaviate/concepts/vector-index)
 
-[15] **Weaviate Model Providers** - Weaviate. https://docs.weaviate.io/weaviate/model-providers
+<a id="ref15"></a>**[15]** Weaviate. _Model Providers_. [https://docs.weaviate.io/weaviate/model-providers](https://docs.weaviate.io/weaviate/model-providers)
 
-[16] **Pinecone: The Vector Database for AI** - Pinecone. https://docs.pinecone.io/guides/get-started/overview
+<a id="ref16"></a>**[16]** Pinecone. _The Vector Database for AI_. [https://docs.pinecone.io/guides/get-started/overview](https://docs.pinecone.io/guides/get-started/overview)
 
-[17] **Pinecone Indexing Overview** - Pinecone. https://docs.pinecone.io/guides/index-data/indexing-overview
+<a id="ref17"></a>**[17]** Pinecone. _Indexing Overview_. [https://docs.pinecone.io/guides/index-data/indexing-overview](https://docs.pinecone.io/guides/index-data/indexing-overview)
 
-[18] **Pinecone Namespaces** - Pinecone. https://docs.pinecone.io/guides/index-data/indexing-overview#namespaces
+<a id="ref18"></a>**[18]** Pinecone. _Namespaces_. [https://docs.pinecone.io/guides/index-data/indexing-overview#namespaces](https://docs.pinecone.io/guides/index-data/indexing-overview#namespaces)
 
-[19] **LlamaIndex Milvus Integration** - LlamaIndex. https://docs.llamaindex.ai/en/stable/examples/vector_stores/MilvusIndexDemo/
+<a id="ref19"></a>**[19]** LlamaIndex. _Milvus Integration_. [https://docs.llamaindex.ai/en/stable/examples/vector_stores/MilvusIndexDemo/](https://docs.llamaindex.ai/en/stable/examples/vector_stores/MilvusIndexDemo/)
 
-[20] **LangChain Milvus Integration** - LangChain. https://python.langchain.com/docs/integrations/vectorstores/milvus/
+<a id="ref20"></a>**[20]** LangChain. _Milvus Integration_. [https://python.langchain.com/docs/integrations/vectorstores/milvus/](https://python.langchain.com/docs/integrations/vectorstores/milvus/)
 
-[21] **Milvus Lite: Lightweight Milvus for Local Development** - Zilliz. https://milvus.io/docs/milvus_lite.md
+<a id="ref21"></a>**[21]** Zilliz. _Milvus Lite: Lightweight Milvus for Local Development_. [https://milvus.io/docs/milvus_lite.md](https://milvus.io/docs/milvus_lite.md)
 
-[22] **pgvector Filtering and Iterative Scans** - GitHub. https://github.com/pgvector/pgvector#filtering
+<a id="ref22"></a>**[22]** pgvector. _Filtering and Iterative Scans_. GitHub. [https://github.com/pgvector/pgvector#filtering](https://github.com/pgvector/pgvector#filtering)
 
-[23] **VectorChord Graph Index** - TensorChord. https://docs.vectorchord.ai/vectorchord/usage/graph-index.html
+<a id="ref23"></a>**[23]** TensorChord. _VectorChord Graph Index_. [https://docs.vectorchord.ai/vectorchord/usage/graph-index.html](https://docs.vectorchord.ai/vectorchord/usage/graph-index.html)
 
-[24] **VectorChord Prefilter** - TensorChord. https://docs.vectorchord.ai/vectorchord/usage/prefilter.html
+<a id="ref24"></a>**[24]** TensorChord. _VectorChord Prefilter_. [https://docs.vectorchord.ai/vectorchord/usage/prefilter.html](https://docs.vectorchord.ai/vectorchord/usage/prefilter.html)
 
-[25] **Weaviate Vector Quantization** - Weaviate. https://docs.weaviate.io/weaviate/concepts/vector-quantization
+<a id="ref25"></a>**[25]** Weaviate. _Vector Quantization_. [https://docs.weaviate.io/weaviate/concepts/vector-quantization](https://docs.weaviate.io/weaviate/concepts/vector-quantization)
 
-[26] **Weaviate Cluster Architecture** - Weaviate. https://docs.weaviate.io/weaviate/concepts/replication-architecture/cluster-architecture
+<a id="ref26"></a>**[26]** Weaviate. _Cluster Architecture_. [https://docs.weaviate.io/weaviate/concepts/replication-architecture/cluster-architecture](https://docs.weaviate.io/weaviate/concepts/replication-architecture/cluster-architecture)
 
-[27] **Pinecone Hybrid Search** - Pinecone. https://docs.pinecone.io/guides/search/hybrid-search
+<a id="ref27"></a>**[27]** Pinecone. _Hybrid Search_. [https://docs.pinecone.io/guides/search/hybrid-search](https://docs.pinecone.io/guides/search/hybrid-search)
 
-[28] **Pinecone Rerank Results** - Pinecone. https://docs.pinecone.io/guides/search/rerank-results
+<a id="ref28"></a>**[28]** Pinecone. _Rerank Results_. [https://docs.pinecone.io/guides/search/rerank-results](https://docs.pinecone.io/guides/search/rerank-results)
