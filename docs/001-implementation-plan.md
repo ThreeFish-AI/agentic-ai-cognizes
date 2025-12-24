@@ -1,9 +1,17 @@
-# Agentic AI 学术研究与工程应用平台 - 实施计划方案
+---
+id: implementation-plan
+sidebar_position: 1
+title: Agentic AI 学术研究与工程应用平台 - 实施计划方案
+last_update:
+  author: Aurelius Huang
+  date: 2025-12-22
+  version: 1.1
+  status: Review
+tags:
+  - Implementation Plan
+---
 
-> **版本**：v1.1
-> **日期**：2025 年 12 月  
-> **状态**：Review
-> **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)
+> [!IMPORTANT] **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)
 
 ---
 

@@ -1,11 +1,18 @@
-# 产品需求与概要设计（PRD & Architecture）
+---
+id: prd-architecture
+sidebar_position: 0
+title: 产品需求与概要设计（PRD & Architecture）
+last_update:
+  author: Aurelius Huang
+  date: 2025-12-22
+  version: 1.1
+  status: Review
+tags:
+  - PRD
+  - Architecture
+---
 
-> **Agentic AI 学术研究与工程应用方案定制**
->
-> **版本**：v1.1  
-> **日期**：2025 年 12 月  
-> **状态**：Review 完成  
-> **变更记录**：v1.1 - 增强引用系统、完善架构细节、优化可视化
+> [!IMPORTANT] **立意**：Agentic AI 学术研究与工程应用方案定制
 
 ---
 

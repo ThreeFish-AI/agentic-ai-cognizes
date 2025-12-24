@@ -1,9 +1,17 @@
-# Agentic AI 平台 - 任务执行清单
+---
+id: task-checklist
+sidebar_position: 2
+title: Agentic AI 学术研究与工程应用平台 - 任务执行清单
+last_update:
+  author: Aurelius Huang
+  date: 2025-12-22
+  version: 1.1
+  status: Review
+tags:
+  - Task Checklist
+---
 
-> **版本**：v1.1 (精细化优化版)  
-> **日期**：2025 年 12 月  
-> **状态**：Review  
-> **基于**：[Implementation Plan v1.1](./001-implementation-plan.md)  
+> [!IMPORTANT] **基于**：[Implementation Plan v1.1](./001-implementation-plan.md)  
 > **对齐**：[PRD & Architecture v1.1](./000-prd-architecture.md)
 
 ---
