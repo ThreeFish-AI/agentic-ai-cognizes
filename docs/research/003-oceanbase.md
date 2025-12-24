@@ -4,9 +4,9 @@ sidebar_position: 3.3
 title: OceanBase 三位一体数据库深度调研报告
 last_update:
   author: Aurelius Huang
-  version: 1.0
   created_at: 2025-12-23
   updated_at: 2025-12-23
+  version: 1.0
   status: Pending Review
 tags:
   - OceanBase V4.5.0

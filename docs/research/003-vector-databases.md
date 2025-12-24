@@ -4,9 +4,9 @@ sidebar_position: 3.2
 title: 向量数据库深度调研报告
 last_update:
   author: Aurelius Huang
-  version: 1.1
   created_at: 2025-12-23
   updated_at: 2025-12-23
+  version: 1.1
   status: Pending Review
 tags:
   - Vector Databases

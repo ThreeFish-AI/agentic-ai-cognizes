@@ -3,10 +3,11 @@ id: cognee
 sidebar_position: 4
 title: Cognee 深度调研报告
 last_update:
-  author: Aurelius
-  date: 2025-12-22
+  author: Aurelius Huang
+  created_at: 2025-12-22
+  updated_at: 2025-12-23
   version: 1.0
-  status: 待审阅
+  status: Pending Review
 tags:
   - Cognee
   - 技术选型

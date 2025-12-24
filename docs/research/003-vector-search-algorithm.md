@@ -4,9 +4,9 @@ sidebar_position: 3.1
 title: 向量数据库原理与算法深度解析
 last_update:
   author: Aurelius Huang
-  version: 1.1
   created_at: 2025-12-24
   updated_at: 2025-12-24
+  version: 1.1
   status: In Progress
 tags:
   - Vector Database
