@@ -317,27 +317,33 @@ graph LR
 
 ## 3. Context Engineering 的主流框架（Agent Framework）
 
-### 3.1 Google ADK (Agent Development Kit) <sup>[[4]](#ref4)</sup><sup>[[5]](#ref5)</sup>
+### 3.1 Google ADK (Agent Development Kit)
 
-#### 3.1.1 核心概念体系
+#### 3.1.1 核心 Context 体系
 
 ```mermaid
-graph LR
-    IC[InvocationContext] --> S[Session]
-    IC --> ST[State]
-    IC --> M[Memory]
+graph TD
+    subgraph ADK["Google ADK 记忆体系"]
+        IC[InvocationContext] --> S[Session]
+        IC --> ST[State]
+        IC --> M[Memory]
 
-    S --> SE[Events<br>时间序列消息/操作]
-    S --> SS[session.state<br>会话级临时数据]
+        S --> SE["Events<br>时间序列消息"]
+        S --> SS["session.state<br>会话级临时数据"]
 
-    ST --> ST1[No Prefix: Session Scope]
-    ST --> ST2["user: User Scope"]
-    ST --> ST3["app: App Scope"]
-    ST --> ST4["temp: Invocation Scope"]
+        ST --> ST1["无前缀: Session Scope"]
+        ST --> ST2["user: User Scope"]
+        ST --> ST3["app: App Scope"]
+        ST --> ST4["temp: Invocation Scope"]
 
-    M --> MM[MemoryService]
-    MM --> MM1[InMemoryMemoryService]
-    MM --> MM2[VertexAiMemoryBankService]
+        M --> MM[MemoryService]
+        MM --> MM1[InMemoryMemoryService]
+        MM --> MM2[VertexAiMemoryBankService]
+    end
+
+    style ADK fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style IC fill:#065f46,stroke:#34d399,color:#fff
+    style MM fill:#7c2d12,stroke:#fb923c,color:#fff
 ```
 
 | 概念         | 定义                        | 作用域   | 持久性                 |
@@ -348,9 +354,7 @@ graph LR
 | **Event**    | 交互中的原子操作记录        | 当前会话 | 取决于 SessionService  |
 | **Artifact** | 与会话关联的文件/数据块     | 当前会话 | 取决于 ArtifactService |
 
-#### 4.1.2 State 前缀系统
-
-ADK 通过键前缀实现精细的作用域控制：
+ADK 的 **State** 通过键前缀实现精细的作用域控制：
 
 | 前缀    | 作用域               | 持久性                 | 用例               |
 | :------ | :------------------- | :--------------------- | :----------------- |
@@ -359,9 +363,70 @@ ADK 通过键前缀实现精细的作用域控制：
 | `app:`  | 跨该应用所有用户     | Database/VertexAI 持久 | 全局设置、模板     |
 | `temp:` | 当前 Invocation      | 不持久                 | 中间计算、临时数据 |
 
-#### 4.1.3 Context Caching 与 Compression
+```python
+# Google ADK State 使用示例 [5]
+async def my_tool(ctx: ToolContext):
+    # Session scope - 仅当前会话
+    ctx.state["task_progress"] = 50
 
-**Context Caching**：减少重复发送大型指令集或数据集
+    # User scope - 跨会话持久化
+    ctx.state["user:preferred_language"] = "zh-CN"
+
+    # App scope - 全局配置
+    ctx.state["app:max_retries"] = 3
+
+    # Temp scope - 仅当前调用
+    ctx.state["temp:intermediate_result"] = {...}
+```
+
+#### 3.1.2 Context Engineering
+
+1. **Context Collection** 在 ADK 被抽象为多个层次的 Context 对象：
+
+   | Context 类型          | 描述                         | 可访问位置                 |
+   | :-------------------- | :--------------------------- | :------------------------- |
+   | **InvocationContext** | 完整调用上下文，包含所有信息 | Agent 的 `_run_async_impl` |
+   | **CallbackContext**   | 回调中的只读上下文           | Agent/Model 回调           |
+   | **ToolContext**       | 工具执行时的可写上下文       | Function Tools             |
+   | **ReadonlyContext**   | 只读上下文，用于表达式评估   | Agent Config 表达式        |
+
+   ```python
+   # Google ADK 上下文收集示例
+   from google.adk.agents import Agent
+   from google.adk.agents.callback_context import CallbackContext
+
+   class MyAgent(Agent):
+       async def _run_async_impl(self, ctx):
+           # 从 InvocationContext 收集各类信息
+           session = ctx.session                    # 会话
+           state = ctx.session.state                # 会话状态
+           user_content = ctx.user_content          # 用户输入
+           agent = ctx.agent                        # Agent 配置
+
+           # 从 Memory Service 检索长期记忆
+           if ctx.memory_service:
+               memories = await ctx.memory_service.search_memory(
+                   query=user_content.parts[0].text
+               )
+   ```
+
+2. **Context Compaction (Compression)** 通过滑动窗口摘要老旧事件。
+
+```python
+# Google ADK Context Compaction
+from google.adk.apps.app import EventsCompactionConfig
+
+app = App(
+    name='my-agent',
+    root_agent=root_agent,
+    events_compaction_config=EventsCompactionConfig(
+        compaction_interval=3,  # 每 3 次调用触发压缩
+        overlap_size=1,         # 保留前一窗口的 1 个事件
+    ),
+)
+```
+
+3. **Context Caching** 可以减少重复发送大型指令集或数据集，通过配置触发条件和缓存策略。
 
 ```python
 from google.adk.agents.context_cache_config import ContextCacheConfig
@@ -377,37 +442,23 @@ app = App(
 )
 ```
 
-**Context Compaction (Compression)**：通过滑动窗口摘要老旧事件
+### 3.2 Agno
+
+#### 3.2.1 Context Collection
+
+Agno 的上下文收集基于 Agent 参数配置：
+
+| 组件                   | 描述                                                     | 配置方式                      |
+| :--------------------- | :------------------------------------------------------- | :---------------------------- |
+| **System Message**     | 主上下文（description + instructions + expected_output） | Agent 构造参数                |
+| **User Message**       | 用户输入                                                 | `Agent.run(input)`            |
+| **Chat History**       | 对话历史                                                 | `add_history_to_context=True` |
+| **Additional Context** | Few-shot 示例或其他补充等                                | `additional_context` 参数     |
+| **Memory**             | 长期记忆                                                 | `enable_user_memories=True`   |
+| **Knowledge**          | 外部知识库                                               | `knowledge` 参数              |
 
 ```python
-from google.adk.apps.app import EventsCompactionConfig
-
-app = App(
-    name='my-agent',
-    root_agent=root_agent,
-    events_compaction_config=EventsCompactionConfig(
-        compaction_interval=3,  # 每 3 次调用触发压缩
-        overlap_size=1,         # 保留前一窗口的 1 个事件
-    ),
-)
-```
-
-### 3.2 Agno Framework <sup>[[6]](#ref6)</sup><sup>[[7]](#ref7)</sup>
-
-#### 4.2.1 Context 组成要素
-
-Agno 的 Context Engineering 围绕四个核心组件构建：
-
-| 组件                 | 描述                                                      | 配置方式                      |
-| :------------------- | :-------------------------------------------------------- | :---------------------------- |
-| **System Message**   | 主上下文，包含 description, instructions, expected_output | Agent 参数                    |
-| **User Message**     | 用户输入                                                  | `Agent.run(input)`            |
-| **Chat History**     | 对话历史                                                  | `add_history_to_context=True` |
-| **Additional Input** | Few-shot 示例或其他补充                                   | `additional_context` 参数     |
-
-#### 4.2.2 System Message 构建示例
-
-```python
+# System Message 构建示例
 from agno.agent import Agent
 
 agent = Agent(
@@ -416,9 +467,9 @@ agent = Agent(
     description="You are a helpful assistant",
     instructions=["Help the user with their question"],
     additional_context="""
-    Here is an example:
-    Request: What is the capital of France?
-    Response: The capital of France is Paris.
+        Here is an example:
+        Request: What is the capital of France?
+        Response: The capital of France is Paris.
     """,
     expected_output="Format response with `Response: <response>`",
 
@@ -429,12 +480,15 @@ agent = Agent(
     add_session_summary_to_context=True,  # 添加历史摘要
     add_memories_to_context=True,          # 添加长期记忆
     add_session_state_to_context=True,     # 添加会话状态
+
+    # 外部知识
+    knowledge=my_knowledge_base,
 )
 ```
 
-#### 4.2.3 Memory 系统
+#### 3.2.1 Memory 模式
 
-Agno 提供两种 Memory 模式：
+Agno 提供两种 Memory 模式 <sup>[[8]](#ref8)</sup>：
 
 | 模式                 | 配置                         | 行为                            |
 | :------------------- | :--------------------------- | :------------------------------ |
@@ -442,44 +496,46 @@ Agno 提供两种 Memory 模式：
 | **Agentic Memory**   | `enable_agentic_memory=True` | Agent 自主决定何时创建/更新记忆 |
 
 ```python
+# Agno Memory 示例
 from agno.agent import Agent
-from agno.db.sqlite import SqliteDb
+from agno.db.postgres import PostgresDb
+
+db = PostgresDb(
+    db_url="postgresql://user:pass@localhost:5432/mydb",
+    memory_table="agent_memories"
+)
 
 agent = Agent(
-    db=SqliteDb(db_file="agno.db"),
-    enable_user_memories=True,  # 启用自动记忆
+    db=db,
+    enable_user_memories=True,  # 自动记忆
 )
+
 # 记忆自动从对话中提取
-agent.print_response("My name is Sarah and I prefer email over phone calls.")
+agent.print_response(
+    "My name is Sarah and I prefer email over phone calls.",
+    user_id="user-123"
+)
+
 # 记忆自动召回
-agent.print_response("What's the best way to reach me?")  # Agent 会记住偏好
+agent.print_response(
+    "What's the best way to reach me?",
+    user_id="user-123"
+)  # Agent 会记住偏好
 ```
 
-#### 4.2.4 Knowledge 系统
+> [!IMPORTANT] > Knowledge 集成
+>
+> Agno 将 Knowledge（知识库/RAG）与 Memory（记忆）区分：
+>
+> - **Knowledge**: 外部知识源（文档、数据库），用于增强 Agent 能力
+> - **Memory**: 从交互中学习的用户偏好和上下文
 
-Agno 将 Knowledge（知识库/RAG）与 Memory（记忆）区分：
+### 3.3 LangChain / LangGraph
 
-- **Knowledge**: 外部知识源（文档、数据库），用于增强 Agent 能力
-- **Memory**: 从交互中学习的用户偏好和上下文
-
-### 3.3 LangChain / LangGraph <sup>[[8]](#ref8)</sup><sup>[[9]](#ref9)</sup>
-
-#### 4.3.1 Memory 类型体系
-
-| Memory 类型                         | 描述                            | 适用场景       |
-| :---------------------------------- | :------------------------------ | :------------- |
-| **ConversationBufferMemory**        | 存储完整对话历史                | 短对话         |
-| **ConversationBufferWindowMemory**  | 滑动窗口，仅保留最近 K 条       | 中等对话       |
-| **ConversationSummaryMemory**       | 摘要历史对话                    | 长对话         |
-| **ConversationSummaryBufferMemory** | 混合：摘要旧对话 + 完整保留近期 | 平衡场景       |
-| **VectorStoreRetrieverMemory**      | 向量存储，基于相似度检索        | 跨会话持久记忆 |
-
-#### 4.3.2 LangGraph 的 Context Engineering 策略
-
-根据 LangChain 官方博客，Context Engineering 的四大策略：
+LangChain 官方博客整理了 Context Engineering 的四大策略：
 
 ```mermaid
-graph LR
+graph TD
     CE[Context Engineering] --> W[Writing<br>写入外部存储]
     CE --> S[Selecting<br>动态检索]
     CE --> C[Compressing<br>压缩摘要]
@@ -498,9 +554,128 @@ graph LR
     I --> I2["Subgraph<br>子图"]
 ```
 
-## 5. 框架对比总结
+#### 3.3.1 Memory 机制
 
-### 5.1 核心概念映射
+LangGraph 区分两种持久化机制 <sup>[[11]](#ref11)[[12]](#ref12)</sup>：
+
+| 类型                  | 机制         | 范围      | 用途                   |
+| :-------------------- | :----------- | :-------- | :--------------------- |
+| **Short-term Memory** | Checkpointer | Thread 内 | 对话历史、状态快照     |
+| **Long-term Memory**  | Store        | 跨 Thread | 用户偏好、学习到的知识 |
+
+LangGraph 的 Memory 类型：
+
+| Memory 类型                         | 描述                            | 适用场景       |
+| :---------------------------------- | :------------------------------ | :------------- |
+| **ConversationBufferMemory**        | 存储完整对话历史                | 短对话         |
+| **ConversationBufferWindowMemory**  | 滑动窗口，仅保留最近 K 条       | 中等对话       |
+| **ConversationSummaryMemory**       | 摘要历史对话                    | 长对话         |
+| **ConversationSummaryBufferMemory** | 混合：摘要旧对话 + 完整保留近期 | 平衡场景       |
+| **VectorStoreRetrieverMemory**      | 向量存储，基于相似度检索        | 跨会话持久记忆 |
+
+```python
+# LangGraph 短期记忆 (Checkpointer)
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.postgres import PostgresSaver
+
+# 本地测试
+checkpointer = InMemorySaver()
+
+# 生产环境
+checkpointer = PostgresSaver(conn)
+
+graph = builder.compile(checkpointer=checkpointer)
+
+# 使用 thread_id 标识对话
+config = {"configurable": {"thread_id": "conversation-123"}}
+graph.invoke(input_data, config)
+```
+
+```python
+# LangGraph 长期记忆 (Store)
+from langgraph.store.memory import InMemoryStore
+from langgraph_checkpoint_postgres import PostgresStore
+
+store = InMemoryStore()
+
+# 编译时同时启用 checkpointer 和 store
+graph = builder.compile(checkpointer=checkpointer, store=store)
+
+# 在节点中使用 store
+def my_node(state, config, *, store):
+    user_id = config["configurable"]["user_id"]
+    namespace = (user_id, "memories")
+
+    # 存储记忆
+    store.put(namespace, "preference", {"food": "pizza"})
+
+    # 检索记忆 (支持语义搜索)
+    memories = store.search(namespace, query="what do I like?")
+```
+
+#### 3.3.2 Context Engineering
+
+1. LangGraph 通过 State 和 Config 收集上下文：
+
+```python
+# LangGraph 上下文收集示例
+from langgraph.graph import StateGraph, MessagesState
+
+def my_node(state: MessagesState, config, *, store):
+    # 从 state 获取消息历史
+    messages = state["messages"]
+
+    # 从 config 获取用户标识
+    user_id = config["configurable"]["user_id"]
+    thread_id = config["configurable"]["thread_id"]
+
+    # 从 store 检索长期记忆
+    namespace = (user_id, "memories")
+    memories = store.search(namespace, query=messages[-1].content)
+
+    return {"messages": [...]}
+```
+
+2. LangGraph 的上下文压缩
+
+```python
+# LangGraph 消息修剪
+from langchain_core.messages import trim_messages
+
+# 基于 token 限制修剪
+trimmer = trim_messages(
+    max_tokens=1000,
+    strategy="last",  # 保留最新消息
+    token_counter=len,
+)
+
+# 在节点中使用
+def agent_node(state):
+    messages = trimmer.invoke(state["messages"])
+    response = llm.invoke(messages)
+    return {"messages": [response]}
+```
+
+3. LangGraph 通过 Subgraph 进行上下文隔离
+
+```python
+# LangGraph Subgraph 上下文隔离
+from langgraph.graph import StateGraph
+
+# 子图有独立的状态和上下文
+def create_research_subgraph():
+    builder = StateGraph(ResearchState)
+    builder.add_node("search", search_node)
+    builder.add_node("analyze", analyze_node)
+    return builder.compile()
+
+# 主图
+main_builder = StateGraph(MainState)
+main_builder.add_node("research", create_research_subgraph())
+main_builder.add_node("respond", respond_node)
+```
+
+### 3.4 核心概念映射
 
 | 概念           | Google ADK<sup>[[3]](#ref3)</sup> | Agno<sup>[[7]](#ref7)</sup>   | LangGraph<sup>[[11]](#ref11)</sup> / LangGraph<sup>[[12]](#ref12)</sup> |
 | :------------- | :-------------------------------- | :---------------------------- | :---------------------------------------------------------------------- |
@@ -513,7 +688,7 @@ graph LR
 | **上下文压缩** | EventsCompactionConfig            | session_summary               | trim_messages / summarize                                               |
 | **持久化**     | SessionService                    | Database                      | Checkpointer                                                            |
 
-### 5.2 各框架横评
+### 3.5 框架横评
 
 | 框架           | 优势                                                                                                                        | 劣势                                              |
 | :------------- | :-------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------ |
@@ -522,7 +697,7 @@ graph LR
 | **LangChain**  | ✅ 最成熟的生态系统<br>✅ 丰富的 Memory 类型<br>✅ 与各种 Vector DB 集成                                                    | ❌ 抽象层多，学习曲线陡<br>❌ Memory 碎片化       |
 | **LangGraph**  | ✅ 状态管理优秀（checkpointer）<br>✅ 复杂工作流支持<br>✅ Context Engineering 策略完备<br>✅ 社区活跃                      | ❌ 配置复杂度高<br>❌ 调试困难                    |
 
-### 5.3 选型建议
+### 3.6 选型路径
 
 ```mermaid
 graph LR
@@ -545,9 +720,9 @@ graph LR
     style CUSTOM fill:#6366f1,stroke:#4f46e5,color:#fff
 ```
 
-## 6. 与 Agentic AI Engine Roadmap 的结合建议
+## 5. 与 Agentic AI Engine Roadmap 的结合建议
 
-### 6.1 Phase 2: Memory Management
+### 5.1 Phase 2: Memory Management
 
 **论文指导**：记忆分层架构 + 记忆迁移机制
 
@@ -574,7 +749,7 @@ graph LR
    - 实现基于 Recency + Frequency + Semantic Similarity 的混合检索
    - 利用 `DBMS_HYBRID_SEARCH` 实现 SQL 层面的混合检索
 
-### 6.2 Phase 3: Context Engineering (RAG & Assembler)
+### 5.2 Phase 3: Context Engineering (RAG & Assembler)
 
 **论文指导**：Context Compression + Context Isolation + Proactive Inference
 
@@ -594,7 +769,7 @@ graph LR
    - 在数据库层估算 Token 大小
    - 实现 Top-K 截断，确保不超过 Context Window
 
-### 6.3 Phase 4: Framework Integration
+### 5.3 Phase 4: Framework Integration
 
 **论文指导**：上下文共享 + 跨 Agent 通信
 
@@ -614,9 +789,9 @@ graph LR
    - 关注 Google 的 Agent-to-Agent 开放协议
    - 考虑 OceanBase 作为 Agent 间上下文共享的中央存储
 
-## 7. 技术架构建议
+## 5. 技术架构建议
 
-### 7.1 OceanBase Unified Context Store
+### 5.1 OceanBase Unified Context Store
 
 基于调研，建议以下统一 Schema 设计：
 

@@ -1,708 +1,3 @@
-## 4. Context Collection（上下文收集）
-
-### 4.2 各框架的收集策略
-
-#### 4.2.1 Google ADK
-
-Google ADK 将上下文收集抽象为多个层次的 Context 对象 [3]：
-
-| Context 类型          | 描述                         | 可访问位置                 |
-| :-------------------- | :--------------------------- | :------------------------- |
-| **InvocationContext** | 完整调用上下文，包含所有信息 | Agent 的 `_run_async_impl` |
-| **CallbackContext**   | 回调中的只读上下文           | Agent/Model 回调           |
-| **ToolContext**       | 工具执行时的可写上下文       | Function Tools             |
-| **ReadonlyContext**   | 只读上下文，用于表达式评估   | Agent Config 表达式        |
-
-```python
-# Google ADK 上下文收集示例 [4]
-from google.adk.agents import Agent
-from google.adk.agents.callback_context import CallbackContext
-
-class MyAgent(Agent):
-    async def _run_async_impl(self, ctx):
-        # 从 InvocationContext 收集各类信息
-        session = ctx.session                    # 会话
-        state = ctx.session.state                # 会话状态
-        user_content = ctx.user_content          # 用户输入
-        agent = ctx.agent                        # Agent 配置
-
-        # 从 Memory Service 检索长期记忆
-        if ctx.memory_service:
-            memories = await ctx.memory_service.search_memory(
-                query=user_content.parts[0].text
-            )
-```
-
-#### 4.2.2 Agno
-
-Agno 的上下文收集基于 Agent 参数配置 [7]：
-
-| 组件                   | 描述                                   | 配置方式                      |
-| :--------------------- | :------------------------------------- | :---------------------------- |
-| **System Message**     | 主上下文（description + instructions） | Agent 构造参数                |
-| **User Message**       | 用户输入                               | `Agent.run(input)`            |
-| **Chat History**       | 对话历史                               | `add_history_to_context=True` |
-| **Additional Context** | Few-shot 示例等                        | `additional_context` 参数     |
-| **Memory**             | 长期记忆                               | `enable_user_memories=True`   |
-| **Knowledge**          | 外部知识库                             | `knowledge` 参数              |
-
-```python
-# Agno 上下文收集示例 [7][8]
-from agno.agent import Agent
-
-agent = Agent(
-    name="Helpful Assistant",
-    description="You are a helpful assistant",
-    instructions=["Help the user with their question"],
-
-    # Context 增强选项
-    add_datetime_to_context=True,
-    add_location_to_context=True,
-    add_name_to_context=True,
-    add_session_summary_to_context=True,  # 添加历史摘要
-    add_memories_to_context=True,          # 添加长期记忆
-    add_session_state_to_context=True,     # 添加会话状态
-
-    # 外部知识
-    knowledge=my_knowledge_base,
-)
-```
-
-#### 4.2.3 LangGraph
-
-LangGraph 通过 State 和 Config 收集上下文 [11][12]：
-
-```python
-# LangGraph 上下文收集示例 [12]
-from langgraph.graph import StateGraph, MessagesState
-
-def my_node(state: MessagesState, config, *, store):
-    # 从 state 获取消息历史
-    messages = state["messages"]
-
-    # 从 config 获取用户标识
-    user_id = config["configurable"]["user_id"]
-    thread_id = config["configurable"]["thread_id"]
-
-    # 从 store 检索长期记忆
-    namespace = (user_id, "memories")
-    memories = store.search(namespace, query=messages[-1].content)
-
-    return {"messages": [...]}
-```
-
-### 4.3 本项目实践：统一收集器
-
-```python
-# Agentic AI Engine - 统一上下文收集器
-from typing import List, Dict, Optional
-from dataclasses import dataclass
-
-@dataclass
-class CollectionConfig:
-    """收集配置"""
-    include_system_instruction: bool = True
-    include_chat_history: bool = True
-    max_history_turns: int = 10
-    include_memories: bool = True
-    max_memories: int = 5
-    include_knowledge: bool = True
-    max_knowledge_chunks: int = 3
-
-class ContextCollector:
-    """统一上下文收集器"""
-
-    def __init__(
-        self,
-        session_service,      # 会话服务
-        memory_service,       # 记忆服务
-        knowledge_service,    # 知识服务
-        config: CollectionConfig = None
-    ):
-        self.session_service = session_service
-        self.memory_service = memory_service
-        self.knowledge_service = knowledge_service
-        self.config = config or CollectionConfig()
-
-    async def collect(
-        self,
-        user_id: str,
-        session_id: str,
-        user_message: str,
-        agent_config: Dict
-    ) -> Context:
-        """收集完整上下文"""
-
-        # 1. 系统指令（来自 Agent 配置）
-        system_instruction = agent_config.get("system_instruction", "")
-
-        # 2. 对话历史（短期记忆）
-        chat_history = []
-        if self.config.include_chat_history:
-            session = await self.session_service.get_session(
-                user_id=user_id,
-                session_id=session_id
-            )
-            chat_history = session.events[-self.config.max_history_turns:]
-
-        # 3. 长期记忆
-        memories = []
-        if self.config.include_memories:
-            memories = await self.memory_service.search_memory(
-                user_id=user_id,
-                query=user_message,
-                limit=self.config.max_memories
-            )
-
-        # 4. 知识检索 (RAG)
-        knowledge = []
-        if self.config.include_knowledge:
-            knowledge = await self.knowledge_service.search(
-                query=user_message,
-                limit=self.config.max_knowledge_chunks
-            )
-
-        return Context(
-            system_instruction=system_instruction,
-            user_message=user_message,
-            chat_history=chat_history,
-            memories=memories,
-            knowledge=knowledge,
-            tools=agent_config.get("tools", []),
-            state=session.state if session else {},
-            scope=ContextScope.SESSION
-        )
-```
-
----
-
-## 5. Context Management（上下文管理）
-
-### 5.2 各框架的记忆实现
-
-#### 5.2.1 Google ADK 记忆体系
-
-```mermaid
-graph TD
-    subgraph ADK["Google ADK 记忆体系"]
-        IC[InvocationContext] --> S[Session]
-        IC --> ST[State]
-        IC --> M[Memory]
-
-        S --> SE["Events<br>时间序列消息"]
-        S --> SS["session.state<br>会话级临时数据"]
-
-        ST --> ST1["无前缀: Session Scope"]
-        ST --> ST2["user: User Scope"]
-        ST --> ST3["app: App Scope"]
-        ST --> ST4["temp: Invocation Scope"]
-
-        M --> MM[MemoryService]
-        MM --> MM1[InMemoryMemoryService]
-        MM --> MM2[VertexAiMemoryBankService]
-    end
-
-    style ADK fill:#1e3a5f,stroke:#60a5fa,color:#fff
-    style IC fill:#065f46,stroke:#34d399,color:#fff
-    style MM fill:#7c2d12,stroke:#fb923c,color:#fff
-```
-
-**State 前缀系统** [5]：
-
-| 前缀    | 作用域               | 持久性                 | 用例               |
-| :------ | :------------------- | :--------------------- | :----------------- |
-| 无前缀  | 当前 Session         | 取决于 SessionService  | 任务进度、临时标志 |
-| `user:` | 跨该用户所有 Session | Database/VertexAI 持久 | 用户偏好、配置     |
-| `app:`  | 跨该应用所有用户     | Database/VertexAI 持久 | 全局设置、模板     |
-| `temp:` | 当前 Invocation      | 不持久                 | 中间计算、临时数据 |
-
-```python
-# Google ADK State 使用示例 [5]
-async def my_tool(ctx: ToolContext):
-    # Session scope - 仅当前会话
-    ctx.state["task_progress"] = 50
-
-    # User scope - 跨会话持久化
-    ctx.state["user:preferred_language"] = "zh-CN"
-
-    # App scope - 全局配置
-    ctx.state["app:max_retries"] = 3
-
-    # Temp scope - 仅当前调用
-    ctx.state["temp:intermediate_result"] = {...}
-```
-
-#### 5.2.2 LangGraph 记忆体系
-
-LangGraph 区分两种持久化机制 [11][12]：
-
-| 类型                  | 机制         | 范围      | 用途                   |
-| :-------------------- | :----------- | :-------- | :--------------------- |
-| **Short-term Memory** | Checkpointer | Thread 内 | 对话历史、状态快照     |
-| **Long-term Memory**  | Store        | 跨 Thread | 用户偏好、学习到的知识 |
-
-```python
-# LangGraph 短期记忆 (Checkpointer) [12]
-from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.checkpoint.postgres import PostgresSaver
-
-# 本地测试
-checkpointer = InMemorySaver()
-
-# 生产环境
-checkpointer = PostgresSaver(conn)
-
-graph = builder.compile(checkpointer=checkpointer)
-
-# 使用 thread_id 标识对话
-config = {"configurable": {"thread_id": "conversation-123"}}
-graph.invoke(input_data, config)
-```
-
-```python
-# LangGraph 长期记忆 (Store) [12]
-from langgraph.store.memory import InMemoryStore
-from langgraph_checkpoint_postgres import PostgresStore
-
-store = InMemoryStore()
-
-# 编译时同时启用 checkpointer 和 store
-graph = builder.compile(checkpointer=checkpointer, store=store)
-
-# 在节点中使用 store
-def my_node(state, config, *, store):
-    user_id = config["configurable"]["user_id"]
-    namespace = (user_id, "memories")
-
-    # 存储记忆
-    store.put(namespace, "preference", {"food": "pizza"})
-
-    # 检索记忆 (支持语义搜索)
-    memories = store.search(namespace, query="what do I like?")
-```
-
-#### 5.2.3 Agno 记忆体系
-
-Agno 提供两种 Memory 模式 [8]：
-
-| 模式                 | 配置                         | 行为                            |
-| :------------------- | :--------------------------- | :------------------------------ |
-| **Automatic Memory** | `enable_user_memories=True`  | 自动从对话中提取和召回记忆      |
-| **Agentic Memory**   | `enable_agentic_memory=True` | Agent 自主决定何时创建/更新记忆 |
-
-```python
-# Agno Memory 示例 [8]
-from agno.agent import Agent
-from agno.db.postgres import PostgresDb
-
-db = PostgresDb(
-    db_url="postgresql://user:pass@localhost:5432/mydb",
-    memory_table="agent_memories"
-)
-
-agent = Agent(
-    db=db,
-    enable_user_memories=True,  # 自动记忆
-)
-
-# 记忆自动从对话中提取
-agent.print_response(
-    "My name is Sarah and I prefer email over phone calls.",
-    user_id="user-123"
-)
-
-# 记忆自动召回
-agent.print_response(
-    "What's the best way to reach me?",
-    user_id="user-123"
-)  # Agent 会记住偏好
-```
-
-### 5.3 上下文压缩策略
-
-#### 5.3.2 Google ADK 压缩配置
-
-```python
-# Google ADK Context Compaction [3]
-from google.adk.apps.app import EventsCompactionConfig
-
-app = App(
-    name='my-agent',
-    root_agent=root_agent,
-    events_compaction_config=EventsCompactionConfig(
-        compaction_interval=3,  # 每 3 次调用触发压缩
-        overlap_size=1,         # 保留前一窗口的 1 个事件
-    ),
-)
-```
-
-#### 5.3.3 LangGraph 消息管理
-
-```python
-# LangGraph 消息修剪 [12]
-from langchain_core.messages import trim_messages
-
-# 基于 token 限制修剪
-trimmer = trim_messages(
-    max_tokens=1000,
-    strategy="last",  # 保留最新消息
-    token_counter=len,
-)
-
-# 在节点中使用
-def agent_node(state):
-    messages = trimmer.invoke(state["messages"])
-    response = llm.invoke(messages)
-    return {"messages": [response]}
-```
-
-### 5.4 上下文隔离
-
-#### 5.4.1 LangGraph Subgraph
-
-```python
-# LangGraph Subgraph 上下文隔离 [12]
-from langgraph.graph import StateGraph
-
-# 子图有独立的状态和上下文
-def create_research_subgraph():
-    builder = StateGraph(ResearchState)
-    builder.add_node("search", search_node)
-    builder.add_node("analyze", analyze_node)
-    return builder.compile()
-
-# 主图
-main_builder = StateGraph(MainState)
-main_builder.add_node("research", create_research_subgraph())
-main_builder.add_node("respond", respond_node)
-```
-
-### 5.5 本项目实践：统一管理器
-
-```python
-# Agentic AI Engine - 统一上下文管理器
-from enum import Enum
-from typing import List, Dict
-
-class CompressionStrategy(Enum):
-    NONE = "none"
-    TRIM = "trim"
-    SUMMARIZE = "summarize"
-    SLIDING_WINDOW = "sliding_window"
-
-class ContextManager:
-    """统一上下文管理器"""
-
-    def __init__(
-        self,
-        oceanbase_client,
-        llm_client,
-        compression_strategy: CompressionStrategy = CompressionStrategy.SLIDING_WINDOW,
-        max_context_tokens: int = 8000,
-        window_size: int = 10,
-        overlap_size: int = 2
-    ):
-        self.db = oceanbase_client
-        self.llm = llm_client
-        self.strategy = compression_strategy
-        self.max_tokens = max_context_tokens
-        self.window_size = window_size
-        self.overlap_size = overlap_size
-
-    async def compress_history(
-        self,
-        session_id: str,
-        events: List[Dict]
-    ) -> List[Dict]:
-        """压缩对话历史"""
-
-        if self.strategy == CompressionStrategy.NONE:
-            return events
-
-        if self.strategy == CompressionStrategy.TRIM:
-            return events[-self.window_size:]
-
-        if self.strategy == CompressionStrategy.SUMMARIZE:
-            # 获取需要摘要的老事件
-            old_events = events[:-self.window_size]
-            recent_events = events[-self.window_size:]
-
-            if old_events:
-                summary = await self._generate_summary(old_events)
-                return [{"type": "summary", "content": summary}] + recent_events
-            return recent_events
-
-        if self.strategy == CompressionStrategy.SLIDING_WINDOW:
-            # ADK 风格的滑动窗口
-            if len(events) <= self.window_size:
-                return events
-
-            # 分批次管理
-            batches = []
-            for i in range(0, len(events) - self.window_size, self.window_size - self.overlap_size):
-                batch = events[i:i + self.window_size]
-                summary = await self._generate_summary(batch)
-                batches.append({"type": "summary", "content": summary})
-
-            # 最后一个窗口保留完整
-            batches.extend(events[-self.window_size:])
-            return batches
-
-    async def transfer_to_long_term(
-        self,
-        user_id: str,
-        session_id: str,
-        events: List[Dict]
-    ) -> List[str]:
-        """记忆迁移：短期 → 长期"""
-
-        # 使用 LLM 提取重要信息
-        insights = await self._extract_insights(events)
-
-        memory_ids = []
-        for insight in insights:
-            # 向量化并存储
-            embedding = await self._embed(insight["content"])
-
-            memory_id = await self.db.execute("""
-                INSERT INTO agent_memories
-                (user_id, content, embedding, importance_score, topics)
-                VALUES (?, ?, ?, ?, ?)
-                RETURNING memory_id
-            """, [
-                user_id,
-                insight["content"],
-                embedding,
-                insight["importance"],
-                insight["topics"]
-            ])
-            memory_ids.append(memory_id)
-
-        return memory_ids
-
-    async def _generate_summary(self, events: List[Dict]) -> str:
-        """生成摘要"""
-        prompt = f"Summarize the following conversation:\n{events}"
-        return await self.llm.generate(prompt)
-
-    async def _extract_insights(self, events: List[Dict]) -> List[Dict]:
-        """提取重要洞察"""
-        prompt = f"""Extract important user preferences, facts, and learnings from this conversation.
-        Return as JSON list with fields: content, importance (0-1), topics (list).
-        Conversation: {events}"""
-        return await self.llm.generate_json(prompt)
-```
-
----
-
-## 6. Context Usage（上下文使用）
-
-### 6.1 检索与选择策略
-
-### 6.2 混合检索实现
-
-```python
-# Agentic AI Engine - 混合检索
-class HybridRetriever:
-    """混合检索器：语义 + 时间 + 频率"""
-
-    def __init__(self, oceanbase_client):
-        self.db = oceanbase_client
-
-    async def retrieve(
-        self,
-        user_id: str,
-        query: str,
-        query_embedding: List[float],
-        weights: Dict[str, float] = None
-    ) -> List[Dict]:
-        """
-        混合检索，支持权重调整
-
-        Args:
-            weights: {"semantic": 0.5, "recency": 0.3, "frequency": 0.2}
-        """
-        weights = weights or {
-            "semantic": 0.5,
-            "recency": 0.3,
-            "frequency": 0.2
-        }
-
-        # OceanBase 混合检索 SQL
-        result = await self.db.execute("""
-            SELECT
-                memory_id,
-                content,
-                topics,
-                -- 综合评分
-                (
-                    ? * (1 - vec_l2_distance(embedding, ?)) +
-                    ? * (1 - DATEDIFF(NOW(), updated_at) / 30.0) +
-                    ? * (access_count / (SELECT MAX(access_count) FROM agent_memories WHERE user_id = ?))
-                ) AS relevance_score
-            FROM agent_memories
-            WHERE user_id = ?
-              AND vec_l2_distance(embedding, ?) < 0.8
-            ORDER BY relevance_score DESC
-            LIMIT 10
-        """, [
-            weights["semantic"], query_embedding,
-            weights["recency"],
-            weights["frequency"], user_id,
-            user_id,
-            query_embedding
-        ])
-
-        return result
-```
-
-### 6.3 动态上下文组装
-
-```python
-# Agentic AI Engine - 动态上下文组装器
-from typing import List, Dict, Optional
-import tiktoken
-
-class ContextAssembler:
-    """动态上下文组装器"""
-
-    def __init__(
-        self,
-        max_tokens: int = 8000,
-        reserved_output_tokens: int = 1000,
-        tokenizer: str = "cl100k_base"
-    ):
-        self.max_tokens = max_tokens
-        self.reserved = reserved_output_tokens
-        self.encoding = tiktoken.get_encoding(tokenizer)
-
-        # 各部分优先级（数字越小优先级越高）
-        self.priorities = {
-            "system_instruction": 1,
-            "tools": 2,
-            "user_message": 3,
-            "memories": 4,
-            "knowledge": 5,
-            "chat_history": 6
-        }
-
-    def count_tokens(self, text: str) -> int:
-        return len(self.encoding.encode(text))
-
-    def assemble(self, context: Context) -> str:
-        """组装最终上下文"""
-
-        available_tokens = self.max_tokens - self.reserved
-        components = []
-        used_tokens = 0
-
-        # 按优先级排序组装
-        parts = [
-            ("system_instruction", context.system_instruction),
-            ("tools", self._format_tools(context.tools)),
-            ("user_message", context.user_message),
-            ("memories", self._format_memories(context.memories)),
-            ("knowledge", self._format_knowledge(context.knowledge)),
-            ("chat_history", self._format_history(context.chat_history)),
-        ]
-
-        parts.sort(key=lambda x: self.priorities[x[0]])
-
-        for name, content in parts:
-            tokens_needed = self.count_tokens(content)
-
-            if used_tokens + tokens_needed <= available_tokens:
-                components.append((name, content))
-                used_tokens += tokens_needed
-            else:
-                # 尝试截断
-                remaining = available_tokens - used_tokens
-                truncated = self._truncate(content, remaining)
-                if truncated:
-                    components.append((name, truncated))
-                    used_tokens += self.count_tokens(truncated)
-                break
-
-        return self._format_prompt(components)
-
-    def _format_prompt(self, components: List[tuple]) -> str:
-        """格式化最终 Prompt"""
-        sections = {
-            "system_instruction": "## System Instructions\n{content}\n",
-            "tools": "## Available Tools\n{content}\n",
-            "memories": "## Relevant Memories\n{content}\n",
-            "knowledge": "## Retrieved Knowledge\n{content}\n",
-            "chat_history": "## Conversation History\n{content}\n",
-            "user_message": "## Current User Message\n{content}\n",
-        }
-
-        result = []
-        for name, content in components:
-            if content and name in sections:
-                result.append(sections[name].format(content=content))
-
-        return "\n".join(result)
-
-    def _truncate(self, text: str, max_tokens: int) -> str:
-        """智能截断"""
-        tokens = self.encoding.encode(text)
-        if len(tokens) <= max_tokens:
-            return text
-        return self.encoding.decode(tokens[:max_tokens]) + "..."
-```
-
-### 6.4 主动意图推断
-
-```python
-# Agentic AI Engine - 意图推断器
-class IntentInferrer:
-    """主动意图推断器"""
-
-    def __init__(self, llm_client, memory_service):
-        self.llm = llm_client
-        self.memory = memory_service
-
-    async def infer_hidden_intent(
-        self,
-        user_id: str,
-        current_query: str,
-        chat_history: List[Dict]
-    ) -> Dict:
-        """推断用户隐藏意图"""
-
-        # 检索用户偏好
-        preferences = await self.memory.search_memory(
-            user_id=user_id,
-            query="user preferences and habits"
-        )
-
-        prompt = f"""Analyze the user's query and conversation history to infer their hidden intent.
-
-User Query: {current_query}
-
-Recent Conversation:
-{chat_history}
-
-Known User Preferences:
-{preferences}
-
-Infer:
-1. Explicit Intent: What the user is directly asking for
-2. Hidden Intent: What the user might actually need but didn't explicitly say
-3. Potential Follow-ups: What the user might ask next
-4. Proactive Suggestions: What help we can offer proactively
-
-Return as JSON.
-"""
-        return await self.llm.generate_json(prompt)
-```
-
----
-
-## 7. 主流框架对比总结
-
----
-
 ## 8. 技术架构建议
 
 ### 8.1 OceanBase 统一存储架构
@@ -1017,3 +312,406 @@ class Context:
     # 作用域
     scope: ContextScope
 ```
+
+### 4.3 本项目实践：统一收集器
+
+```python
+# Agentic AI Engine - 统一上下文收集器
+from typing import List, Dict, Optional
+from dataclasses import dataclass
+
+@dataclass
+class CollectionConfig:
+    """收集配置"""
+    include_system_instruction: bool = True
+    include_chat_history: bool = True
+    max_history_turns: int = 10
+    include_memories: bool = True
+    max_memories: int = 5
+    include_knowledge: bool = True
+    max_knowledge_chunks: int = 3
+
+class ContextCollector:
+    """统一上下文收集器"""
+
+    def __init__(
+        self,
+        session_service,      # 会话服务
+        memory_service,       # 记忆服务
+        knowledge_service,    # 知识服务
+        config: CollectionConfig = None
+    ):
+        self.session_service = session_service
+        self.memory_service = memory_service
+        self.knowledge_service = knowledge_service
+        self.config = config or CollectionConfig()
+
+    async def collect(
+        self,
+        user_id: str,
+        session_id: str,
+        user_message: str,
+        agent_config: Dict
+    ) -> Context:
+        """收集完整上下文"""
+
+        # 1. 系统指令（来自 Agent 配置）
+        system_instruction = agent_config.get("system_instruction", "")
+
+        # 2. 对话历史（短期记忆）
+        chat_history = []
+        if self.config.include_chat_history:
+            session = await self.session_service.get_session(
+                user_id=user_id,
+                session_id=session_id
+            )
+            chat_history = session.events[-self.config.max_history_turns:]
+
+        # 3. 长期记忆
+        memories = []
+        if self.config.include_memories:
+            memories = await self.memory_service.search_memory(
+                user_id=user_id,
+                query=user_message,
+                limit=self.config.max_memories
+            )
+
+        # 4. 知识检索 (RAG)
+        knowledge = []
+        if self.config.include_knowledge:
+            knowledge = await self.knowledge_service.search(
+                query=user_message,
+                limit=self.config.max_knowledge_chunks
+            )
+
+        return Context(
+            system_instruction=system_instruction,
+            user_message=user_message,
+            chat_history=chat_history,
+            memories=memories,
+            knowledge=knowledge,
+            tools=agent_config.get("tools", []),
+            state=session.state if session else {},
+            scope=ContextScope.SESSION
+        )
+```
+
+---
+
+### 5.5 本项目实践：统一管理器
+
+```python
+# Agentic AI Engine - 统一上下文管理器
+from enum import Enum
+from typing import List, Dict
+
+class CompressionStrategy(Enum):
+    NONE = "none"
+    TRIM = "trim"
+    SUMMARIZE = "summarize"
+    SLIDING_WINDOW = "sliding_window"
+
+class ContextManager:
+    """统一上下文管理器"""
+
+    def __init__(
+        self,
+        oceanbase_client,
+        llm_client,
+        compression_strategy: CompressionStrategy = CompressionStrategy.SLIDING_WINDOW,
+        max_context_tokens: int = 8000,
+        window_size: int = 10,
+        overlap_size: int = 2
+    ):
+        self.db = oceanbase_client
+        self.llm = llm_client
+        self.strategy = compression_strategy
+        self.max_tokens = max_context_tokens
+        self.window_size = window_size
+        self.overlap_size = overlap_size
+
+    async def compress_history(
+        self,
+        session_id: str,
+        events: List[Dict]
+    ) -> List[Dict]:
+        """压缩对话历史"""
+
+        if self.strategy == CompressionStrategy.NONE:
+            return events
+
+        if self.strategy == CompressionStrategy.TRIM:
+            return events[-self.window_size:]
+
+        if self.strategy == CompressionStrategy.SUMMARIZE:
+            # 获取需要摘要的老事件
+            old_events = events[:-self.window_size]
+            recent_events = events[-self.window_size:]
+
+            if old_events:
+                summary = await self._generate_summary(old_events)
+                return [{"type": "summary", "content": summary}] + recent_events
+            return recent_events
+
+        if self.strategy == CompressionStrategy.SLIDING_WINDOW:
+            # ADK 风格的滑动窗口
+            if len(events) <= self.window_size:
+                return events
+
+            # 分批次管理
+            batches = []
+            for i in range(0, len(events) - self.window_size, self.window_size - self.overlap_size):
+                batch = events[i:i + self.window_size]
+                summary = await self._generate_summary(batch)
+                batches.append({"type": "summary", "content": summary})
+
+            # 最后一个窗口保留完整
+            batches.extend(events[-self.window_size:])
+            return batches
+
+    async def transfer_to_long_term(
+        self,
+        user_id: str,
+        session_id: str,
+        events: List[Dict]
+    ) -> List[str]:
+        """记忆迁移：短期 → 长期"""
+
+        # 使用 LLM 提取重要信息
+        insights = await self._extract_insights(events)
+
+        memory_ids = []
+        for insight in insights:
+            # 向量化并存储
+            embedding = await self._embed(insight["content"])
+
+            memory_id = await self.db.execute("""
+                INSERT INTO agent_memories
+                (user_id, content, embedding, importance_score, topics)
+                VALUES (?, ?, ?, ?, ?)
+                RETURNING memory_id
+            """, [
+                user_id,
+                insight["content"],
+                embedding,
+                insight["importance"],
+                insight["topics"]
+            ])
+            memory_ids.append(memory_id)
+
+        return memory_ids
+
+    async def _generate_summary(self, events: List[Dict]) -> str:
+        """生成摘要"""
+        prompt = f"Summarize the following conversation:\n{events}"
+        return await self.llm.generate(prompt)
+
+    async def _extract_insights(self, events: List[Dict]) -> List[Dict]:
+        """提取重要洞察"""
+        prompt = f"""Extract important user preferences, facts, and learnings from this conversation.
+        Return as JSON list with fields: content, importance (0-1), topics (list).
+        Conversation: {events}"""
+        return await self.llm.generate_json(prompt)
+```
+
+---
+
+### 6.2 Context Usage - 混合检索实现
+
+```python
+# Agentic AI Engine - 混合检索
+class HybridRetriever:
+    """混合检索器：语义 + 时间 + 频率"""
+
+    def __init__(self, oceanbase_client):
+        self.db = oceanbase_client
+
+    async def retrieve(
+        self,
+        user_id: str,
+        query: str,
+        query_embedding: List[float],
+        weights: Dict[str, float] = None
+    ) -> List[Dict]:
+        """
+        混合检索，支持权重调整
+
+        Args:
+            weights: {"semantic": 0.5, "recency": 0.3, "frequency": 0.2}
+        """
+        weights = weights or {
+            "semantic": 0.5,
+            "recency": 0.3,
+            "frequency": 0.2
+        }
+
+        # OceanBase 混合检索 SQL
+        result = await self.db.execute("""
+            SELECT
+                memory_id,
+                content,
+                topics,
+                -- 综合评分
+                (
+                    ? * (1 - vec_l2_distance(embedding, ?)) +
+                    ? * (1 - DATEDIFF(NOW(), updated_at) / 30.0) +
+                    ? * (access_count / (SELECT MAX(access_count) FROM agent_memories WHERE user_id = ?))
+                ) AS relevance_score
+            FROM agent_memories
+            WHERE user_id = ?
+              AND vec_l2_distance(embedding, ?) < 0.8
+            ORDER BY relevance_score DESC
+            LIMIT 10
+        """, [
+            weights["semantic"], query_embedding,
+            weights["recency"],
+            weights["frequency"], user_id,
+            user_id,
+            query_embedding
+        ])
+
+        return result
+```
+
+### 6.3 Context Usage - 动态上下文组装
+
+```python
+# Agentic AI Engine - 动态上下文组装器
+from typing import List, Dict, Optional
+import tiktoken
+
+class ContextAssembler:
+    """动态上下文组装器"""
+
+    def __init__(
+        self,
+        max_tokens: int = 8000,
+        reserved_output_tokens: int = 1000,
+        tokenizer: str = "cl100k_base"
+    ):
+        self.max_tokens = max_tokens
+        self.reserved = reserved_output_tokens
+        self.encoding = tiktoken.get_encoding(tokenizer)
+
+        # 各部分优先级（数字越小优先级越高）
+        self.priorities = {
+            "system_instruction": 1,
+            "tools": 2,
+            "user_message": 3,
+            "memories": 4,
+            "knowledge": 5,
+            "chat_history": 6
+        }
+
+    def count_tokens(self, text: str) -> int:
+        return len(self.encoding.encode(text))
+
+    def assemble(self, context: Context) -> str:
+        """组装最终上下文"""
+
+        available_tokens = self.max_tokens - self.reserved
+        components = []
+        used_tokens = 0
+
+        # 按优先级排序组装
+        parts = [
+            ("system_instruction", context.system_instruction),
+            ("tools", self._format_tools(context.tools)),
+            ("user_message", context.user_message),
+            ("memories", self._format_memories(context.memories)),
+            ("knowledge", self._format_knowledge(context.knowledge)),
+            ("chat_history", self._format_history(context.chat_history)),
+        ]
+
+        parts.sort(key=lambda x: self.priorities[x[0]])
+
+        for name, content in parts:
+            tokens_needed = self.count_tokens(content)
+
+            if used_tokens + tokens_needed <= available_tokens:
+                components.append((name, content))
+                used_tokens += tokens_needed
+            else:
+                # 尝试截断
+                remaining = available_tokens - used_tokens
+                truncated = self._truncate(content, remaining)
+                if truncated:
+                    components.append((name, truncated))
+                    used_tokens += self.count_tokens(truncated)
+                break
+
+        return self._format_prompt(components)
+
+    def _format_prompt(self, components: List[tuple]) -> str:
+        """格式化最终 Prompt"""
+        sections = {
+            "system_instruction": "## System Instructions\n{content}\n",
+            "tools": "## Available Tools\n{content}\n",
+            "memories": "## Relevant Memories\n{content}\n",
+            "knowledge": "## Retrieved Knowledge\n{content}\n",
+            "chat_history": "## Conversation History\n{content}\n",
+            "user_message": "## Current User Message\n{content}\n",
+        }
+
+        result = []
+        for name, content in components:
+            if content and name in sections:
+                result.append(sections[name].format(content=content))
+
+        return "\n".join(result)
+
+    def _truncate(self, text: str, max_tokens: int) -> str:
+        """智能截断"""
+        tokens = self.encoding.encode(text)
+        if len(tokens) <= max_tokens:
+            return text
+        return self.encoding.decode(tokens[:max_tokens]) + "..."
+```
+
+### 6.4 Context Usage - 主动意图推断
+
+```python
+# Agentic AI Engine - 意图推断器
+class IntentInferrer:
+    """主动意图推断器"""
+
+    def __init__(self, llm_client, memory_service):
+        self.llm = llm_client
+        self.memory = memory_service
+
+    async def infer_hidden_intent(
+        self,
+        user_id: str,
+        current_query: str,
+        chat_history: List[Dict]
+    ) -> Dict:
+        """推断用户隐藏意图"""
+
+        # 检索用户偏好
+        preferences = await self.memory.search_memory(
+            user_id=user_id,
+            query="user preferences and habits"
+        )
+
+        prompt = f"""Analyze the user's query and conversation history to infer their hidden intent.
+
+User Query: {current_query}
+
+Recent Conversation:
+{chat_history}
+
+Known User Preferences:
+{preferences}
+
+Infer:
+1. Explicit Intent: What the user is directly asking for
+2. Hidden Intent: What the user might actually need but didn't explicitly say
+3. Potential Follow-ups: What the user might ask next
+4. Proactive Suggestions: What help we can offer proactively
+
+Return as JSON.
+"""
+        return await self.llm.generate_json(prompt)
+```
+
+---
