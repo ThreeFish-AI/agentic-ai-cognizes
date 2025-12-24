@@ -4,9 +4,10 @@ sidebar_position: 5
 title: BettaFish（微舆）深度调研报告
 last_update:
   author: Aurelius Huang
-  date: 2025-12-21
+  created_at: 2025-12-21
+  updated_at: 2025-12-23
   version: 1.0
-  status: 待审阅
+  status: Pending Review
 tags:
   - BettaFish
   - 项目参考
