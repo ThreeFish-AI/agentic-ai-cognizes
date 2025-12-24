@@ -3,10 +3,11 @@ id: agent-frameworks
 sidebar_position: 2
 title: Agent 框架调研报告
 last_update:
-  author: Aurelius
-  date: 2025-12-22
+  author: Aurelius Huang
+  created_at: 2025-12-22
+  updated_at: 2025-12-24
   version: 1.0
-  status: 待审阅
+  status: Pending Review
 tags:
   - Agent 框架
   - 技术选型

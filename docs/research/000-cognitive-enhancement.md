@@ -3,10 +3,11 @@ id: cognitive-enhancement
 sidebar_position: 1
 title: 智能认知增强课题调研报告
 last_update:
-  author: Aurelius
-  date: 2025-12-22
+  author: Aurelius Huang
+  created_at: 2025-12-22
+  updated_at: 2025-12-24
   version: 1.0
-  status: 待审阅
+  status: Pending Review
 tags:
   - 智能认知增强
   - 学术调研

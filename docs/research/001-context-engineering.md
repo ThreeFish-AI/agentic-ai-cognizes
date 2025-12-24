@@ -1,14 +1,18 @@
-# Context Engineering 深度调研报告
-
-> **调研日期**: 2025-12-19  
-> **版本**: 1.0  
-> **报告作者**: Agentic Infra Team  
-> **审阅状态**: 待审阅
->
-> **内联文档**:
->
-> - [docs/000-roadmap.md](../docs/000-roadmap.md)
-> - [research/002-google-agent-builder.md](./002-google-agent-builder.md)
+---
+id: context-engineering
+sidebar_position: 1
+title: Context Engineering 深度调研报告
+last_update:
+  author: Aurelius Huang
+  created_at: 2025-12-19
+  updated_at: 2025-12-24
+  version: 1.2
+  status: Pending Review
+tags:
+  - Context Engineering
+  - 学术论文
+  - 主流框架
+---
 
 ## 1. 执行摘要
 

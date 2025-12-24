@@ -1,28 +1,11 @@
----
-id: context-engineering
-sidebar_position: 1
-title: Context Engineering 深度调研报告
-last_update:
-  author: Aurelius
-  date: 2025-12-22
-  version: 1.1
-  status: 待审阅
-tags:
-  - Context Engineering
-  - 学术论文
-  - 主流框架
----
+> [!IMPORTANT] > 执行摘要：Context Engineering（上下文工程）是构建可靠、可扩展 AI Agent 系统的核心学科。它从传统的"写 Prompt"演进为系统性地设计和优化 AI 系统运行时所需的整个动态信息生态系统——涵盖上下文的收集（Collection）、管理（Management）和使用（Usage）。
 
-## 1. 执行摘要
+> [!IMPORTANT] > 核心洞察：Context Engineering 不仅仅是 Prompt 设计，更是一个涵盖记忆系统（Memory）、会话管理（Session）、状态持久化（Persistence）、知识检索（RAG）的完整架构问题。对于 Agentic AI Engine 项目而言，OceanBase 的统一存储架构需要同时解决这些挑战。
 
-**Context Engineering（上下文工程）** 是构建可靠、可扩展 AI Agent 系统的核心学科。它从传统的"写 Prompt"演进为**系统性地设计和优化 AI 系统运行时所需的整个动态信息生态系统**——涵盖上下文的收集（Collection）、管理（Management）和使用（Usage）。
-
-本报告基于：
-
-- **学术论文**：《Context Engineering 2.0: The Context of Context Engineering》[1] 和 《Understanding and Using Context》[2]
-- **主流框架文档**：Google ADK [3-6]、Agno [7-10]、LangGraph [11-12]
-
-> [!IMPORTANT] > **核心洞察**：Context Engineering 不仅仅是 Prompt 设计，更是一个涵盖**记忆系统（Memory）、会话管理（Session）、状态持久化（Persistence）、知识检索（RAG）**的完整架构问题。对于 Agentic AI Engine 项目而言，OceanBase 的统一存储架构需要同时解决这些挑战。
+> [!IMPORTANT] > 本报告基于：
+>
+> - **学术论文**：《Context Engineering 2.0: The Context of Context Engineering》[1] 和 《Understanding and Using Context》[2]
+> - **主流框架文档**：Google ADK [3-6]、Agno [7-10]、LangGraph [11-12]
 
 ---
 
