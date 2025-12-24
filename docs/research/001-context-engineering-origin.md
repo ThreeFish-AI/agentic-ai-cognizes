@@ -1,48 +1,4 @@
-### 2.3 本项目实践：统一定义
-
-```python
-# Agentic AI Engine 项目的 Context 定义
-from dataclasses import dataclass
-from typing import Dict, List, Optional
-from enum import Enum
-
-class ContextScope(Enum):
-    """上下文作用域"""
-    INVOCATION = "invocation"  # 单次调用
-    SESSION = "session"        # 会话级别
-    USER = "user"              # 用户级别
-    APP = "app"                # 应用级别
-
-@dataclass
-class Context:
-    """统一上下文数据结构"""
-    # 系统指令
-    system_instruction: str
-    # 用户输入
-    user_message: str
-    # 对话历史（短期记忆）
-    chat_history: List[Dict]
-    # 长期记忆
-    memories: List[Dict]
-    # 检索到的知识（RAG）
-    knowledge: List[Dict]
-    # 工具定义
-    tools: List[Dict]
-    # 状态
-    state: Dict
-    # 作用域
-    scope: ContextScope
-```
-
----
-
 ## 4. Context Collection（上下文收集）
-
-### 4.1 核心概念
-
-上下文收集是指从各种来源获取 Agent 运行所需的信息。论文 [1] 指出：
-
-> "Context engineering aims to **collect** relevant context information through sensors or other channels."
 
 ### 4.2 各框架的收集策略
 
@@ -222,38 +178,6 @@ class ContextCollector:
 
 ## 5. Context Management（上下文管理）
 
-### 5.1 分层记忆架构
-
-论文 [1] 提出了关键的记忆分层模型，这与各框架的设计高度一致：
-
-#### 5.1.1 短期记忆 (Short-term Memory)
-
-**定义** [1]：
-
-$$M_s = f_{short}(c \in C : w_{temporal}(c) > \theta_s)$$
-
-- 高时间相关性
-- 快速检索，但可能快速变得不相关
-- 对应各框架的**对话历史 (Chat History)** 和 **会话状态 (Session State)**
-
-#### 5.1.2 长期记忆 (Long-term Memory)
-
-**定义** [1]：
-
-$$M_l = f_{long}(c \in C : w_{importance}(c) > \theta_l \land w_{temporal}(c) \leq \theta_s)$$
-
-- 高重要性
-- 经过抽象和压缩处理
-- 对应各框架的 **Memory Service**
-
-#### 5.1.3 记忆迁移 (Memory Transfer)
-
-**定义** [1]：
-
-$$f_{transfer}: M_s \rightarrow M_l$$
-
-巩固过程：高频访问或高重要性的短期记忆经处理后成为长期记忆。
-
 ### 5.2 各框架的记忆实现
 
 #### 5.2.1 Google ADK 记忆体系
@@ -395,16 +319,6 @@ agent.print_response(
 ```
 
 ### 5.3 上下文压缩策略
-
-#### 5.3.1 压缩方法对比
-
-| 策略                | 描述                 | 优缺点                       | 框架支持             |
-| :------------------ | :------------------- | :--------------------------- | :------------------- |
-| **Trimming**        | 保留最近 K 条消息    | ✅ 简单；❌ 丢失早期重要信息 | LangGraph, Agno      |
-| **Summarization**   | 将历史摘要为精简文本 | ✅ 保留语义；❌ 计算开销     | ADK, Agno, LangGraph |
-| **Sliding Window**  | 滑动窗口摘要老旧事件 | ✅ 平衡保留与压缩            | ADK                  |
-| **Semantic Filter** | 基于相关性过滤       | ✅ 保留重要信息；❌ 可能遗漏 | 自定义实现           |
-| **QA 对压缩**       | 将上下文转换为问答对 | ✅ 检索友好；❌ 破坏信息流   | 自定义实现           |
 
 #### 5.3.2 Google ADK 压缩配置
 
@@ -1165,3 +1079,39 @@ Context Engineering 是 AI Agent 系统从"玩具"迈向"生产"的关键技术�
 > 4. 集成至 Google ADK 框架
 
 ---
+
+### 2.3 本项目实践：统一定义
+
+```python
+# Agentic AI Engine 项目的 Context 定义
+from dataclasses import dataclass
+from typing import Dict, List, Optional
+from enum import Enum
+
+class ContextScope(Enum):
+    """上下文作用域"""
+    INVOCATION = "invocation"  # 单次调用
+    SESSION = "session"        # 会话级别
+    USER = "user"              # 用户级别
+    APP = "app"                # 应用级别
+
+@dataclass
+class Context:
+    """统一上下文数据结构"""
+    # 系统指令
+    system_instruction: str
+    # 用户输入
+    user_message: str
+    # 对话历史（短期记忆）
+    chat_history: List[Dict]
+    # 长期记忆
+    memories: List[Dict]
+    # 检索到的知识（RAG）
+    knowledge: List[Dict]
+    # 工具定义
+    tools: List[Dict]
+    # 状态
+    state: Dict
+    # 作用域
+    scope: ContextScope
+```

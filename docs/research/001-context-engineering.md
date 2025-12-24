@@ -171,9 +171,17 @@ graph TD
     style CU fill:#581c87,stroke:#c084fc,color:#fff
 ```
 
-### 3.1 Context Collection（上下文收集）
+### 2.1 Context Collection（上下文收集）
 
-收集阶段关注如何获取 Agent 运行所需的信息：
+论文 [[1]](#ref1) 指出：
+
+> [!TIP] "Context engineering aims to **collect** relevant context information through sensors or other channels."
+>
+> ---
+>
+> 上下文工程旨在通过传感器或其它渠道**收集**相关的上下文信息。
+
+上下文收集是指从各种来源获取 Agent 运行所需的信息，比如：
 
 | 来源               | 描述                           | 框架实现示例                                                |
 | :----------------- | :----------------------------- | :---------------------------------------------------------- |
@@ -185,47 +193,52 @@ graph TD
 | **工具定义**       | 可用工具的描述和格式           | ADK `FunctionTool`, Agno `tools`                            |
 | **输出格式**       | 响应结构规范（如 JSON Schema） | ADK `expected_output`, Agno `response_model`                |
 
-### 3.2 Context Management（上下文管理）
+### 2.2 Context Management（上下文管理）
 
-管理阶段关注如何组织、压缩和存储上下文：
+#### 2.2.1 Layered Memory Architecture（分层记忆架构）
 
-#### 3.2.1 分层记忆架构（Layered Memory Architecture）
+上下文管理关注的是如何组织、压缩和存储上下文。论文 [[1]](#ref1) 提出了关键的**分层记忆架构（Layered Memory Architecture）**，Google ADK<sup>[[5]](#ref5)</sup> 等框架的设计与此架构高度一致：
 
-论文<sup>[[1]](#ref1)</sup>提出了关键的记忆分层模型，这与 Google ADK<sup>[[5]](#ref5)</sup> 的设计高度一致：
+> [!NOTE] 定义 1：短期记忆 (Short-term Memory)
+>
+> $$M_s = f_{short}(c \in C : w_{temporal}(c) > \theta_s)$$
+>
+> - 高时间相关性
+> - 快速检索，但可能快速变得不相关
+>
+> **解读**：对应各框架的**对话历史 (Chat History)** 和 **会话状态 (Session State)**
 
-**定义 5.1: 短期记忆 (Short-term Memory)**
+> [!NOTE] 定义 2：长期记忆 (Long-term Memory)
+>
+> $$M_l = f_{long}(c \in C : w_{importance}(c) > \theta_l \land w_{temporal}(c) \leq \theta_s)$$
+>
+> - 高重要性
+> - 经过抽象和压缩处理
+>
+> **解读**：对应各框架 **Memory Service** 中的 **持久化存储 (Persistent Storage)**
 
-$$M_s = f_{short}(c \in C : w_{temporal}(c) > \theta_s)$$
+> [!NOTE] 定义 3：记忆迁移 (Memory Transfer)
+>
+> $$f_{transfer}: M_s \rightarrow M_l$$
+>
+> - 巩固过程：高频访问或高重要性的短期记忆经处理后成为长期记忆
+> - 受重复频率、情感意义、与现有知识结构的相关性等因素影响
+>
+> **解读**：对应 Google Memory Bank 中 **"Session → Insight" 的异步记忆提炼（巩固）过程**。
 
-- 高时间相关性
-- 快速检索，但可能快速变得不相关
+#### 2.2.2 Context Compression Strategies（上下文压缩策略）
 
-**定义 5.2: 长期记忆 (Long-term Memory)**
+| 策略                              | 描述                               | 优缺点                             | 框架支持             |
+| :-------------------------------- | :--------------------------------- | :--------------------------------- | :------------------- |
+| **Trimming**                      | 保留最近 K 条消息                  | ✅ 简单；❌ 丢失早期重要信息       | LangGraph, Agno      |
+| **Summarization（人类可读摘要）** | 将历史摘要为精简自然语言           | ✅ 保留语义；❌ 丢失细节；计算开销 | ADK, Agno, LangGraph |
+| **Tagging (标签化)**              | 从多维度标记信息（优先级、来源等） | ✅ 高效检索；❌ 可能过于刚性       |
+| **Sliding Window**                | 滑动窗口摘要老旧事件               | ✅ 平衡保留与压缩                  | ADK                  |
+| **Semantic Filter**               | 基于相关性过滤                     | ✅ 保留重要信息；❌ 可能遗漏       | 自定义实现           |
+| **层次化笔记**                    | 树状结构组织信息                   | ✅ 清晰展示；❌ 不捕捉逻辑关联     |
+| **QA 对压缩**                     | 将上下文转换为问答对               | ✅ 检索友好；❌ 破坏信息流         | 自定义实现           |
 
-$$M_l = f_{long}(c \in C : w_{importance}(c) > \theta_l \land w_{temporal}(c) \leq \theta_s)$$
-
-- 高重要性
-- 经过抽象和压缩处理
-
-**定义 5.3: 记忆迁移 (Memory Transfer)**
-
-$$f_{transfer}: M_s \rightarrow M_l$$
-
-- 巩固过程：高频访问或高重要性的短期记忆经处理后成为长期记忆
-- 受重复频率、情感意义、与现有知识结构的相关性等因素影响
-
-> [!TIP] > **Roadmap 映射**：论文的 Memory Transfer 概念正是 Google Memory Bank 的 **"Session → Insight" 异步提炼流程**，也是我们 Phase 2 任务 2.1 "异步记忆巩固" 的理论基础。
-
-#### 3.2.2 上下文压缩策略
-
-| 策略                 | 描述                               | 优缺点                         |
-| :------------------- | :--------------------------------- | :----------------------------- |
-| **人类可读摘要**     | 将上下文压缩为自然语言摘要         | ✅ 保留语义；❌ 可能丢失细节   |
-| **标签化 (Tagging)** | 从多维度标记信息（优先级、来源等） | ✅ 高效检索；❌ 可能过于刚性   |
-| **QA 对压缩**        | 将上下文转换为问答对               | ✅ 检索友好；❌ 破坏信息流     |
-| **层次化笔记**       | 树状结构组织信息                   | ✅ 清晰展示；❌ 不捕捉逻辑关联 |
-
-#### 3.2.3 上下文隔离（Context Isolation）
+#### 2.2.3 上下文隔离（Context Isolation）
 
 通过 **Sub-Agent 架构** 解决上下文窗口限制：
 
@@ -235,11 +248,11 @@ $$f_{transfer}: M_s \rightarrow M_l$$
 
 > [!IMPORTANT] > **架构启示**：这解释了为什么 Google ADK 支持 Multi-Agent 和 Agent-to-Agent Protocol，以及为什么 LangGraph 的 Subgraph 设计如此重要。
 
-### 3.3 Context Usage（上下文使用）
+### 2.3 Context Usage（上下文使用）
 
 使用阶段关注如何在推理时选择和应用上下文：
 
-#### 3.3.1 记忆检索与选择
+#### 2.3.1 Retrieval and Selection（记忆检索与选择）
 
 | 检索依据                 | 描述                                 |
 | :----------------------- | :----------------------------------- |
@@ -250,7 +263,7 @@ $$f_{transfer}: M_s \rightarrow M_l$$
 | **信息去重**             | 过滤传达相同含义的重复信息           |
 | **用户偏好**             | 根据用户反馈和习惯调整               |
 
-#### 3.3.2 主动用户需求推断
+#### 2.3.2 主动用户需求推断
 
 论文强调 Context Engineering 应使 Agent 能够**主动推断**用户未明确表达的需求：
 
