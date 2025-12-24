@@ -193,7 +193,7 @@ flowchart LR
 
 #### 2.2.3 社区检测与分层摘要
 
-GraphRAG 的创新在于 **Leiden 社区检测算法** [2]：
+GraphRAG 的创新在于 **Leiden 社区检测算法**<sup>[[2]](#ref2)</sup>：
 
 1. 将图谱划分为紧密连接的社区
 2. 为每个社区生成 LLM 摘要
@@ -726,7 +726,7 @@ graphrag query --root ./my_project --method local "What is ReAct?"
 
 #### 3.3.1 核心组件
 
-LlamaIndex 提供灵活的知识图谱构建与查询能力 [14][22]：
+LlamaIndex 提供灵活的知识图谱构建与查询能力<sup>[[14]](#ref14)</sup><sup>[[22]](#ref22)</sup>：
 
 - **PropertyGraphIndex**：属性图索引，支持节点/边属性
 - **KnowledgeGraphRAGRetriever**：图谱检索器
@@ -778,7 +778,7 @@ response = kg_query_engine.query(
 
 #### 3.4.1 核心定位
 
-LangGraph 是 LangChain 生态的 **Agent 工作流编排框架** [15][23]：
+LangGraph 是 LangChain 生态的 **Agent 工作流编排框架**<sup>[[15]](#ref15)</sup><sup>[[23]](#ref23)</sup>：
 
 - **状态管理**：跨步骤保持状态
 - **条件分支**：动态决策路由
@@ -835,7 +835,7 @@ app = workflow.compile()
 
 #### 3.5.1 核心创新
 
-MemGPT（现更名为 Letta AI）采用 **操作系统式内存管理** [4][16]：
+MemGPT（现更名为 Letta AI）采用 **操作系统式内存管理**<sup>[[4]](#ref4)</sup><sup>[[16]](#ref16)</sup>：
 
 ```mermaid
 flowchart TB
@@ -952,7 +952,7 @@ from llama_index.graph_stores.neo4j import Neo4jGraphStore
 
 #### 4.2.1 核心优势
 
-FalkorDB 是为 AI/ML 工作负载优化的高性能图数据库 [18][25]。
+FalkorDB 是为 AI/ML 工作负载优化的高性能图数据库<sup>[[18]](#ref18)</sup><sup>[[25]](#ref25)</sup>。
 
 | 特性           | 说明                            |
 | -------------- | ------------------------------- |
@@ -1044,7 +1044,7 @@ Memgraph 是内存图数据库，专注实时处理。
 
 #### 5.1.1 核心优势
 
-OceanBase 是多模一体化分布式数据库，支持向量检索 [17]。
+OceanBase 是多模一体化分布式数据库，支持向量检索<sup>[[17]](#ref17)</sup>。
 
 | 特性             | 说明                         |
 | ---------------- | ---------------------------- |

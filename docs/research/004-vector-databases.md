@@ -182,7 +182,7 @@ SET hnsw.ef_search = 100;  -- 默认 40
 
 #### 2.5.2 IVFFlat 索引
 
-IVFFlat（Inverted File Flat）通过聚类划分向量空间 [4]：
+IVFFlat（Inverted File Flat）通过聚类划分向量空间<sup>[[4]](#ref4)</sup>：
 
 ```sql
 -- 创建 IVFFlat 索引（需要先有数据）
@@ -207,7 +207,7 @@ SET ivfflat.probes = 10;  -- 建议 sqrt(lists)
 
 #### 2.6.1 过滤策略
 
-带 `WHERE` 条件的向量搜索有多种索引策略 [22]：
+带 `WHERE` 条件的向量搜索有多种索引策略<sup>[[22]](#ref22)</sup>：
 
 ```sql
 -- 基础过滤查询
@@ -225,7 +225,7 @@ SELECT * FROM items WHERE category_id = 123 ORDER BY embedding <-> '[3,1,2]' LIM
 
 #### 2.6.2 迭代索引扫描 (v0.8.0+)
 
-近似索引的过滤会在索引扫描**后**应用，可能导致返回结果不足。迭代索引扫描可自动扫描更多索引直到获得足够结果 [22]：
+近似索引的过滤会在索引扫描**后**应用，可能导致返回结果不足。迭代索引扫描可自动扫描更多索引直到获得足够结果<sup>[[22]](#ref22)</sup>：
 
 ```sql
 -- 严格顺序：结果按距离精确排序
@@ -278,9 +278,9 @@ LIMIT 10;
 
 ### 3.1 产品概述
 
-VectorChord（原 pgvecto.rs）是由 TensorChord 开发的高性能 PostgreSQL 向量搜索扩展 [5]。它采用 Rust 语言编写，提供比 PGVector 更优的性能表现。
+VectorChord（原 pgvecto.rs）是由 TensorChord 开发的高性能 PostgreSQL 向量搜索扩展<sup>[[5]](#ref5)</sup>。它采用 Rust 语言编写，提供比 PGVector 更优的性能表现。
 
-> ⚠️ **注意**：TensorChord 推荐新用户使用 VectorChord（新一代实现），而非旧版 pgvecto.rs [6]。
+> ⚠️ **注意**：TensorChord 推荐新用户使用 VectorChord（新一代实现），而非旧版 pgvecto.rs<sup>[[6]](#ref6)</sup>。
 
 **核心定位**：为 PostgreSQL 用户提供企业级高性能向量搜索能力。
 
@@ -310,7 +310,7 @@ graph TB
 
 ### 3.3 RaBitQ 量化算法
 
-VectorChord 采用 RaBitQ（Randomized Bit Quantization）算法实现高效向量压缩 [7]：
+VectorChord 采用 RaBitQ（Randomized Bit Quantization）算法实现高效向量压缩<sup>[[7]](#ref7)</sup>：
 
 ```sql
 -- 创建 VectorChord 索引（vchordrq）
@@ -344,7 +344,7 @@ SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 10;
 
 ### 3.5 与 PGVector 兼容性
 
-VectorChord 完全兼容 pgvector 的数据类型和语法 [8]：
+VectorChord 完全兼容 pgvector 的数据类型和语法<sup>[[8]](#ref8)</sup>：
 
 ```sql
 -- 依赖 pgvector
@@ -362,7 +362,7 @@ CREATE TABLE items (
 
 ### 3.6 vchordg 图索引 (v0.5.0+)
 
-VectorChord 还提供基于磁盘的图索引 `vchordg`，内存消耗更低 [23]：
+VectorChord 还提供基于磁盘的图索引 `vchordg`，内存消耗更低<sup>[[23]](#ref23)</sup>：
 
 ```sql
 -- 创建 vchordg 图索引
@@ -389,7 +389,7 @@ $$);
 
 ### 3.7 预过滤 Prefilter (v0.4.0+)
 
-VectorChord 的 `vchordrq.prefilter` 参数允许向量索引利用过滤条件进行剪枝 [24]：
+VectorChord 的 `vchordrq.prefilter` 参数允许向量索引利用过滤条件进行剪枝<sup>[[24]](#ref24)</sup>：
 
 ```sql
 -- 启用预过滤
@@ -432,7 +432,7 @@ graph TB
 
 ### 4.2 核心架构
 
-Milvus 采用存储计算分离的云原生分布式架构 [10]：
+Milvus 采用存储计算分离的云原生分布式架构<sup>[[10]](#ref10)</sup>：
 
 ```mermaid
 graph TB
@@ -482,7 +482,7 @@ graph TB
 
 ### 4.3 索引算法体系
 
-Milvus 支持丰富的向量索引类型 [11]：
+Milvus 支持丰富的向量索引类型<sup>[[11]](#ref11)</sup>：
 
 ```mermaid
 graph LR
@@ -573,7 +573,7 @@ results = client.search(
 
 ### 4.6 性能基准
 
-基于 Milvus 2.2 官方基准测试 [12]：
+基于 Milvus 2.2 官方基准测试<sup>[[12]](#ref12)</sup>：
 
 | 指标        | 数据规模      | 性能表现      |
 | ----------- | ------------- | ------------- |
@@ -629,7 +629,7 @@ graph TB
 
 ### 5.3 向量索引类型
 
-Weaviate 支持三种向量索引类型 [14]：
+Weaviate 支持三种向量索引类型<sup>[[14]](#ref14)</sup>：
 
 ```mermaid
 graph LR
@@ -655,7 +655,7 @@ graph LR
 
 ### 5.4 向量化模块
 
-Weaviate 支持多种向量化模块 [15]：
+Weaviate 支持多种向量化模块<sup>[[15]](#ref15)</sup>：
 
 | 模块类型                 | 模型提供商  | 支持模态    |
 | ------------------------ | ----------- | ----------- |
@@ -731,7 +731,7 @@ results = collection.query.hybrid(
 | **Kubernetes**     | 自托管生产 | 高可用，零停机更新     |
 | **Embedded**       | 快速评估   | Python/JS 直接启动     |
 
-### 5.8 向量量化技术 [25]
+### 5.8 向量量化技术<sup>[[25]](#ref25)</sup>
 
 Weaviate 支持四种向量压缩方法：
 
@@ -755,7 +755,7 @@ collection = client.collections.create(
 
 > **提示**：Weaviate 使用**过度获取 + 重排序**策略来弥补量化导致的精度损失。
 
-### 5.9 集群架构 [26]
+### 5.9 集群架构<sup>[[26]](#ref26)</sup>
 
 Weaviate 采用 **Raft + Leaderless** 混合架构：
 
@@ -822,7 +822,7 @@ graph TB
 
 ### 6.3 索引类型
 
-Pinecone 支持两种索引类型 [17]：
+Pinecone 支持两种索引类型<sup>[[17]](#ref17)</sup>：
 
 | 索引类型         | 描述         | 适用场景          |
 | ---------------- | ------------ | ----------------- |
@@ -857,7 +857,7 @@ pc.create_index(
 
 ### 6.4 命名空间与多租户
 
-Pinecone 使用命名空间实现数据隔离 [18]：
+Pinecone 使用命名空间实现数据隔离<sup>[[18]](#ref18)</sup>：
 
 ```mermaid
 graph TB
@@ -936,7 +936,7 @@ results = index.query(
 - ❌ 数据需传输到云端
 - ❌ 功能相对简单
 
-### 6.8 混合搜索 [27]
+### 6.8 混合搜索<sup>[[27]](#ref27)</sup>
 
 Pinecone 支持两种混合搜索实现方式：
 
@@ -962,7 +962,7 @@ pc.create_index_for_model(
 # 2. 分别查询后使用 RRF 融合结果
 ```
 
-### 6.9 重排序 [28]
+### 6.9 重排序<sup>[[28]](#ref28)</sup>
 
 Pinecone 支持集成重排序和独立重排序：
 

@@ -213,7 +213,7 @@ graph LR
 
 #### 2.2.3 Custom Agent
 
-通过继承 `BaseAgent` 类，可以实现自定义的 Agent 逻辑，满足特殊需求 [4]。
+通过继承 `BaseAgent` 类，可以实现自定义的 Agent 逻辑，满足特殊需求<sup>[[4]](#ref4)</sup>。
 
 ```python
 from google.adk.agents import BaseAgent
@@ -235,7 +235,7 @@ class ValidationAgent(BaseAgent):
 
 ### 2.3 Tools 生态系统
 
-ADK 提供丰富的工具生态系统，支持多种工具类型 [7]：
+ADK 提供丰富的工具生态系统，支持多种工具类型<sup>[[7]](#ref7)</sup>：
 
 ```mermaid
 graph TB
@@ -328,7 +328,7 @@ agent = LlmAgent(
 
 ### 2.4 Session、State 与 Memory
 
-ADK 提供完整的上下文管理体系，包含三个层次 [8]：
+ADK 提供完整的上下文管理体系，包含三个层次<sup>[[8]](#ref8)</sup>：
 
 #### 2.4.1 概念层次
 
@@ -369,7 +369,7 @@ graph TB
 
 #### 2.4.2 Memory Service 实现
 
-ADK 支持多种 Memory Service 实现 [9]：
+ADK 支持多种 Memory Service 实现<sup>[[9]](#ref9)</sup>：
 
 | 服务类型                    | 适用场景  | 特点                 |
 | --------------------------- | --------- | -------------------- |
@@ -398,7 +398,7 @@ agent = LlmAgent(
 
 ### 2.5 Context 管理
 
-ADK 提供四种 Context 类型，用于不同场景 [10]：
+ADK 提供四种 Context 类型，用于不同场景<sup>[[10]](#ref10)</sup>：
 
 | Context 类型        | 使用场景       | 主要能力                |
 | ------------------- | -------------- | ----------------------- |
@@ -431,7 +431,7 @@ def process_document(file_path: str, ctx: ToolContext) -> str:
 
 ### 2.6 Multi-Agent 系统
 
-ADK 原生支持构建复杂的多 Agent 系统 [11]：
+ADK 原生支持构建复杂的多 Agent 系统<sup>[[11]](#ref11)</sup>：
 
 #### 2.6.1 Agent 层级结构
 
@@ -497,7 +497,7 @@ report_pipeline = SequentialAgent(
 
 #### 2.7.1 Model Context Protocol (MCP)
 
-MCP 是一个开放标准，用于标准化 LLM 与外部应用、数据源和工具之间的通信 [12]。
+MCP 是一个开放标准，用于标准化 LLM 与外部应用、数据源和工具之间的通信<sup>[[12]](#ref12)</sup>。
 
 **ADK 支持两种 MCP 模式**：
 
@@ -517,11 +517,11 @@ graph LR
 
 **MCP Toolbox for Databases**：
 
-支持的数据源包括 Cloud SQL、AlloyDB、Spanner、Bigtable、Firestore 等 [12]。
+支持的数据源包括 Cloud SQL、AlloyDB、Spanner、Bigtable、Firestore 等<sup>[[12]](#ref12)</sup>。
 
 #### 2.7.2 Agent2Agent (A2A) Protocol
 
-A2A 是 Agent 间安全通信的协议标准 [13]：
+A2A 是 Agent 间安全通信的协议标准<sup>[[13]](#ref13)</sup>：
 
 ```python
 # 暴露 Agent 为 A2A 服务
@@ -539,7 +539,7 @@ result = await remote_agent.invoke("帮我分析这份数据")
 
 ### 2.8 部署选项
 
-ADK 提供灵活的部署选项 [14]：
+ADK 提供灵活的部署选项<sup>[[14]](#ref14)</sup>：
 
 | 部署方式                     | 特点               | 适用场景         |
 | ---------------------------- | ------------------ | ---------------- |
@@ -568,7 +568,7 @@ graph TB
 
 #### 2.9.1 评估框架
 
-ADK 内置评估能力，支持 [15]：
+ADK 内置评估能力，支持<sup>[[15]](#ref15)</sup>：
 
 - **轨迹评估**：评估 Agent 的决策路径
 - **工具使用评估**：验证工具调用的正确性
@@ -582,7 +582,7 @@ ADK 内置评估能力，支持 [15]：
 
 #### 2.9.2 安全最佳实践
 
-ADK 安全框架涵盖 [16]：
+ADK 安全框架涵盖<sup>[[16]](#ref16)</sup>：
 
 | 安全层面       | 实践建议            |
 | -------------- | ------------------- |
@@ -635,7 +635,7 @@ graph TB
 
 #### 3.2.1 query() 函数
 
-`query()` 是 SDK 的核心入口，返回异步迭代器 [17]：
+`query()` 是 SDK 的核心入口，返回异步迭代器<sup>[[17]](#ref17)</sup>：
 
 ```python
 import asyncio
@@ -686,7 +686,7 @@ main();
 
 ### 3.3 内置工具
 
-Claude Agent SDK 提供以下内置工具 [17]：
+Claude Agent SDK 提供以下内置工具<sup>[[17]](#ref17)</sup>：
 
 | 工具     | 功能            | 权限需求 |
 | -------- | --------------- | -------- |
@@ -717,7 +717,7 @@ dev_options = ClaudeAgentOptions(
 
 ### 3.4 权限控制
 
-SDK 提供三种权限模式 [17]：
+SDK 提供三种权限模式<sup>[[17]](#ref17)</sup>：
 
 | 模式                | 行为             | 适用场景   |
 | ------------------- | ---------------- | ---------- |
@@ -747,7 +747,7 @@ options = ClaudeAgentOptions(
 
 #### 3.5.1 项目级配置
 
-通过 `.claude/` 目录结构实现项目级配置 [2]：
+通过 `.claude/` 目录结构实现项目级配置<sup>[[2]](#ref2)</sup>：
 
 ```
 my-project/
@@ -858,7 +858,7 @@ pdf-skill/
 
 ### 4.3 预构建 Skills
 
-Anthropic 提供以下预构建 Skills [3]：
+Anthropic 提供以下预构建 Skills<sup>[[3]](#ref3)</sup>：
 
 | Skill          | 能力                     | 文件格式 |
 | -------------- | ------------------------ | -------- |
@@ -885,7 +885,7 @@ response = client.messages.create(
 
 #### 4.4.1 Skill 结构
 
-每个 Skill 必须包含 `SKILL.md` 文件 [3]：
+每个 Skill 必须包含 `SKILL.md` 文件<sup>[[3]](#ref3)</sup>：
 
 ````md
 ---
@@ -937,7 +937,7 @@ description: 执行代码审查，检查代码质量、安全问题和最佳实�
 
 ### 4.5 安全考虑
 
-Skills 安全最佳实践 [3]：
+Skills 安全最佳实践<sup>[[3]](#ref3)</sup>：
 
 > [!CAUTION] > **仅使用可信来源的 Skills**
 > Skills 可以指导 Claude 执行代码和调用工具。恶意 Skill 可能导致数据泄露或系统损害。
