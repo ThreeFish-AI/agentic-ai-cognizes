@@ -1,6 +1,6 @@
 ---
 id: vector-databases
-sidebar_position: 4
+sidebar_position: 3.2
 title: 向量数据库深度调研报告
 last_update:
   author: Aurelius Huang
@@ -18,7 +18,7 @@ tags:
   - Pinecone
 ---
 
-> **调研范围**：架构设计、产品实现、索引算法、性能指标、集成方式、场景推荐
+> [!IMPORTANT] **调研范围**：架构设计、产品实现、索引算法、性能指标、集成方式、场景推荐
 
 ---
 

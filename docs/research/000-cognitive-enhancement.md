@@ -1,10 +1,19 @@
-# 智能认知增强课题调研报告
+---
+id: cognitive-enhancement
+sidebar_position: 1
+title: 智能认知增强课题调研报告
+last_update:
+  author: Aurelius
+  date: 2025-12-22
+  version: 1.0
+  status: 待审阅
+tags:
+  - 智能认知增强
+  - 学术调研
+  - 技术选型
+---
 
-> **项目背景**：为 Agentic AI 学术研究与工程应用智能平台提供认知增强技术调研支撑
->
-> **调研日期**：2025 年 12 月
->
-> **文档版本**：v1.0
+> [!IMPORTANT] **项目背景**：为 Agentic AI 学术研究与工程应用智能平台提供认知增强技术调研支撑
 
 ---
 

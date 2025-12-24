@@ -1,9 +1,18 @@
-# OceanBase 三位一体数据库深度调研报告
+---
+id: oceanbase
+sidebar_position: 3.3
+title: OceanBase 三位一体数据库深度调研报告
+last_update:
+  author: Aurelius Huang
+  version: 1.0
+  created_at: 2025-12-23
+  updated_at: 2025-12-23
+  status: Pending Review
+tags:
+  - OceanBase V4.5.0
+---
 
-> **报告版本**：v1.0
-> **调研日期**：2025-12
-> **调研对象**：OceanBase Database V4.5.0
-> **调研范围**：TP（事务处理）、AP（分析处理）、Vector DB（向量数据库）三位一体能力
+> [!IMPORTANT] **调研范围**：TP（事务处理）、AP（分析处理）、Vector DB（向量数据库）三位一体能力
 
 ---
 

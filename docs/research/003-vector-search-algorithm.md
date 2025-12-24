@@ -1,6 +1,6 @@
 ---
 id: vector-search-algorithm
-sidebar_position: 4.1
+sidebar_position: 3.1
 title: 向量数据库原理与算法深度解析
 last_update:
   author: Aurelius Huang

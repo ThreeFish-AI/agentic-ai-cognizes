@@ -1,7 +1,18 @@
-# Google ADK 与 Claude Agent SDK 深度调研报告
+---
+id: agent-frameworks
+sidebar_position: 2
+title: Agent 框架调研报告
+last_update:
+  author: Aurelius
+  date: 2025-12-22
+  version: 1.0
+  status: 待审阅
+tags:
+  - Agent 框架
+  - 技术选型
+---
 
-> **调研日期**：2025 年 12 月  
-> **调研范围**：Google Agent Development Kit (ADK) 与 Anthropic Claude Agent SDK（含 Agent Skills）  
+> [!IMPORTANT] **调研范围**：Google Agent Development Kit (ADK) 与 Anthropic Claude Agent SDK（含 Agent Skills）
 > **目标读者**：AI Agent 开发者、架构师、技术决策者
 
 ---

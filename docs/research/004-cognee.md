@@ -1,10 +1,18 @@
-# Cognee 深度调研报告
+---
+id: cognee
+sidebar_position: 4
+title: Cognee 深度调研报告
+last_update:
+  author: Aurelius
+  date: 2025-12-22
+  version: 1.0
+  status: 待审阅
+tags:
+  - Cognee
+  - 技术选型
+---
 
-> **调研目的**：为本项目 AI 记忆层构建提供 Cognee 框架的深度技术调研和集成方案
->
-> **调研日期**：2025 年 12 月
->
-> **文档版本**：v1.0
+> [!IMPORTANT] **调研目的**：为本项目 AI 记忆层构建提供 Cognee 框架的深度技术调研和集成方案
 
 ---
 

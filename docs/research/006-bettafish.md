@@ -1,9 +1,18 @@
-# BettaFish（微舆）深度调研报告
+---
+id: bettafish
+sidebar_position: 5
+title: BettaFish（微舆）深度调研报告
+last_update:
+  author: Aurelius Huang
+  date: 2025-12-21
+  version: 1.0
+  status: 待审阅
+tags:
+  - BettaFish
+  - 项目参考
+---
 
-> 调研日期：2025-12-21  
-> 项目地址：[https://github.com/666ghj/BettaFish](https://github.com/666ghj/BettaFish)<sup>[[1]](#ref1)</sup>  
-> 版本：v2.1.0（截至 2025-12-09）  
-> GitHub 数据：⭐ 33.2K Stars | 👁 190 Watching | 🍴 6.4K Forks | 👥 35+ 贡献者
+> [!IMPORTANT] 项目地址：[https://github.com/666ghj/BettaFish](https://github.com/666ghj/BettaFish)<sup>[[1]](#ref1)</sup>
 >
 > BettaFish（微舆）是一个设计精良、工程完整的开源多 Agent 舆情分析系统。其最大亮点在于：
 >
