@@ -5,8 +5,8 @@ title: Agent 框架调研报告
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-22
-  updated_at: 2025-12-24
-  version: 1.0
+  updated_at: 2025-12-25
+  version: 1.1
   status: Pending Review
 tags:
   - Agent 框架
