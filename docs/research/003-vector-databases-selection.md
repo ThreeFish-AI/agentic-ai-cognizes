@@ -9,8 +9,8 @@ last_update:
   version: 1.1
   status: Pending Review
 tags:
-  - Vector Databases
-  - ANN Algorithms
+  - Vector Database
+  - ANN Algorithm
   - RAG
   - Agentic Infra
 ---
@@ -105,6 +105,12 @@ tags:
       - **Index Node:** 专门负责构建索引，这是一个 CPU/GPU 密集型任务，独立出来避免影响在线查询性能。
     - **Segment 管理:** 数据被分为 Growing Segments（内存中，可变，用于处理实时写入）和 Sealed Segments（已落盘，不可变，用于构建索引）。查询时会自动合并两者的结果。
       - **对象存储 (Object Storage):** 最终数据（Segment 文件）存储在 S3/MinIO 中，大幅降低了存储成本。
+  - **Milvus 2.6 新特性:** Streaming Node（流批分离）和 Woodpecker（零磁盘 WAL，减少 Pulsar/Kafka 依赖）。
+- **支持的索引类型:**
+  - **内存索引:** HNSW, HNSW_SQ (4x 压缩), HNSW_PQ (8-32x 压缩), HNSW_PRQ (残差量化), IVF_FLAT, IVF_SQ8, IVF_PQ, SCANN, FLAT
+  - **磁盘索引:** DiskANN (Vamana Graph)<sup>[[6]](#ref6)</sup>
+  - **GPU 索引:** GPU_IVF_FLAT, GPU_IVF_PQ, GPU_CAGRA (NVIDIA RAFT)
+  - **稀疏/二进制向量:** SPARSE_INVERTED_INDEX, SPARSE_WAND, BIN_FLAT, BIN_IVF_FLAT
 - **优势:**
   - **极致扩展性:** 架构决定上限。由于状态下沉到 S3 和 Etcd，计算节点可以近乎无限扩展，能够稳定支撑十亿（Billion）甚至万亿（Trillion）级向量规模。
   - **硬件加速与高级索引:** 支持 GPU 加速索引（RAFT 算法）<sup>[[8]](#ref8)</sup>，支持 DiskANN，使用 NVMe SSD 代替昂贵的 DRAM 存储向量数据，用相对低成本的硬件处理海量数据（成本可降低 10 倍，延迟会从微秒级增加到毫秒级）。
@@ -129,6 +135,8 @@ tags:
   - **索引维护:** 不同于开源库需要手动触发索引重建，Pinecone 维护了一套闭源的专有索引算法，针对云环境的冷热数据调度进行了深度优化。Pinecone 后台有自动的索引压缩和整理机制，确保持续写入下的查询性能不退化。
 - **优势:**
   - **DX (开发者体验) 第一:** 几乎是零配置。注册账号 -> 获取 API Key -> 创建 Index -> 写入数据，全过程仅需几分钟。
+  - **Integrated Inference (内置推理):** 支持直接发送原始文本，Pinecone 自动调用内置 Embedding 模型生成向量，简化开发流程。
+  - **Dense + Sparse 向量:** 同时支持稠密向量（语义搜索）和稀疏向量（关键词匹配），实现原生 Hybrid Search。
   - **弹性与成本:** Serverless 模式对初创公司极度友好（按读写单位 WU/RU 付费），大大降低了 POC 阶段的成本风险，且不需要预估容量。
 - **劣势:**
   - **数据主权与合规:** 作为一个纯 SaaS 服务，数据必须离开企业内网存储在 Pinecone 的云端（通常是 AWS/GCP 的美东/欧西区域）。对于金融、医疗、政府或对数据隐私极其敏感的国内企业，这通常是一票否决项。
@@ -146,6 +154,9 @@ tags:
   - **对象存储模型:** 它的数据存储是以 Class（类）为单位，支持定义 Schema 和 Cross-Reference（跨类引用）。这使得它不仅能搜向量，还能像图数据库一样进行多跳查询。例如：“查找主要讨论人工智能且作者是 MIT 教授的文章”。
   - **Ref2Vec:** Weaviate 的特色功能，允许将一个对象“向量化”为它引用的其他对象的聚合。这对于推荐系统非常有用（例如，用户的向量 = 他喜欢的文章向量的平均值）。
   - **Schema First:** 强类型系统，要求先定义 Schema (Class, Properties)。这有助于数据治理，但也降低了灵活性。
+  - **Named Vectors (多向量检索):** 同一对象可以存储多个不同的向量（如标题向量、内容向量、图片向量），支持 Multi-target Vector Search，实现更精细的检索控制。
+  - **Dynamic Index:** 智能索引切换，小数据集使用 Flat 索引，数据量增长后自动切换到 HNSW 索引，平衡性能和资源。
+  - **量化支持:** Product Quantization (PQ), Binary Quantization (BQ), Scalar Quantization (SQ)，有效降低内存占用。
   - **类 GraphQL 接口:** 所有的查询都通过 GraphQL 进行，类似于图数据库的查询体验。虽然灵活性极高，但对于习惯 SQL 或简单 REST API 的团队来说，构建复杂的 Query 可能需要一定的学习成本。
 - **优势:**
   - **混合搜索之王:** 原生支持 **RRF（Reciprocal Rank Fusion）** 融合算法。Weaviate 在底层同时维护了倒排索引（BM25）和向量索引。在进行查询时，用户可以通过 alpha 参数平滑调节关键词匹配和语义匹配的权重，并通过 RRF（Reciprocal Rank Fusion）算法合并结果。这是目前提升 RAG 准确率最有效的手段之一。由于关键词搜索（BM25）的分数通常无上限，而向量相似度是归一化的（通常 0-1），直接加权求和效果往往不佳。RRF 通过基于排名的融合算法，完美解决了不同检索器分数标度不一致的问题，显著提升 RAG 的召回准确率。
@@ -161,6 +172,10 @@ tags:
 - **核心架构深度解析:**
   - **Rust & 内存管理:** 受益于 Rust，Qdrant 没有 GC 暂停问题。它大量使用 mmap 技术，将磁盘文件直接映射到虚拟内存空间。这使得 Qdrant 可以在内存不足时，自动利用操作系统的 Page Cache 机制，平滑地退化到磁盘读取模式，而不会像纯内存数据库那样直接 OOM（内存溢出），在性能和成本间取得平衡。
   - **HNSW 优化:** Qdrant 对 HNSW 进行了定制优化，支持在图遍历过程中进行**动态预过滤 (Pre-filtering)**。它通过维护额外的连接（Links）来确保即使在严格过滤条件下，图的连通性也不会被破坏，从而使得带有复杂过滤条件的向量搜索依然能保持极高的效率。
+  - **ACORN Search Algorithm:** 专为复杂过滤场景设计的搜索算法，解决传统 HNSW 在高过滤率下图连通性被破坏的问题，显著提升过滤查询性能。
+  - **Tenant Index:** 支持基于租户 ID 的索引优化，适合多租户 SaaS 应用，避免跨租户数据扫描。
+  - **量化策略:** 支持多种量化方式：Scalar Quantization (int8, 4x 压缩)、Binary Quantization (1-bit, 32x 压缩)、1.5-bit/2-bit Quantization（精度与压缩的平衡）、Product Quantization (PQ)、Asymmetric Quantization。
+  - **FastEmbed 集成:** 原生集成 FastEmbed 库，支持在数据库端直接生成向量，简化应用开发。
   - **Segment Merge:** Qdrant 类似于 Lucene，通过合并小的 Segment 来优化读取。在写入高峰期，可以暂时调大 optimizers_config 的阈值，避免频繁合并影响写入性能。
 - **优势:**
   - **单机性能怪兽:** 在同等硬件下，Qdrant 往往能提供比 Java/Go 竞品更高的 QPS。
@@ -193,6 +208,12 @@ tags:
   - **索引机制:**
     - **IVFFlat:** 基于聚类的倒排索引。优点是构建快，内存占用小。缺点是召回率受聚类中心数量（lists）影响大，且不适合高频更新（更新后会导致聚类失效，需要 REINDEX）。
     - **HNSW:** 图索引。优点是查询快，召回率高，对更新友好（支持并行构建）。缺点是构建极慢，内存占用高，HNSW 是一种内存密集型索引，对 PG 的 Shared Buffers 压力巨大。
+  - **新数据类型 (v0.7.0+):**
+    - **halfvec:** 16-bit 半精度向量，内存占用减半（2x 压缩），适合对精度要求不高的场景。
+    - **sparsevec:** 稀疏向量类型，仅存储非零元素，适合 BM25 和 TF-IDF 等稀疏表示。
+    - **bit:** 二进制向量，支持 Hamming 距离计算。
+  - **并行索引构建:** 支持 `max_parallel_maintenance_workers` 配置，利用多核 CPU 加速 HNSW 索引构建。
+  - **维度限制:** 最大支持 16,000 维向量。
   - **TOAST 表机制:** PG 会将大字段（如高维向量）存储在 TOAST 表中（超过一定大小的数据会被压缩并存储在 TOAST 表中）。每次查询都需要从 TOAST 表解压数据，这增加了 I/O 开销。因此，PGVector 在处理超高维向量（如 4096 维）时性能下降明显。
 - **优势:**
   - **单一技术栈红利:** 这一点怎么强调都不为过。使用 PGVector 意味着你不需要引入新的运维组件，不需要做数据同步（ETL），可以直接利用 PG 强大的事务（ACID）、备份恢复（PITR）、复制（Replication）和行级安全（RLS）机制。
@@ -217,6 +238,11 @@ tags:
 - **核心架构深度解析:**
   - **Rust Core & pgrx:** 不同于 pgvector 的 C 语言实现，VectorChord 利用 Rust 语言的内存安全特性和 SIMD 指令集优化，通过 pgrx 框架集成到 Postgres 中。
   - **原生量化 (Native Quantization):** 它的核心杀手锏是**深度集成的量化索引**。它不只是简单的 HNSW，而是原生支持标量量化 (Scalar Quantization) 和二进制量化 (Binary Quantization)。这意味着它可以在索引构建阶段就将向量压缩 4x 到 32x，极大地减少了内存占用。
+  - **RaBitQ 算法:** 实现了具有理论误差边界保证的量化算法<sup>[[16]](#ref16)</sup>，是 VectorChord 的核心技术创新，在保持高召回率的同时实现极致压缩。
+  - **索引类型:**
+    - **vchordrq:** 基于 RaBitQ 的量化索引，高压缩率和高查询性能。
+    - **vchord_graph:** Graph Index，类似 HNSW 的图索引实现。
+  - **Similarity Filter:** 支持在向量搜索中进行相似度阈值过滤，仅返回满足相似度要求的结果。
   - **磁盘友好 (Disk-Efficient):** 引入了类似 DiskANN 的算法设计（VChord 索引），优化了 I/O 访问模式，使其在 SSD 上的表现远超传统 IVFFlat。
 - **优势:**
   - **性能碾压:** 在某些基准测试中，得益于激进的量化策略，其 QPS 和构建速度可以达到 pgvector 的数倍，甚至在大规模数据集上接近专用向量数据库（如 Qdrant）。
@@ -239,6 +265,10 @@ tags:
 
 - **定位:** 老牌搜索霸主，8.0 版本后原生内置向量搜索能力<sup>[[17]](#ref17)</sup>。
 - **Lucene 核心:** 基于 Lucene 的 HNSW 实现。这意味着 ES 的向量搜索共享了 Lucene 的 segment merge 机制。向量数据被视为一种特殊的 Field。
+- **量化索引 (8.x):**
+  - **int8_hnsw:** 8-bit 标量量化 HNSW 索引，内存占用降低 4x，查询速度提升。
+  - **int4_hnsw:** 4-bit 量化 HNSW 索引，进一步压缩，适合对精度要求不高的场景。
+- **搜索模式:** 支持 kNN Query (近似搜索) 和 script_score Query (精确暴力扫描)，需根据场景选择。
 - **优势:**
   - **文本搜索霸主:** 如果你的应用严重依赖全文检索（分词、模糊匹配、高亮、词干提取），ES 是不可替代的。向量搜索可以作为 rescore 阶段的补充，增强语义召回。这种 **“BM25 (Keyword) + kNN (Vector)”** 的组合是目前最稳健的搜索策略。
   - **成熟度:** 拥有最完善的监控、可视化（Kibana）和运维工具链。企业内部通常已有 ES 集群，复用成本低。
@@ -255,6 +285,9 @@ tags:
   - **Lucene 集成:** 与 Atlas Search 类似，向量搜索底层依赖于 Apache Lucene 库。MongoDB 通过内部的同步机制（基于 Oplog），将主数据库（mongod 进程）中的数据实时同步到侧车的搜索节点（mongot 进程）中，并在那里构建 HNSW 索引。
   - **聚合管道 ($vectorSearch):** 向量搜索并非独立的 API，而是作为聚合管道的第一阶段 $vectorSearch 存在。这意味着你可以将向量搜索的结果无缝传递给后续的 MongoDB 阶段（如 $match, $project, $lookup），在数据库内部完成复杂的“向量 + 标量 + 关联查询”逻辑，无需应用层组装。
   - **预过滤 (Pre-filtering):** 利用 Lucene 的能力，支持在 HNSW 遍历前进行高效的元数据过滤（基于 MQL 语法），这对于多租户或带权限控制的 RAG 系统至关重要。
+  - **搜索模式:**
+    - **ANN (Approximate):** 默认的近似最近邻搜索，使用 HNSW 索引，速度快但可能有召回损失。
+    - **ENN (Exact):** 精确最近邻搜索，暴力扫描所有向量，100% 召回但速度较慢，适合小规模或对精度要求极高的场景。
 - **优势:**
   - **开发者体验**: 对于已经使用 MongoDB 的团队，学习成本几乎为零。无需引入新的数据库组件，无需维护 ETL 管道，直接在现有的 JSON 文档中增加一个 embedding 字段即可。
   - **灵活性**: JSON 文档模型天生适合存储非结构化数据的元数据。你可以随时增加字段用于过滤，而无需像 SQL 数据库那样执行 ALTER TABLE。
@@ -296,7 +329,11 @@ tags:
 - **定位:** 实时 OLAP 分析数据库，近期增加了向量支持<sup>[[21]](#ref21)</sup>。
 - **核心架构:**
   - **列式存储:** 擅长高速扫描。
-  - **向量支持:** 提供了 Distance 函数（L2, Cosine）和实验性的向量索引（Annoy, HNSW）。
+  - **向量支持:** 提供了 Distance 函数（L2, Cosine）和实验性的向量索引。
+  - **索引类型:**
+    - **usearch:** 基于 usearch 库的 HNSW 实现（实验性）。
+    - **Annoy:** Approximate Nearest Neighbors Oh Yeah 索引。
+  - **QBit 量化 (Quantized Bit):** 支持可变精度量化（4-64 bit），通过 `quantization` 参数配置，减少 I/O 和内存占用，在精度和速度间权衡。
 - **优势:**
   - **向量分析 (Vector Analytics):** 如果你需要对向量数据进行复杂的聚合分析——例如“统计不同类别商品的平均向量中心”、“分析用户兴趣向量随时间的漂移”、“计算全量数据的 K-Means 聚类”，ClickHouse 是无敌的。
   - **高吞吐扫描:** 对于不需要极高 QPS 但需要处理海量数据精确扫描（Exact Search）的场景，其线性扫描速度极快。
@@ -312,7 +349,9 @@ tags:
 - **优势:**
   - **嵌入式与云原生:** 可以像 SQLite 一样嵌入在 Python 进程中，也可以扩展到云端 S3。
   - **多模态友好:** Lance 格式不仅高效存储向量，还能高效管理向量对应的原始数据（图片、视频帧），避免了“向量存库里，图片存 S3”带来的管理割裂。
-  - **时间旅行 (Time Travel):** 原生支持数据版本控制，这对于复现 AI 实验结果非常重要。
+  - **Time Travel:** 原生支持数据版本控制，这对于复现 AI 实验结果非常重要。
+  - **Hybrid Search:** 支持向量搜索 + 全文搜索的混合检索模式，提升召回准确率。
+  - **Reranking:** 内置 Reranker 支持，可在检索后对结果进行重排序优化。
 - **劣势:**
   - **早期阶段:** 社区和生态相比 Milvus/Chroma 还处于快速成长期，文档和第三方集成正在完善中。
 
