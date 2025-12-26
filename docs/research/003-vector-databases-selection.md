@@ -379,6 +379,30 @@ tags:
 | **FAISS**       | ✅                       | ✅ (各种组合)             | ✅                       | OPQ, LSQ, SQ4                                      | 4x-64x |
 | **ClickHouse**  | ✅ QBit (4-64 bit)       | ❌                        | ❌                       | 可变精度量化                                       | 2x-8x  |
 
+### **3.4 性能基准测试参考**
+
+以下数据综合自 ANN-Benchmarks<sup>[[23]](#ref23)</sup>和 VectorDBBench<sup>[[24]](#ref24)</sup>等权威测评，仅供选型参考。实际性能受硬件配置、数据集特征、索引参数等因素影响显著。
+
+| 数据库            | 典型 QPS (百万级数据) | P99 延迟 | 可扩展规模 | 最佳场景                 |
+| :---------------- | :-------------------- | :------- | :--------- | :----------------------- |
+| **Milvus**        | 10,000-50,000         | \<10ms   | 十亿级+    | 大规模、高吞吐、自托管   |
+| **Qdrant**        | 10,000-50,000         | \<10ms   | 亿级       | 高性能过滤、资源效率优先 |
+| **Weaviate**      | 5,000-20,000          | \<100ms  | 亿级       | 混合搜索、RAG 应用       |
+| **Pinecone**      | 100,000+              | \<50ms   | 亿级       | 全托管、快速上线         |
+| **PGVector**      | 1,000-5,000           | 10-100ms | 千万级     | 现有 PG 用户、中小规模   |
+| **VectorChord**   | 3,000-10,000          | 5-50ms   | 千万级     | PG 用户需更高性能        |
+| **Elasticsearch** | 3,000-10,000          | 10-100ms | 亿级       | 全文+向量混合            |
+| **Redis Stack**   | 50,000+               | \<1ms    | 千万级     | 超低延迟、实时应用       |
+
+> [!NOTE] > **测试环境说明:** 以上数据基于 768-1536 维向量、HNSW 索引、90%+ 召回率的典型配置。生产环境部署前应使用实际数据进行基准测试。
+
+**VectorDBBench 关键发现 (1M 数据集, $1000/月成本):**
+
+- **Zilliz Cloud (8cu):** P99 延迟 2.5ms, QPS 9,704
+- **Milvus (16c64g-sq8):** P99 延迟 2.2ms, QPS 3,465
+- **Qdrant Cloud (16c64g):** P99 延迟 6.4ms, QPS 1,242
+- **Pinecone (p2.x8):** P99 延迟 13.7ms, QPS 1,147
+
 ## **4. 选型决策方案**
 
 选型没有绝对的“最好”，只有“最合适”。建议从**数据隐私**、**数据规模**、**查询复杂度**、**运维能力**这四个维度构建决策树。
@@ -597,3 +621,7 @@ $$
 <a id="ref21"></a>[21] ClickHouse Documentation, "Exact and Approximate Vector Search," ClickHouse, 2024. [Online]. Available: https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/annindexes
 
 <a id="ref22"></a>[22] FAISS Wiki, "A library for efficient similarity search and clustering of dense vectors," Meta AI Research, 2024. [Online]. Available: https://github.com/facebookresearch/faiss/wiki
+
+<a id="ref23"></a>[23] M. Aumüller, E. Bernhardsson, and A. Faitfull, "ANN-Benchmarks: A Benchmarking Tool for Approximate Nearest Neighbor Algorithms," _Proc. Int. Conf. Similarity Search and Appl. (SISAP)_, pp. 34–49, 2020. [Online]. Available: https://ann-benchmarks.com/
+
+<a id="ref24"></a>[24] Zilliz, "VectorDBBench: An Open-Source Vector Database Benchmark Tool," Zilliz, 2024. [Online]. Available: https://zilliz.com/vector-database-benchmark-tool
