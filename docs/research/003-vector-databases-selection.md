@@ -6,8 +6,8 @@ last_update:
   author: Aurelius Huang
   created_at: 2025-12-25
   updated_at: 2025-12-26
-  version: 1.1
-  status: Pending Review
+  version: 1.2
+  status: Reviewed
 tags:
   - Vector Database
   - ANN Algorithm
@@ -163,7 +163,7 @@ tags:
   - **结构化数据过滤:** 由于其 Schema 的设计，处理带有复杂元数据（如作者、时间、标签、分类）的结构化过滤时，效率远高于单纯的向量库（后者通常使用 Pre-filtering 或 Post-filtering，效率较低）。
 - **劣势:**
   - **写入放大（Write Amplification）:** 由于同时维护多种索引（向量+倒排+正排），Weaviate 的写入开销较大。在进行大批量数据导入、大规模数据迁移（Backfill）时，务必调整 ef_construction 和 max_connections 参数，并关闭自动刷新，否则写入速度会非常慢（在同等硬件下通常慢于纯向量库）。
-  - **资源消耗:** Java 编写的内核（部分模块）在内存管理上不如 Rust/C++ 精细，GC 可能会导致偶尔的延迟抖动。
+  - **资源消耗:** Go 编写的内核在高并发场景下表现良好，但内存管理不如 Rust/C++ 精细，GC 可能会导致偶尔的延迟抖动。
   - **学习曲线:** 它的 API 风格（特别是 GraphQL）对于习惯了 RESTful 或 SQL 的开发者来说有一定门槛。需要花时间理解它的 Class, Property, Cross-Ref 概念。
 
 ### **2.4 Qdrant**
@@ -398,8 +398,8 @@ tags:
 | **磁盘索引** | **支持 (DiskANN)** - 降本神器    | 支持 (Mmap / Binary Quantization) | 支持 (PQ + Product Quantization)    | 支持 (Serverless 分层存储) | N/A       | 弱         | 依赖 OS       | N/A (Atlas Tiering)         | **强**                | 依赖 OS Page Cache      | **强 (VChord)**      |
 | **混合搜索** | 支持 (需手动结合 / RRF)          | 支持 (Query 层面)                 | **原生强项** (Alpha 调节 + Ranking) | 支持 (Hybrid Search)       | 支持      | 支持       | **极强**      | 支持 (Reciprocal Rank)      | 支持                  | 需自行写 SQL + 代码逻辑 | 支持 (PG SQL)        |
 | **多模态**   | 强 (支持多向量检索)              | 中                                | 强 (模块化自动向量化)               | 中                         | 强        | 弱         | 中            | 中                          | **强**                | 弱 (需应用层处理)       | 中                   |
-| **扩展性**   | **极高 (存储计算彻底分离)**      | 高 (分片)                         | 高 (分片)                           | 自动扩展 (Serverless)      |           |            |               |                             | 自动扩展 (Serverless) | 受限于 PG 单实例上限    | 受限于 PG 单实例上限 |
-| **冷热分离** | 支持                             | 支持                              | 支持                                |                            | 自动      | 弱         | 支持          | 自动 (Atlas Online Archive) | **强**                |                         | 支持 (PG)            |
+| **扩展性**   | **极高 (存储计算彻底分离)**      | 高 (分片)                         | 高 (分片)                           | 自动扩展 (Serverless)      | 极高      | 高 (分片)  | 高 (分片)     | 高 (分片)                   | 自动扩展 (Serverless) | 受限于 PG 单实例上限    | 受限于 PG 单实例上限 |
+| **冷热分离** | 支持                             | 支持                              | 支持                                | 自动 (Tiered Storage)      | 自动      | 弱         | 支持          | 自动 (Atlas Online Archive) | **强**                | 依赖 OS Page Cache      | 支持 (PG)            |
 
 ### **3.3 量化与压缩支持**
 
