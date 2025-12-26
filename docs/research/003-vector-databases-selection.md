@@ -292,10 +292,11 @@ tags:
 ### **2.9 Elasticsearch (8.x+)**
 
 - **定位:** 老牌搜索霸主，8.0 版本后原生内置向量搜索能力<sup>[[17]](#ref17)</sup>。
-- **Lucene 核心:** 基于 Lucene 的 HNSW 实现。这意味着 ES 的向量搜索共享了 Lucene 的 segment merge 机制。向量数据被视为一种特殊的 Field。
-- **量化索引 (8.x):**
-  - **int8_hnsw:** 8-bit 标量量化 HNSW 索引，内存占用降低 4x，查询速度提升。
-  - **int4_hnsw:** 4-bit 量化 HNSW 索引，进一步压缩，适合对精度要求不高的场景。
+- **核心架构:**
+  - **Lucene 核心:** 基于 Lucene 的 HNSW 实现。这意味着 ES 的向量搜索共享了 Lucene 的 segment merge 机制。向量数据被视为一种特殊的 Field。
+  - **量化索引 (8.x):**
+    - **int8_hnsw:** 8-bit 标量量化 HNSW 索引，内存占用降低 4x，查询速度提升。
+    - **int4_hnsw:** 4-bit 量化 HNSW 索引，进一步压缩，适合对精度要求不高的场景。
 - **搜索模式:** 支持 kNN Query (近似搜索) 和 script_score Query (精确暴力扫描)，需根据场景选择。
 - **优势:**
   - **文本搜索霸主:** 如果你的应用严重依赖全文检索（分词、模糊匹配、高亮、词干提取），ES 是不可替代的。向量搜索可以作为 rescore 阶段的补充，增强语义召回。这种 **“BM25 (Keyword) + kNN (Vector)”** 的组合是目前最稳健的搜索策略。
