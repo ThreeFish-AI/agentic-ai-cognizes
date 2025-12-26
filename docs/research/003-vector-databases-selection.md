@@ -4,17 +4,20 @@ sidebar_position: 3.1
 title: 向量数据库的选型决策路径
 last_update:
   author: Aurelius Huang
-  created_at: 2025-12-26
+  created_at: 2025-12-25
   updated_at: 2025-12-26
-  version: 1.0
+  version: 1.1
   status: Pending Review
 tags:
   - Vector Databases
+  - ANN Algorithms
+  - RAG
+  - Agentic Infra
 ---
 
 ## **1. 背景与技术原理**
 
-随着大语言模型（LLM）和生成式 AI 的爆发，**向量数据库（Vector Database）** 已从一个小众的推荐系统基础设施组件，跃升为 AI 技术栈中的核心“海马体”（长期记忆）。在 RAG（检索增强生成）架构中，它不仅是外部知识的存储库，更是连接冻结参数的大模型与实时动态世界之间的桥梁，解决了 LLM 的**幻觉（Hallucination）**和**知识截止（Knowledge Cutoff）**两大痛点 [1]。
+随着大语言模型（LLM）和生成式 AI 的爆发，**向量数据库（Vector Database）** 已从一个小众的推荐系统基础设施组件，跃升为 AI 技术栈中的核心"海马体"（长期记忆）。在 RAG（检索增强生成）架构中，它不仅是外部知识的存储库，更是连接冻结参数的大模型与实时动态世界之间的桥梁，解决了 LLM 的**幻觉（Hallucination）**和**知识截止（Knowledge Cutoff）**两大痛点<sup>[[1]](#ref1)</sup>。
 
 ### **1.1 为什么需要向量数据库？**
 
@@ -23,9 +26,9 @@ tags:
 - **语义鸿沟 (The Semantic Gap):**
   - **问题:** 当用户搜索“手机屏幕裂了”时，基于关键词倒排索引（Inverted Index）的传统搜索引擎（如 Solr, Lucene 默认配置）只能机械匹配包含“屏幕”或“裂”这两个词的记录。
   - **局限:** 这种基于 Token 的匹配逻辑无法召回“碎屏险理赔流程”、“iPhone 维修服务”或“显示器玻璃更换”这些虽不含关键词但意图高度相关的文档。**同义词（Polysemy）**（如“苹果”是水果还是公司？）和**一词多义**问题是传统搜索难以逾越的障碍。此外，对于多语言场景（搜中文出英文文档），关键词匹配更是束手无策。
-  - **演进:** 搜索技术经历了从 TF-IDF/BM25（词频统计）[2] 到 Dense Retrieval（稠密向量检索），再到目前的 Hybrid Search（混合检索）和 Late Interaction（如 ColBERT）的演进。向量数据库正是 Dense Retrieval 时代的基石。
+  - **演进:** 搜索技术经历了从 TF-IDF/BM25（词频统计）<sup>[[2]](#ref2)</sup>到 Dense Retrieval（稠密向量检索），再到目前的 Hybrid Search（混合检索）和 Late Interaction（如 ColBERT）的演进。向量数据库正是 Dense Retrieval 时代的基石。
 - **Embedding 的魔力:**
-  - **原理:** 向量数据库的核心逻辑是将非结构化数据通过 **Embedding 模型**（如 OpenAI text-embedding-3, BGE-M3, Cohere Embed v3, CLIP for Images）转化为高维浮点数向量（Dense Vectors）。这是一个将离散的符号（文字/像素）映射到连续向量空间的过程 [3]。
+  - **原理:** 向量数据库的核心逻辑是将非结构化数据通过 **Embedding 模型**（如 OpenAI text-embedding-3, BGE-M3, Cohere Embed v3, CLIP for Images）转化为高维浮点数向量（Dense Vectors）。这是一个将离散的符号（文字/像素）映射到连续向量空间的过程<sup>[[3]](#ref3)</sup>。
   - **几何意义:** 在这个通常为 768、1024 或 1536 维的数学空间中，语义相似的数据点在几何距离上更近。例如，在向量空间中，“国王 - 男人 + 女人”的向量坐标会惊人地接近“女王”。这使得计算机可以通过计算向量间的距离（欧氏距离、余弦相似度、内积）来理解“含义”。
 - **计算挑战与“维度诅咒”:**
   - **规模:** 向量数据库不仅要存储海量的高维数组，更要在毫秒级时间内，从十亿级（Billion-scale）数据中找到与查询向量距离最近的 Top-K 个结果。
@@ -38,7 +41,7 @@ tags:
 - **HNSW (Hierarchical Navigable Small World - 分层导航小世界图):** 目前最主流的图算法，通过构建多层图结构来实现快速导航。
   - **原理:** 模仿社交网络的“六度分隔”理论。它构建多层图结构：
     - **上层 (Upper Layers):** 稀疏的“高速公路”，节点少，连接跨度大，用于快速定位目标向量的大概区域。
-    - **底层 (Layer 0):** 包含所有节点的密集“街道”网，用于局部贪婪搜索，精确定位最近邻 [4]。
+    - **底层 (Layer 0):** 包含所有节点的密集“街道”网，用于局部贪婪搜索，精确定位最近邻<sup>[[4]](#ref4)</sup>。
   - **复杂度:** 查询时间复杂度为 O(log N)，速度极快。
   - **关键参数:**
     - M: 每个节点的最大连接数。M 越大，图越密，查询召回率越高，但内存占用增加，构建变慢。
@@ -47,18 +50,18 @@ tags:
   - **内存代价:** 需要存储图的邻接表，索引构建较慢。假设每个节点连接 M 个邻居，每个连接需要 4 字节（ID），则额外内存开销约为 $N \times M \times 4$ 字节。对于 10 亿向量，这可能意味着几十 GB 的额外 RAM。
   - **适用:** 对延迟要求极高（<10ms），内存充足的场景。
 - **IVF (Inverted File Index - 倒排文件索引):**
-  - **原理:** 利用 K-Means 聚类将向量空间划分为 nlist 个 Voronoi 单元（聚类中心）[5]。
+  - **原理:** 利用 K-Means 聚类将向量空间划分为 nlist 个 Voronoi 单元（聚类中心）<sup>[[5]](#ref5)</sup>。
   - **流程:**
     1. **训练:** 从数据中采样，计算聚类中心。
     2. **分配:** 将每个向量分配到最近的聚类中心。
     3. **查询:** 先找到距离查询向量最近的 nprobe 个聚类中心，然后只在这些聚类包含的向量中进行精确搜索。
   - **优劣:** 内存占用比 HNSW 低，构建速度快。但召回率受 nlist 和 nprobe 参数影响巨大，且在高维空间中可能出现“聚类不均”导致的性能抖动（某些聚类包含过多数据，变成热点）。
 - **PQ (Product Quantization - 积量化):**
-  - **原理:** 一种有损压缩技术。将高维向量（如 1024 维）切分为 M 个子向量（如 8 个 128 维的子向量），对每个子向量空间进行独立聚类（通常 256 个中心，用 1 字节表示），最终用 M 个聚类中心的 ID 组合代替原始浮点数 [5]。
+  - **原理:** 一种有损压缩技术。将高维向量（如 1024 维）切分为 M 个子向量（如 8 个 128 维的子向量），对每个子向量空间进行独立聚类（通常 256 个中心，用 1 字节表示），最终用 M 个聚类中心的 ID 组合代替原始浮点数 <sup>[[5]](#ref5)</sup>。
   - **效果:** 可以将 1024 维 float32 向量（4KB）压缩到仅 M 字节（例如 8 字节或 16 字节），压缩比惊人。
   - **代价:** 精度损失。通常需要配合 **重排序 (Re-ranking)** 机制：先用 PQ 快速召回 Top-N，再从磁盘读取原始向量做精确排序。
 - **DiskANN (Vamana Graph):**
-  - **原理:** 微软研发的基于磁盘的图算法。它设计了一种特殊的图结构（Vamana），使得在图遍历时，访问的节点虽然物理上分散在磁盘的不同 Page 中，但其邻居节点的布局被优化以减少 I/O 次数。它仅在内存中保留少量高层导航点，绝大多数数据存储在廉价的 NVMe SSD 上 [6]。
+  - **原理:** 微软研发的基于磁盘的图算法。它设计了一种特殊的图结构（Vamana），使得在图遍历时，访问的节点虽然物理上分散在磁盘的不同 Page 中，但其邻居节点的布局被优化以减少 I/O 次数。它仅在内存中保留少量高层导航点，绝大多数数据存储在廉价的 NVMe SSD 上<sup>[[6]](#ref6)</sup>。
   - **意义:** 打破了“向量搜索必须全内存”的魔咒，将成本降低了一个数量级，是实现单机百亿级检索的关键技术。
 
 ### **1.3 市场格局：多元流派“百家争鸣”**
@@ -89,9 +92,9 @@ tags:
 
 ### **2.1 Milvus (Zilliz)**
 
-- **定位:** 云原生、高度可扩展的开源向量数据库，LF AI & Data 基金会毕业项目，是目前全球最成熟、功能最全的开源界的顶级水准代表。
+- **定位:** 云原生、高度可扩展的开源向量数据库，LF AI & Data 基金会毕业项目，是目前全球最成熟、功能最全的开源界的顶级水准代表<sup>[[7]](#ref7)</sup><sup>[[10]](#ref10)</sup>。
 - **核心架构深度解析:**
-  - **彻底的存算分离:** Milvus 2.0 引入了极其复杂的微服务架构，将系统拆分为接入层（Proxy）、协调服务（Coordinator）、工作节点（Worker Nodes）和存储层（Storage）[7]。这种架构虽然复杂，但带来了极致的弹性——你可以单独扩容 Query Node 来应对“双十一”流量，而不影响 Data Node。
+  - **彻底的存算分离:** Milvus 2.0 引入了极其复杂的微服务架构，将系统拆分为接入层（Proxy）、协调服务（Coordinator）、工作节点（Worker Nodes）和存储层（Storage）<sup>[[7]](#ref7)</sup>。这种架构虽然复杂，但带来了极致的弹性——你可以单独扩容 Query Node 来应对“双十一”流量，而不影响 Data Node。
     - **接入层 (Access Layer):** 负责协议处理和请求验证，完全无状态。
     - **日志即主干 (Log as the Backbone):** 这是其设计的精髓。Milvus 使用 Pulsar 或 Kafka 作为骨干消息队列。所有的增删改查操作首先作为“日志”写入消息队列，保证了数据流的高吞吐和原子性。
       - **Checkpoints:** 系统定期生成快照（Checkpoints），这不仅是为了缓冲写入压力，更是为了在分布式系统中确保**最终一致性**和**故障恢复能力**（重放日志即可恢复状态）。
@@ -104,7 +107,7 @@ tags:
       - **对象存储 (Object Storage):** 最终数据（Segment 文件）存储在 S3/MinIO 中，大幅降低了存储成本。
 - **优势:**
   - **极致扩展性:** 架构决定上限。由于状态下沉到 S3 和 Etcd，计算节点可以近乎无限扩展，能够稳定支撑十亿（Billion）甚至万亿（Trillion）级向量规模。
-  - **硬件加速与高级索引:** 支持 GPU 加速索引（RAFT 算法）[8]，支持 DiskANN，使用 NVMe SSD 代替昂贵的 DRAM 存储向量数据，用相对低成本的硬件处理海量数据（成本可降低 10 倍，延迟会从微秒级增加到毫秒级）。
+  - **硬件加速与高级索引:** 支持 GPU 加速索引（RAFT 算法）<sup>[[8]](#ref8)</sup>，支持 DiskANN，使用 NVMe SSD 代替昂贵的 DRAM 存储向量数据，用相对低成本的硬件处理海量数据（成本可降低 10 倍，延迟会从微秒级增加到毫秒级）。
   - **企业级特性:** 完整的 RBAC 权限控制、多租户资源隔离（Partition Key）、CDC（变更数据捕获）支持。
   - **生态与工具:** 拥有可视化管理工具 Attu，以及极其完善的 Python/Java/Go SDK。
 - **劣势:**
@@ -154,7 +157,7 @@ tags:
 
 ### **2.4 Qdrant**
 
-- **定位:** 采用 Rust 编写的高性能开源向量数据库，主打高性能和安全性。
+- **定位:** 采用 Rust 编写的高性能开源向量数据库，主打高性能和安全性<sup>[[11]](#ref11)</sup>。
 - **核心架构深度解析:**
   - **Rust & 内存管理:** 受益于 Rust，Qdrant 没有 GC 暂停问题。它大量使用 mmap 技术，将磁盘文件直接映射到虚拟内存空间。这使得 Qdrant 可以在内存不足时，自动利用操作系统的 Page Cache 机制，平滑地退化到磁盘读取模式，而不会像纯内存数据库那样直接 OOM（内存溢出），在性能和成本间取得平衡。
   - **HNSW 优化:** Qdrant 对 HNSW 进行了定制优化，支持在图遍历过程中进行**动态预过滤 (Pre-filtering)**。它通过维护额外的连接（Links）来确保即使在严格过滤条件下，图的连通性也不会被破坏，从而使得带有复杂过滤条件的向量搜索依然能保持极高的效率。
@@ -184,7 +187,7 @@ tags:
 
 ### **2.6 PGVector (PostgreSQL)**
 
-- **定位:** 不是一个独立的数据库，是 PostgreSQL 的开源插件，让 PG 具备存储和检索向量的能力。
+- **定位:** 不是一个独立的数据库，是 PostgreSQL 的开源插件，让 PG 具备存储和检索向量的能力<sup>[[14]](#ref14)</sup>。
 - **核心架构深度解析:**
   - **原生集成:** 它引入了 vector 数据类型，并利用 PG 的现有存储引擎（Heap Files）和缓冲池（Shared Buffers）。这意味着向量数据和其他关系型数据存储在同一个 Page 中，遵循相同的 WAL 日志和 MVCC 机制。
   - **索引机制:**
@@ -210,7 +213,7 @@ tags:
 
 ### **2.7 VectorChord (pgvecto.rs)**
 
-- **定位:** 基于 Rust 开发的高性能 PostgreSQL 向量扩展，旨在成为 pgvector 的“高性能替代者”。
+- **定位:** 基于 Rust 开发的高性能 PostgreSQL 向量扩展，是 pgvecto.rs 的继任者，旨在成为 pgvector 的"高性能替代者"<sup>[[15]](#ref15)</sup>。
 - **核心架构深度解析:**
   - **Rust Core & pgrx:** 不同于 pgvector 的 C 语言实现，VectorChord 利用 Rust 语言的内存安全特性和 SIMD 指令集优化，通过 pgrx 框架集成到 Postgres 中。
   - **原生量化 (Native Quantization):** 它的核心杀手锏是**深度集成的量化索引**。它不只是简单的 HNSW，而是原生支持标量量化 (Scalar Quantization) 和二进制量化 (Binary Quantization)。这意味着它可以在索引构建阶段就将向量压缩 4x 到 32x，极大地减少了内存占用。
@@ -224,7 +227,7 @@ tags:
 
 ### **2.8 FAISS (Meta)**
 
-- **定位:** Facebook AI Research 开源的向量搜索库（Library），**不是数据库**。
+- **定位:** Facebook AI Research 开源的向量搜索库（Library），**不是数据库**<sup>[[22]](#ref22)</sup>。
 - **核心架构:** 提供了一系列高效的索引算法（IVF, PQ, HNSW, LSH 等）的 C++ 实现及 Python 封装。
 - **优势:**
   - **算法基石:** 它是许多向量数据库（如 Milvus 早期, Pinecone 早期）的底层引擎。
@@ -234,7 +237,7 @@ tags:
 
 ### **2.9 Elasticsearch (8.x+)**
 
-- **定位:** 老牌搜索霸主，8.0 版本后原生内置向量搜索能力。
+- **定位:** 老牌搜索霸主，8.0 版本后原生内置向量搜索能力<sup>[[17]](#ref17)</sup>。
 - **Lucene 核心:** 基于 Lucene 的 HNSW 实现。这意味着 ES 的向量搜索共享了 Lucene 的 segment merge 机制。向量数据被视为一种特殊的 Field。
 - **优势:**
   - **文本搜索霸主:** 如果你的应用严重依赖全文检索（分词、模糊匹配、高亮、词干提取），ES 是不可替代的。向量搜索可以作为 rescore 阶段的补充，增强语义召回。这种 **“BM25 (Keyword) + kNN (Vector)”** 的组合是目前最稳健的搜索策略。
@@ -247,7 +250,7 @@ tags:
 
 ### **2.10 MongoDB Atlas**
 
-- **定位:** MongoDB Atlas 云数据平台的全托管向量搜索服务。它是 MongoDB 聚合管道（Aggregation Pipeline）中的一个功能模块（不是一个独立的数据库）。
+- **定位:** MongoDB Atlas 云数据平台的全托管向量搜索服务。它是 MongoDB 聚合管道（Aggregation Pipeline）中的一个功能模块（不是一个独立的数据库）<sup>[[18]](#ref18)</sup>。
 - **核心架构深度解析:**
   - **Lucene 集成:** 与 Atlas Search 类似，向量搜索底层依赖于 Apache Lucene 库。MongoDB 通过内部的同步机制（基于 Oplog），将主数据库（mongod 进程）中的数据实时同步到侧车的搜索节点（mongot 进程）中，并在那里构建 HNSW 索引。
   - **聚合管道 ($vectorSearch):** 向量搜索并非独立的 API，而是作为聚合管道的第一阶段 $vectorSearch 存在。这意味着你可以将向量搜索的结果无缝传递给后续的 MongoDB 阶段（如 $match, $project, $lookup），在数据库内部完成复杂的“向量 + 标量 + 关联查询”逻辑，无需应用层组装。
@@ -265,9 +268,9 @@ tags:
 
 ### **2.11 Vertex AI Vector Search (Google)**
 
-- **定位:** Google Cloud 全托管服务，原 Matching Engine。
+- **定位:** Google Cloud 全托管服务，原 Matching Engine<sup>[[19]](#ref19)</sup>。
 - **核心架构深度解析:**
-  - **ScaNN:** Google 独家的 ScaNN 算法，通过**各向异性量化（Anisotropic Quantization）**在压缩率和召回率之间取得了业界领先的平衡 [9]。它能理解向量在空间中的分布密度，从而更智能地量化，损失更少的信息。
+  - **ScaNN:** Google 独家的 ScaNN 算法，通过**各向异性量化（Anisotropic Quantization）**在压缩率和召回率之间取得了业界领先的平衡<sup>[[9]](#ref9)</sup>。它能理解向量在空间中的分布密度，从而更智能地量化，损失更少的信息。
   - **全托管:** 完全屏蔽底层基础设施，自动处理分片、复制和自动扩缩容。
 - **优势:**
   - **极高性能:** 能够以极低的延迟处理数百万 QPS，专为亿级 QPS 设计。如果数据量达到亿级且并发极高，它是最稳的选择。
@@ -290,7 +293,7 @@ tags:
 
 ### **2.13 ClickHouse**
 
-- **定位:** 实时 OLAP 分析数据库，近期增加了向量支持。
+- **定位:** 实时 OLAP 分析数据库，近期增加了向量支持<sup>[[21]](#ref21)</sup>。
 - **核心架构:**
   - **列式存储:** 擅长高速扫描。
   - **向量支持:** 提供了 Distance 函数（L2, Cosine）和实验性的向量索引（Annoy, HNSW）。
@@ -358,6 +361,23 @@ tags:
 | **多模态**   | 强 (支持多向量检索)              | 中                                | 强 (模块化自动向量化)               | 中                         | 强        | 弱         | 中            | 中                          | **强**                | 弱 (需应用层处理)       | 中                   |
 | **扩展性**   | **极高 (存储计算彻底分离)**      | 高 (分片)                         | 高 (分片)                           | 自动扩展 (Serverless)      |           |            |               |                             | 自动扩展 (Serverless) | 受限于 PG 单实例上限    | 受限于 PG 单实例上限 |
 | **冷热分离** | 支持                             | 支持                              | 支持                                |                            | 自动      | 弱         | 支持          | 自动 (Atlas Online Archive) | **强**                |                         | 支持 (PG)            |
+
+### **3.3 量化与压缩支持**
+
+向量量化是降低内存占用和提升查询速度的关键技术。以下对比各数据库的量化能力：
+
+| 数据库          | Scalar Quantization (SQ) | Product Quantization (PQ) | Binary Quantization (BQ) | 其他量化                                           | 压缩比 |
+| :-------------- | :----------------------- | :------------------------ | :----------------------- | :------------------------------------------------- | :----- |
+| **Milvus**      | ✅ HNSW_SQ (int8)        | ✅ HNSW_PQ, IVF_PQ        | ✅ BIN_FLAT              | HNSW_PRQ (残差量化)                                | 4x-32x |
+| **Qdrant**      | ✅ Scalar (int8)         | ✅ Product Quantization   | ✅ Binary (1-bit)        | 1.5-bit, 2-bit, Asymmetric                         | 4x-32x |
+| **Weaviate**    | ✅ SQ                    | ✅ PQ                     | ✅ BQ                    | -                                                  | 4x-32x |
+| **Pinecone**    | ✅ (内置优化)            | ✅ (内置优化)             | -                        | 专有算法                                           | 自动   |
+| **PGVector**    | ✅ halfvec (16-bit)      | -                         | ❌                       | sparsevec (稀疏)                                   | 2x     |
+| **VectorChord** | ✅ SQ                    | -                         | ✅ BQ                    | **RaBitQ** (理论误差边界)<sup>[[16]](#ref16)</sup> | 4x-32x |
+| **ES (8.x)**    | ✅ int8_hnsw             | ❌                        | ❌                       | int4_hnsw                                          | 4x-8x  |
+| **LanceDB**     | ✅                       | ✅ IVF-PQ                 | ❌                       | Lance 原生压缩                                     | 4x-16x |
+| **FAISS**       | ✅                       | ✅ (各种组合)             | ✅                       | OPQ, LSQ, SQ4                                      | 4x-64x |
+| **ClickHouse**  | ✅ QBit (4-64 bit)       | ❌                        | ❌                       | 可变精度量化                                       | 2x-8x  |
 
 ## **4. 选型决策方案**
 
@@ -534,22 +554,46 @@ $$
 
 ## **7. Reference**
 
-[1] P. Lewis et al., "Retrieval-augmented generation for knowledge-intensive NLP tasks," _Proc. Adv. Neural Inf. Process. Syst._, vol. 33, pp. 9459–9474, 2020.
+<a id="ref1"></a>[1] P. Lewis, E. Perez, A. Piktus, et al., "Retrieval-augmented generation for knowledge-intensive NLP tasks," _Proc. Adv. Neural Inf. Process. Syst._, vol. 33, pp. 9459–9474, 2020.
 
-[2] A. Moffat and J. Zobel, "BM25 revisited," _Proc. Aust. Document Comput. Symp._, pp. 1–4, 2014.
+<a id="ref2"></a>[2] A. Moffat and J. Zobel, "BM25 revisited," _Proc. Aust. Document Comput. Symp._, pp. 1–4, 2014.
 
-[3] A. Vaswani et al., "Attention is all you need," _Adv. Neural Inf. Process. Syst._, vol. 30, pp. 5998–6008, 2017.
+<a id="ref3"></a>[3] A. Vaswani, N. Shazeer, N. Parmar, et al., "Attention is all you need," _Adv. Neural Inf. Process. Syst._, vol. 30, pp. 5998–6008, 2017.
 
-[4] Y. A. Malkov and D. A. Yashunin, "Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs," _IEEE Trans. Pattern Anal. Mach. Intell._, vol. 42, no. 4, pp. 824–836, 2018.
+<a id="ref4"></a>[4] Y. A. Malkov and D. A. Yashunin, "Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs," _IEEE Trans. Pattern Anal. Mach. Intell._, vol. 42, no. 4, pp. 824–836, 2018.
 
-[5] H. Jegou, M. Douze, and C. Schmid, "Product quantization for nearest neighbor search," _IEEE Trans. Pattern Anal. Mach. Intell._, vol. 33, no. 1, pp. 117–128, 2011.
+<a id="ref5"></a>[5] H. Jégou, M. Douze, and C. Schmid, "Product quantization for nearest neighbor search," _IEEE Trans. Pattern Anal. Mach. Intell._, vol. 33, no. 1, pp. 117–128, 2011.
 
-[6] S. Jayaram Subramanya et al., "DiskANN: Fast accurate billion-point nearest neighbor search on a single node," _Adv. Neural Inf. Process. Syst._, vol. 32, 2019.
+<a id="ref6"></a>[6] S. Jayaram Subramanya, D. Kadekodi, R. Krishnaswamy, and H. V. Simhadri, "DiskANN: Fast accurate billion-point nearest neighbor search on a single node," _Adv. Neural Inf. Process. Syst._, vol. 32, 2019.
 
-[7] J. Wang et al., "Milvus: A purpose-built vector data management system," _Proc. Int. Conf. Manag. Data (SIGMOD)_, pp. 2614–2627, 2021.
+<a id="ref7"></a>[7] J. Wang, X. Yi, R. Guo, et al., "Milvus: A purpose-built vector data management system," _Proc. Int. Conf. Manag. Data (SIGMOD)_, pp. 2614–2627, 2021.
 
-[8] J. Johnson, M. Douze, and H. Jégou, "Billion-scale similarity search with GPUs," _IEEE Trans. Big Data_, vol. 7, no. 3, pp. 535–547, 2019.
+<a id="ref8"></a>[8] J. Johnson, M. Douze, and H. Jégou, "Billion-scale similarity search with GPUs," _IEEE Trans. Big Data_, vol. 7, no. 3, pp. 535–547, 2019.
 
-[9] R. Guo et al., "Accelerating large-scale inference with anisotropic vector quantization," _Int. Conf. Mach. Learn._, pp. 3887–3896, 2020.
+<a id="ref9"></a>[9] R. Guo, P. Sun, E. Lindgren, et al., "Accelerating large-scale inference with anisotropic vector quantization," _Int. Conf. Mach. Learn._, pp. 3887–3896, 2020.
 
-[10] J. Johnson, M. Douze, and H. Jégou, "Billion-scale similarity search with GPUs," _IEEE Trans. Big Data_, vol. 7, no. 3, pp. 535–547, 2019.
+<a id="ref10"></a>[10] Milvus Official Documentation, "Architecture Overview," Zilliz, 2024. [Online]. Available: https://milvus.io/docs/architecture_overview.md
+
+<a id="ref11"></a>[11] Qdrant Official Documentation, "What is Qdrant?," Qdrant, 2024. [Online]. Available: https://qdrant.tech/documentation/overview/
+
+<a id="ref12"></a>[12] Weaviate Official Documentation, "Vector Indexing," Weaviate, 2024. [Online]. Available: https://weaviate.io/developers/weaviate/concepts/vector-index
+
+<a id="ref13"></a>[13] Pinecone Official Documentation, "Pinecone Documentation," Pinecone, 2024. [Online]. Available: https://docs.pinecone.io/
+
+<a id="ref14"></a>[14] pgvector, "Open-source vector similarity search for Postgres," GitHub, 2024. [Online]. Available: https://github.com/pgvector/pgvector
+
+<a id="ref15"></a>[15] VectorChord, "Scalable, fast, and disk-friendly vector search in Postgres," TensorChord, 2024. [Online]. Available: https://github.com/tensorchord/VectorChord
+
+<a id="ref16"></a>[16] J. Gao and C. Long, "RaBitQ: Quantizing High-Dimensional Vectors with a Theoretical Error Bound for Approximate Nearest Neighbor Search," _Proc. ACM Manag. Data_, vol. 2, no. 3, pp. 1–27, 2024.
+
+<a id="ref17"></a>[17] Elasticsearch Official Documentation, "kNN search in Elasticsearch," Elastic, 2024. [Online]. Available: https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html
+
+<a id="ref18"></a>[18] MongoDB Atlas Documentation, "Vector Search Overview," MongoDB, 2024. [Online]. Available: https://www.mongodb.com/docs/atlas/atlas-vector-search/vector-search-overview/
+
+<a id="ref19"></a>[19] Google Cloud Documentation, "Vector Search," Vertex AI, 2024. [Online]. Available: https://cloud.google.com/vertex-ai/docs/vector-search/overview
+
+<a id="ref20"></a>[20] LanceDB, "Vector Database for RAG, Agents & Hybrid Search," LanceDB Inc., 2024. [Online]. Available: https://lancedb.com/
+
+<a id="ref21"></a>[21] ClickHouse Documentation, "Exact and Approximate Vector Search," ClickHouse, 2024. [Online]. Available: https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/annindexes
+
+<a id="ref22"></a>[22] FAISS Wiki, "A library for efficient similarity search and clustering of dense vectors," Meta AI Research, 2024. [Online]. Available: https://github.com/facebookresearch/faiss/wiki
