@@ -1,6 +1,6 @@
 ---
 id: oceanbase
-sidebar_position: 3.3
+sidebar_position: 3.4
 title: OceanBase 三位一体数据库深度调研报告
 last_update:
   author: Aurelius Huang
