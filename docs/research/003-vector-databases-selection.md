@@ -435,12 +435,12 @@ tags:
 
 > [!NOTE] > **测试环境说明:** 以上数据基于 768-1536 维向量、HNSW 索引、90%+ 召回率的典型配置。生产环境部署前应使用实际数据进行基准测试。
 
-**VectorDBBench 关键发现 (1M 数据集, $1000/月成本):**
-
-- **Zilliz Cloud (8cu):** P99 延迟 2.5ms, QPS 9,704
-- **Milvus (16c64g-sq8):** P99 延迟 2.2ms, QPS 3,465
-- **Qdrant Cloud (16c64g):** P99 延迟 6.4ms, QPS 1,242
-- **Pinecone (p2.x8):** P99 延迟 13.7ms, QPS 1,147
+> [!IMPORTANT] > **VectorDBBench 关键发现 (1M 数据集, $1000/月成本):**
+>
+> - **Zilliz Cloud (8cu):** P99 延迟 2.5ms, QPS 9,704
+> - **Milvus (16c64g-sq8):** P99 延迟 2.2ms, QPS 3,465
+> - **Qdrant Cloud (16c64g):** P99 延迟 6.4ms, QPS 1,242
+> - **Pinecone (p2.x8):** P99 延迟 13.7ms, QPS 1,147
 
 ## **4. 选型决策方案**
 
@@ -550,19 +550,7 @@ tags:
 - **不要跨大洋拉 Raft 集群:** 严禁将 Etcd 或 Zookeeper 的节点部署在不同的大洲。Raft 协议要求半数以上节点确认才能写入，跨洋延迟会导致整个集群的写入瘫痪。**跨域只能做异步复制，不能做共识层。**
 - **警惕 Egress Cost (流量刺客):** 云厂商的跨域流量费极贵。如果你的向量维度很高（如 1536 维）且更新频繁，全量同步的带宽成本可能超过数据库本身的计算成本。**建议:** 在同步前对向量进行量化压缩（Binary Quantization），或者仅同步原始文本，在目标区域重新 Embedding（用算力换带宽）。
 
-### **4.4 评估指标**
-
-- **Recall@K (召回率):** 查出来的 Top-K 结果中，有多少是真的最近邻？
-- **QPS (每秒查询数):** 在特定召回率下的最大吞吐量。
-- **Latency (P99 延迟):** 尾部延迟，决定了用户体验。
-- **Cost per Query:** 每次查询的硬件成本。
-
-**评估工具：**
-
-- **ann-benchmarks:** 行业标准，包含 HNSW, Faiss, Annoy 等算法的基准数据。
-- **VectorDBBench:** 专门针对主流向量数据库（Milvus, Weaviate, Qdrant 等）的对比测试工具。
-
-### **4.5 总结**
+### **4.4 总结**
 
 - **通用最强 & 大规模首选:**
   - Milvus：凭借架构的先进性和社区活跃度占据高端市场。
@@ -574,11 +562,23 @@ tags:
 - **文本结合 & 搜索增强:** Weaviate、Elasticsearch
 - **特定领域:** Redis (极致实时), ClickHouse (OLAP), Vespa (复杂推荐), Vertex AI (Google 全家桶)
 
-## **5. 容量规划与 TCO 控制**
+## **5. 量化指标与 TCO 控制**
+
+### **5.1 核心评估指标**
+
+- **Recall@K (召回率):** 查出来的 Top-K 结果中，有多少是真的最近邻？
+- **QPS (每秒查询数):** 在特定召回率下的最大吞吐量。
+- **Latency (P99 延迟):** 尾部延迟，决定了用户体验。
+- **Cost per Query:** 每次查询的硬件成本。
+
+**评估工具：**
+
+- **ann-benchmarks:** 行业标准，包含 HNSW, Faiss, Annoy 等算法的基准数据。
+- **VectorDBBench:** 专门针对主流向量数据库（Milvus, Weaviate, Qdrant 等）的对比测试工具。
+
+### **5.2 内存估算公式 (Memory Footprint)**
 
 在选型时，不要只关注软件是否免费，却忽略了硬件成本。
-
-### **5.1 内存估算公式 (Memory Footprint)**
 
 对于最常用的 **HNSW** 索引，内存占用主要由两部分组成：原始向量 + 图索引结构。
 
@@ -599,7 +599,7 @@ $$
 - Total: ~60GB RAM。
 - **结论:** 你需要一台 64GB 甚至 128GB 内存的服务器。
 
-### **5.2 降本策略**
+### **5.3 TCO 控制策略**
 
 1. **标量量化 (SQ8):** 将 float32 转为 int8，内存减少 4 倍。上述案例仅需 ~15GB。
 2. **二进制量化 (Binary Quantization):** 将 float32 转为 bit，内存减少 32 倍。适合维度 > 1024 的场景。
@@ -615,7 +615,7 @@ $$
 - **“Just use Postgres” 成为主流:** 随着 PGVector 性能的优化（如并行索引构建、量化支持）以及 VectorChord 等高性能插件的出现，对于 80% 的非超大规模应用，独立部署向量数据库的 ROI 越来越低。PostgreSQL 正在成为向量数据库领域的“丰田卡罗拉”——**不是最快的，但是最可靠、最通用的**。
 - **Agentic Memory (Agent 记忆体):** 随着 AI Agent 的兴起，向量数据库将演变为 Agent 的“长期记忆体”（Long-term Memory）。这对数据的实时更新（Real-time Update）、版本控制（Versioning）和多模态理解能力提出了更高要求。这可能是 LanceDB 等新一代数据库弯道超车的机会。
 
-## **7. Reference**
+## **7. References**
 
 <a id="ref1"></a>[1] P. Lewis, E. Perez, A. Piktus, et al., "Retrieval-augmented generation for knowledge-intensive NLP tasks," _Proc. Adv. Neural Inf. Process. Syst._, vol. 33, pp. 9459–9474, 2020.
 
