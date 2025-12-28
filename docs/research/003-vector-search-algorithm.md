@@ -5,9 +5,9 @@ title: 向量数据库原理与算法深度解析
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-24
-  updated_at: 2025-12-24
-  version: 1.1
-  status: In Progress
+  updated_at: 2025-12-28
+  version: 1.2
+  status: Pending Review
 tags:
   - Vector Database
   - ANN Algorithms
@@ -18,7 +18,13 @@ tags:
   - Embedding
 ---
 
-> [!IMPORTANT] **解读范围**：从 LLM 缺陷出发，深入解析向量数据库的数学模型、算法原理、实现细节、性能分析、应用场景与选型建议
+> [!IMPORTANT] **解读范围**：从 LLM 缺陷的角度出发，引出向量数据库的需求，然后深入解析向量数据库的数学模型、算法原理、实现细节、性能分析、应用场景与选型建议。
+>
+> 向量数据库的需求不仅来自 LLM 应用，还受到如下有别于传统数据库因素的影响：
+>
+> - **语义搜索**
+> - 数据**规模爆炸**的挑战
+> - 数据**维度诅咒**
 
 ---
 
@@ -70,7 +76,7 @@ mindmap
 Embedding 本质上是一个映射函数 $f: X \rightarrow \mathbb{R}^d$，将输入空间 $X$ 中的对象映射到 $d$ 维实数向量空间：
 
 $$
-\text{embed}(x) = [e_1, e_2, ..., e_d] \in \mathbb{R}^d
+    \text{embed}(x) = [e_1, e_2, ..., e_d] \in \mathbb{R}^d
 $$
 
 其中：
@@ -84,22 +90,24 @@ $$
 Embedding 的核心价值在于：**语义相似的对象在向量空间中距离更近**<sup>[[5]](#ref5)</sup>。
 
 ```mermaid
-graph LR
-    subgraph "语义空间"
-        A["'猫'"] --> VA["[0.2, 0.8, ...]"]
-        B["'狗'"] --> VB["[0.3, 0.7, ...]"]
-        C["'汽车'"] --> VC["[0.9, 0.1, ...]"]
-    end
-
-    subgraph "向量距离"
-        VA <--> |"距离: 0.15"| VB
-        VA <--> |"距离: 0.89"| VC
-    end
-
-    style A fill:#91d5ff
-    style B fill:#91d5ff
-    style C fill:#ffd591
+quadrantChart
+    title Semantic Vector Space
+    x-axis "低动物特性" --> "高动物特性"
+    y-axis "低生物特性" --> "高生物特性"
+    quadrant-1 "生物-动物"
+    quadrant-2 "生物-非动物"
+    quadrant-3 "非生物-非动物"
+    quadrant-4 "非生物-动物"
+    Cat: [0.6, 0.8]
+    Dog: [0.7, 0.7]
+    Car: [0.1, 0.1]
 ```
+
+> [!TIP] **图示说明**
+>
+> - **"猫" Cat (0.6, 0.8)** 与 **"狗" Dog (0.7, 0.7)** 位于右上象限，语义距离仅 **0.14**
+> - **"汽车" Car (0.1, 0.1)** 位于左下象限，与"猫"语义距离达 **0.86**
+> - 这直观体现了语义相似对象在向量空间中聚集的特性
 
 这种特性使得我们可以：
 
