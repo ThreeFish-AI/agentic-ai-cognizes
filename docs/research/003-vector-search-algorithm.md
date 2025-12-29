@@ -200,49 +200,39 @@ graph TB
 
 ---
 
-## 2. 向量存储与索引基础
+## 2. 向量索引概览
 
-### 2.1 向量的数据表示
-
-#### 2.1.1 向量类型分类
-
-| 向量类型             | 描述                     | 存储效率      | 精度 | 典型应用              |
-| -------------------- | ------------------------ | ------------- | ---- | --------------------- |
-| **Dense Vector**     | 密集向量，所有维度有值   | 中            | 高   | 文本/图像嵌入         |
-| **Sparse Vector**    | 稀疏向量，大部分维度为零 | 高            | 高   | TF-IDF、BM25          |
-| **Binary Vector**    | 二值向量，仅含 0/1       | 极高（1-bit） | 低   | SimHash、局部敏感哈希 |
-| **Quantized Vector** | 量化向量，压缩表示       | 高            | 中   | PQ 编码向量           |
-
-#### 2.1.2 数值精度选择
+### 2.1 构建与使用
 
 ```mermaid
-graph LR
-    subgraph "数值精度对比"
-        F32[Float32<br/>4 字节/维]
-        F16[Float16<br/>2 字节/维]
-        BF16[BFloat16<br/>2 字节/维]
-        I8[Int8<br/>1 字节/维]
-        B1[Binary<br/>1/8 字节/维]
+sequenceDiagram
+    participant U as 用户
+    participant API as API 层
+    participant IDX as 索引引擎
+    participant VDB as 向量存储
+
+    rect rgb(240, 248, 255)
+    Note over U,VDB: 索引构建阶段
+    U->>API: 插入向量 (id, vector, metadata)
+    API->>VDB: 存储原始向量
+    API->>IDX: 触发索引更新
+    IDX->>IDX: 计算索引结构
+    IDX->>VDB: 存储索引数据
     end
 
-    F32 --> |"精度最高"| APP1[精确计算]
-    F16 --> |"GPU 友好"| APP2[推理加速]
-    I8 --> |"4x 压缩"| APP3[大规模存储]
-    B1 --> |"32x 压缩"| APP4[极限压缩]
-
-    style F32 fill:#1890ff,color:#fff
-    style I8 fill:#52c41a,color:#fff
+    rect rgb(255, 248, 240)
+    Note over U,VDB: 查询阶段
+    U->>API: 搜索请求 (query_vector, top_k, filter)
+    API->>IDX: 执行 ANN 搜索
+    IDX->>IDX: 遍历索引结构
+    IDX->>VDB: 获取候选向量
+    IDX->>IDX: 计算精确距离
+    IDX-->>API: 返回 Top-K 结果
+    API-->>U: 返回 (id, score, metadata)
+    end
 ```
 
-| 精度类型   | 存储空间   | 相对误差 | 计算速度 | 推荐场景           |
-| ---------- | ---------- | -------- | -------- | ------------------ |
-| **FP32**   | 4 字节     | 基准     | 基准     | 精确计算、训练     |
-| **FP16**   | 2 字节     | <0.1%    | 1.5-2x   | GPU 推理、存储优化 |
-| **BF16**   | 2 字节     | <0.5%    | 1.5-2x   | 训练稳定性         |
-| **INT8**   | 1 字节     | <1%      | 2-4x     | 大规模部署         |
-| **Binary** | 0.125 字节 | 5-10%    | 10-32x   | 极端压缩、初筛     |
-
-### 2.2 索引结构概览
+### 2.2 向量索引算法概览
 
 向量索引（Vector Index）是向量数据库的核心组件，决定了搜索效率和召回质量。主流索引算法可分为以下几类<sup>[[8]](#ref8)</sup>：
 
@@ -285,35 +275,43 @@ graph TB
 | **基于图**   | HNSW, NSW      | O(log n)   | 高       | 极高   | 高召回要求           |
 | **复合索引** | IVF + PQ       | O(√n × M)  | 低       | 高     | 大规模生产环境       |
 
-### 2.3 索引构建与查询流程
+### 2.3 向量类型分类
+
+| 向量类型             | 描述                     | 存储效率      | 精度 | 典型应用              |
+| -------------------- | ------------------------ | ------------- | ---- | --------------------- |
+| **Dense Vector**     | 密集向量，所有维度有值   | 中            | 高   | 文本/图像嵌入         |
+| **Sparse Vector**    | 稀疏向量，大部分维度为零 | 高            | 高   | TF-IDF、BM25          |
+| **Binary Vector**    | 二值向量，仅含 0/1       | 极高（1-bit） | 低   | SimHash、局部敏感哈希 |
+| **Quantized Vector** | 量化向量，压缩表示       | 高            | 中   | PQ 编码向量           |
+
+### 2.4 向量数值精度
 
 ```mermaid
-sequenceDiagram
-    participant U as 用户
-    participant API as API 层
-    participant IDX as 索引引擎
-    participant VDB as 向量存储
-
-    rect rgb(240, 248, 255)
-    Note over U,VDB: 索引构建阶段
-    U->>API: 插入向量 (id, vector, metadata)
-    API->>VDB: 存储原始向量
-    API->>IDX: 触发索引更新
-    IDX->>IDX: 计算索引结构
-    IDX->>VDB: 存储索引数据
+graph LR
+    subgraph "数值精度对比"
+        F32[Float32<br/>4 字节/维]
+        F16[Float16<br/>2 字节/维]
+        BF16[BFloat16<br/>2 字节/维]
+        I8[Int8<br/>1 字节/维]
+        B1[Binary<br/>1/8 字节/维]
     end
 
-    rect rgb(255, 248, 240)
-    Note over U,VDB: 查询阶段
-    U->>API: 搜索请求 (query_vector, top_k, filter)
-    API->>IDX: 执行 ANN 搜索
-    IDX->>IDX: 遍历索引结构
-    IDX->>VDB: 获取候选向量
-    IDX->>IDX: 计算精确距离
-    IDX-->>API: 返回 Top-K 结果
-    API-->>U: 返回 (id, score, metadata)
-    end
+    F32 --> |"精度最高"| APP1[精确计算]
+    F16 --> |"GPU 友好"| APP2[推理加速]
+    I8 --> |"4x 压缩"| APP3[大规模存储]
+    B1 --> |"32x 压缩"| APP4[极限压缩]
+
+    style F32 fill:#1890ff,color:#fff
+    style I8 fill:#52c41a,color:#fff
 ```
+
+| 精度类型   | 存储空间   | 相对误差 | 计算速度 | 推荐场景           |
+| ---------- | ---------- | -------- | -------- | ------------------ |
+| **FP32**   | 4 字节     | 基准     | 基准     | 精确计算、训练     |
+| **FP16**   | 2 字节     | <0.1%    | 1.5-2x   | GPU 推理、存储优化 |
+| **BF16**   | 2 字节     | <0.5%    | 1.5-2x   | 训练稳定性         |
+| **INT8**   | 1 字节     | <1%      | 2-4x     | 大规模部署         |
+| **Binary** | 0.125 字节 | 5-10%    | 10-32x   | 极端压缩、初筛     |
 
 ---
 
@@ -321,16 +319,16 @@ sequenceDiagram
 
 本章详细介绍向量索引的基础算法，包括 K-Means 聚类、局部敏感哈希（LSH）和导航小世界图（NSW）。
 
-### 3.1 K-Means 聚类与向量量化
+### 3 K-Means 聚类与向量量化
 
 #### 3.1.1 K-Means 算法原理
 
 K-Means 是向量量化（Vector Quantization）的基础算法，通过将数据划分为 K 个簇，用簇中心（Centroid）代表该簇所有向量<sup>[[9]](#ref9)</sup>。
 
-**数学目标**：最小化簇内平方误差和（Within-Cluster Sum of Squares, WCSS）：
+**数学目标**：最小化簇内方差和（Within-Cluster Sum of Squares, WCSS）：
 
 $$
-J = \sum_{i=1}^{K} \sum_{x \in C_i} \|x - \mu_i\|^2
+    J = \sum_{i=1}^{K} \sum_{x \in C_i} \|x - \mu_i\|^2
 $$
 
 其中：
@@ -376,23 +374,38 @@ def kmeans(vectors, k, max_iters=100):
     return centroids, clusters
 ```
 
-#### 3.1.2 向量量化应用
+#### 3.1.2 向量量化应用：码本（Codebook）
 
-K-Means 在向量索引中的核心应用是构建**码本（Codebook）**：
+K-Means 在向量索引中的核心应用是构建**码本（Codebook）**。
+
+> [!NOTE] 码本是什么？
+>
+> 码本就是一个 **"向量字典"**。如果不存原始向量，而是存这个向量"最像字典里的哪一个"，就能大幅压缩数据。字典里的每一个词条（中心向量），被称为**码字（Codeword）**。
 
 ```mermaid
 graph LR
     subgraph "向量量化过程"
         V[原始向量<br/>1536 维 × N 个] --> KM[K-Means<br/>K=1024]
         KM --> CB[码本<br/>1024 个中心向量]
-        KM --> ID[向量编码<br/>每向量 10 bits]
+        KM --> ID[压缩存储<br/>仅存 10-bit ID]
     end
 
+    style KM fill:#1890ff,color:#fff
+```
+
+> [!TIP] 码本制作过程（Training Codebook）：
+>
+> 1.  **采样**：从海量数据中随机抽取一部分向量（如 100 万个）作为训练集。
+> 2.  **聚类**：对训练集跑 K-Means 算法（如 K=1024），得到 1024 个簇中心。
+> 3.  **生成**：这 1024 个中心向量就组成了码本。
+> 4.  **编码**：对任意新向量，找到离它最近的中心向量 ID（0-1023），用这个 10-bit 的 ID 代替原始向量存储。
+
+```mermaid
+graph LR
     subgraph "压缩效果"
         ORIG[原始: 6KB/向量] --> COMP[压缩后: 1.25 字节/向量]
     end
 
-    style KM fill:#1890ff,color:#fff
     style COMP fill:#52c41a,color:#fff
 ```
 
