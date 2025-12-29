@@ -1122,6 +1122,12 @@ graph TB
         RK --> PQK[PQ 编码]
     end
 
+    style IVF fill:#1890ff,color:#fff
+    style PQ1 fill:#52c41a,color:#fff
+```
+
+```mermaid
+graph TB
     subgraph "搜索流程"
         Q[查询] --> S1[1. 找最近 nprobe 个簇中心]
         S1 --> S2[2. 计算残差 = query - 中心]
@@ -1129,9 +1135,6 @@ graph TB
         S3 --> S4[4. 查表累加计算候选距离]
         S4 --> S5[5. 返回 Top-K]
     end
-
-    style IVF fill:#1890ff,color:#fff
-    style PQ1 fill:#52c41a,color:#fff
 ```
 
 **残差编码**：存储的是向量到簇中心的残差，而不是原始向量：
@@ -1186,15 +1189,18 @@ graph TB
         SSD --> GRAPH[图索引结构]
     end
 
+    style RAM fill:#91d5ff,color:#000000
+    style SSD fill:#ffd591,color:#000000
+```
+
+```mermaid
+graph TB
     subgraph "搜索流程"
         Q[查询] --> S1[1. 使用内存中 PQ 向量导航]
         S1 --> S2[2. 读取 SSD 上的候选全精度向量]
         S2 --> S3[3. 精确距离计算]
         S3 --> S4[4. 返回 Top-K]
     end
-
-    style RAM fill:#91d5ff
-    style SSD fill:#ffd591
 ```
 
 #### 5.1.2 Vamana 图构建算法
@@ -1282,7 +1288,7 @@ graph LR
     Q --> |"快速近似距离"| R
     R --> |"精确重排"| Result[Top-K 结果]
 
-    style Q fill:#52c41a,color:#fff
+    style Q fill:#52c41a,color:#000000
 ```
 
 #### 5.2.2 各向异性量化原理
@@ -1297,8 +1303,8 @@ graph TB
     ISO --> |"重构误差均匀"| ISO_RES[所有向量精度相同]
     ANISO --> |"内积误差优化"| ANISO_RES[高相似向量精度更高]
 
-    style ANISO fill:#1890ff,color:#fff
-    style ANISO_RES fill:#b7eb8f
+    style ANISO fill:#1890ff,color:#000000
+    style ANISO_RES fill:#b7eb8f,color:#000000
 ```
 
 #### 5.2.3 ScaNN 性能基准
@@ -1384,7 +1390,7 @@ graph LR
         A --> C["距离 = √((4-1)² + (6-2)²) = 5"]
     end
 
-    style C fill:#91d5ff
+    style C fill:#91d5ff,color:#000000
 ```
 
 #### 6.1.3 特性分析
@@ -1444,7 +1450,7 @@ graph TB
         S2["只关注方向相似性"]
     end
 
-    style S1 fill:#b7eb8f
+    style S1 fill:#b7eb8f,color:#000000
 ```
 
 #### 6.2.3 特性分析
@@ -1527,7 +1533,7 @@ def normalized_dot_product(a, b):
 **曼哈顿距离**（也称 L1 距离、城市街区距离）计算两点之间沿坐标轴的绝对差值之和<sup>[[19]](#ref19)</sup>：
 
 $$
-d_{L1}(a, b) = \sum_{i=1}^{d} |a_i - b_i| = \|a - b\|_1
+    d_{L1}(a, b) = \sum_{i=1}^{d} |a_i - b_i| = \|a - b\|_1
 $$
 
 #### 6.4.2 几何意义
@@ -1539,8 +1545,8 @@ graph LR
         A --> |"L2: √(9+16)=5"| B
     end
 
-    style A fill:#ffe58f
-    style B fill:#b7eb8f
+    style A fill:#ffe58f,color:#000000
+    style B fill:#b7eb8f,color:#000000
 ```
 
 #### 6.4.3 特性分析
