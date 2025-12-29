@@ -17,7 +17,7 @@ tags:
 
 ## **1. 背景与技术原理**
 
-随着大语言模型（LLM）和生成式 AI 的爆发，**向量数据库（Vector Database）** 已从一个小众的推荐系统基础设施组件，跃升为 AI 技术栈中的核心"海马体"（长期记忆）。在 RAG（检索增强生成）架构中，它不仅是外部知识的存储库，更是连接冻结参数的大模型与实时动态世界之间的桥梁，解决了 LLM 的**幻觉（Hallucination）**和**知识截止（Knowledge Cutoff）**两大痛点<sup>[[1]](#ref1)</sup>。
+随着大语言模型（LLM）和生成式 AI 的爆发，**向量数据库（Vector Database）** 已从一个小众的推荐系统基础设施组件，跃升为 AI 技术栈中的核心"海马体"（长期记忆）。在 RAG（检索增强生成）架构中，它不仅是外部知识的存储库，更是连接冻结参数的大模型与实时动态世界之间的桥梁，解决了 LLM 的 **幻觉（Hallucination）** 和 **知识截止（Knowledge Cutoff）** 两大痛点<sup>[[1]](#ref1)</sup>。
 
 ### **1.1 为什么需要向量数据库？**
 
@@ -345,7 +345,7 @@ tags:
 
 ### **2.12 Redis Stack (RediSearch)**
 
-- **定位:** 基于内存的高性能键值数据库，通过 RediSearch 模块支持向量。
+- **定位:** 基于内存的高性能键值数据库，通过 RediSearch 模块支持向量 <sup>[[25]](#ref25)</sup>。
 - **核心架构:**
   - **纯内存:** 所有向量数据和索引常驻内存。利用 Redis 现有的 Hash 或 JSON 数据结构存储向量。
 - **优势:**
@@ -388,7 +388,7 @@ tags:
 
 ### **2.15 Vespa**
 
-- **定位:** 源自 Yahoo 的大数据实时计算与服务引擎。
+- **定位:** 源自 Yahoo 的大数据实时计算与服务引擎 <sup>[[26]](#ref26)</sup>。
 - **核心架构:**
   - **复杂计算流水线:** 支持在查询时进行多阶段计算（Tensor 运算、机器学习模型推理）。
 - **优势:**
@@ -694,3 +694,7 @@ $$
 <a id="ref23"></a>[23] M. Aumüller, E. Bernhardsson, and A. Faitfull, "ANN-Benchmarks: A Benchmarking Tool for Approximate Nearest Neighbor Algorithms," _Proc. Int. Conf. Similarity Search and Appl. (SISAP)_, pp. 34–49, 2020. [Online]. Available: https://ann-benchmarks.com/
 
 <a id="ref24"></a>[24] Zilliz, "VectorDBBench: An Open-Source Vector Database Benchmark Tool," Zilliz, 2024. [Online]. Available: https://zilliz.com/vector-database-benchmark-tool
+
+<a id="ref25"></a>[25] Redis Official Documentation, "Vector search concepts," Redis, 2022. [Online]. Available: https://redis.io/docs/latest/develop/ai/search-and-query/vectors/
+
+<a id="ref26"></a>[26] Vespa Official Documentation, "Vespa Overview," Vespa, 2025. [Online]. Available: https://docs.vespa.ai/en/learn/overview.html
