@@ -424,17 +424,23 @@ graph LR
 与传统哈希（尽量减少冲突）相反，LSH **刻意增加相似项的冲突**<sup>[[10]](#ref10)</sup>：
 
 ```mermaid
-graph TB
-    subgraph "传统哈希 vs LSH"
-        T[传统哈希] --> T1[最小化冲突]
-        T --> T2[相似输入 → 不同桶]
-
-        L[LSH] --> L1[最大化相似冲突]
-        L --> L2[相似输入 → 相同桶]
+graph TD
+    subgraph LSH_Box["🟢 LSH (局部敏感) - 最大化冲突"]
+        C["'apple'"] --> H2(LSH)
+        D["'apply'"] --> H2
+        H2 --> |聚合| L1["Bucket 01"]
     end
 
-    style T fill:#ff4d4f,color:#fff
-    style L fill:#52c41a,color:#fff
+    subgraph Traditional["🔴 传统哈希 (如 MD5) - 最小化冲突"]
+        A["'apple'"] --> H1(Hash)
+        B["'apply'"] --> H1
+        H1 --> |分散| T1["0x5e..."]
+        H1 --> |分散| T2["0x8a..."]
+    end
+
+    style T1 fill:#ffccc7,stroke:#ff4d4f
+    style T2 fill:#ffccc7,stroke:#ff4d4f
+    style L1 fill:#d9f7be,stroke:#52c41a
 ```
 
 **数学定义**：一个哈希函数族 $\mathcal{H}$ 是 $(d_1, d_2, p_1, p_2)$-敏感的，当且仅当对任意 $v_1, v_2 \in \mathbb{R}^d$：
@@ -444,7 +450,12 @@ graph TB
 
 其中 $d_1 < d_2$ 且 $p_1 > p_2$。
 
-#### 3.2.2 随机投影 LSH
+> [!TIP] 我们可以把这个数学定义翻译成 **"两个承诺"**：
+>
+> - 承诺一（**对近邻负责**）： 如果两个向量非常像（距离小于 $d_1$），那么我保证它们大概率（概率大于 $p_1$）会被分到同一个桶里。
+> - 承诺二（**对远邻负责**）： 如果两个向量非常不像（距离大于 $d_2$），那么我保证它们小概率（概率小于 $p_2$）会被分到同一个桶里。
+
+#### 3.2.2 随机超平面投影 LSH
 
 对于余弦相似度，最常用的 LSH 方法是**随机超平面投影**<sup>[[10]](#ref10)</sup>：
 
@@ -469,6 +480,9 @@ graph LR
 2. **计算哈希码**：对每个输入向量 $v$，计算 $h_i(v) = \text{sign}(v \cdot r_i)$
 3. **构建哈希表**：将具有相同哈希码的向量放入同一个桶
 4. **查询**：将查询向量哈希，检索同一桶中的候选向量
+
+> [!TIP] 有一个著名的结论：
+> 两个向量被随机超平面分割开的概率，直接正比于它们之间的夹角 $\theta$。 $P(h(x) \neq h(y)) = \frac{\theta}{\pi}$，这恰好对应了余弦距离（夹角大小），因此认为随机超平面投影是专门针对余弦相似度这种相似度量方式的索引算法。
 
 **伪代码**：
 
@@ -516,7 +530,7 @@ class RandomProjectionLSH:
 **召回率与哈希表数量的关系**：
 
 $$
-P[\text{找到近邻}] = 1 - (1 - p^k)^L
+    P[\text{找到近邻}] = 1 - (1 - p^k)^L
 $$
 
 其中 $p$ 是两个相似向量被单个超平面分到同一侧的概率。
@@ -548,8 +562,8 @@ graph TB
         C --> E["短路径长度<br/>O(log n) 跳数"]
     end
 
-    style D fill:#91d5ff
-    style E fill:#b7eb8f
+    style D fill:#bae7ff,stroke:#1890ff,color:#000000
+    style E fill:#d9f7be,stroke:#52c41a,color:#000000
 ```
 
 #### 3.3.2 NSW 图构建
@@ -630,8 +644,8 @@ graph LR
         N3 --> |"局部最优"| R[返回结果]
     end
 
-    style Q fill:#ffd591
-    style R fill:#b7eb8f
+    style Q fill:#ffd591,color:#000000
+    style R fill:#b7eb8f,color:#000000
 ```
 
 **复杂度分析**：
@@ -654,7 +668,7 @@ graph LR
 
 ## 4. 高级索引算法
 
-本章深入介绍三种最重要的高级索引算法：分层导航小世界图（HNSW）、倒排文件索引（IVF）系列和乘积量化（PQ）。
+本章介绍三种最重要的高级索引算法：分层导航小世界图（HNSW）、倒排文件索引（IVF）系列和乘积量化（PQ）。
 
 ### 4.1 分层导航小世界图（HNSW）
 
@@ -679,9 +693,9 @@ graph TB
     L1 --> |"精确搜索"| L0
     L0 --> R[最终结果]
 
-    style L3 fill:#ffe58f
-    style L0 fill:#91d5ff
-    style R fill:#b7eb8f
+    style L3 fill:#ffe58f,color:#000000
+    style L0 fill:#91d5ff,color:#000000
+    style R fill:#b7eb8f,color:#000000
 ```
 
 **层级概率**：每个节点被分配到第 $l$ 层的概率为：
@@ -713,9 +727,9 @@ flowchart TD
     K --> |否| L[更新入口点（如果 l 更高）]
     L --> M[插入完成]
 
-    style B fill:#e6f7ff
-    style H fill:#1890ff,color:#fff
-    style J fill:#fa8c16,color:#fff
+    style B fill:#e6f7ff,color:#000000
+    style H fill:#1890ff,color:#000000
+    style J fill:#fa8c16,color:#000000
 ```
 
 **伪代码**：
