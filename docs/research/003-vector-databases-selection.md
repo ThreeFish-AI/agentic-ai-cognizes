@@ -161,6 +161,7 @@ tags:
   - **Ref2Vec:** Weaviate 的特色功能，允许将一个对象“向量化”为它引用的其他对象的聚合。这对于推荐系统非常有用（例如，用户的向量 = 他喜欢的文章向量的平均值）。
   - **Schema First:** 强类型系统，要求先定义 Schema (Class, Properties)。这有助于数据治理，但也降低了灵活性。
   - **Named Vectors (多向量检索):** 同一对象可以存储多个不同的向量（如标题向量、内容向量、图片向量），支持 Multi-target Vector Search，实现更精细的检索控制。
+  - **存储引擎 (Storage Engine):** Weaviate 使用基于 **LSM-Tree** 的存储引擎，并利用 **Mmap (Memory-mapped files)** 技术访问数据。这意味着它不仅是内存数据库，还能高效利用磁盘空间和 Page Cache，支持 **Flat Index**（纯磁盘蛮力搜索）和 **HNSW**（内存/磁盘混合）。
   - **Dynamic Index:** 智能索引切换，小数据集使用 Flat 索引，数据量增长后自动切换到 HNSW 索引，平衡性能和资源。
   - **量化技术对比:**
     | 量化方法 | 压缩比 | 召回影响 | 特点 |
@@ -425,7 +426,7 @@ tags:
 | 特性         | Milvus                           | Qdrant                            | Weaviate                            | Pinecone                   | Vertex AI | Redis      | Elasticsearch | MongoDB                     | LanceDB               | PGVector                | VectorChord          |
 | :----------- | :------------------------------- | :-------------------------------- | :---------------------------------- | :------------------------- | :-------- | :--------- | :------------ | :-------------------------- | :-------------------- | :---------------------- | :------------------- |
 | **索引算法** | HNSW, IVF_FLAT, DiskANN, GPU-IVF | HNSW (定制优化, 支持量化)         | HNSW, Flat, Dynamic                 | Proprietary (基于 Graph)   | ScaNN     | HNSW, Flat | HNSW          | HNSW (Lucene)               | IVF-PQ                | HNSW, IVFFlat           | HNSW, VChord         |
-| **磁盘索引** | **支持 (DiskANN)** - 降本神器    | 支持 (Mmap / Binary Quantization) | 支持 (PQ + Product Quantization)    | 支持 (Serverless 分层存储) | N/A       | 弱         | 依赖 OS       | N/A (Atlas Tiering)         | **强**                | 依赖 OS Page Cache      | **强 (VChord)**      |
+| **磁盘索引** | **支持 (DiskANN)** - 降本神器    | 支持 (Mmap / Binary Quantization) | 支持 (Mmap / PQ / Flat)             | 支持 (Serverless 分层存储) | N/A       | 弱         | 依赖 OS       | N/A (Atlas Tiering)         | **强**                | 依赖 OS Page Cache      | **强 (VChord)**      |
 | **混合搜索** | 支持 (需手动结合 / RRF)          | 支持 (Query 层面)                 | **原生强项** (Alpha 调节 + Ranking) | 支持 (Hybrid Search)       | 支持      | 支持       | **极强**      | 支持 (Reciprocal Rank)      | 支持                  | 需自行写 SQL + 代码逻辑 | 支持 (PG SQL)        |
 | **多模态**   | 强 (支持多向量检索)              | 中                                | 强 (模块化自动向量化)               | 中                         | 强        | 弱         | 中            | 中                          | **强**                | 弱 (需应用层处理)       | 中                   |
 | **扩展性**   | **极高 (存储计算彻底分离)**      | 高 (分片)                         | 高 (分片)                           | 自动扩展 (Serverless)      | 极高      | 高 (分片)  | 高 (分片)     | 高 (分片)                   | 自动扩展 (Serverless) | 受限于 PG 单实例上限    | 受限于 PG 单实例上限 |
