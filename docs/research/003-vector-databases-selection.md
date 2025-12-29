@@ -114,7 +114,7 @@ tags:
   - **GPU 索引:** GPU_IVF_FLAT, GPU_IVF_PQ, GPU_CAGRA (NVIDIA RAFT)
   - **稀疏/二进制向量:** SPARSE_INVERTED_INDEX, SPARSE_WAND, BIN_FLAT, BIN_IVF_FLAT
 - **优势:**
-  - **极致扩展性:** 架构决定上限。由于状态下沉到 S3 和 Etcd，计算节点可以近乎无限扩展，能够稳定支撑十亿（Billion）甚至万亿（Trillion）级向量规模。
+  - **极致扩展性:** 架构决定上限。由于状态下沉到 S3 和 Etcd，计算节点可以近乎线性地扩展，能够稳定支撑十亿（Billion）甚至万亿（Trillion）级向量规模。
   - **硬件加速与高级索引:** 支持 GPU 加速索引（RAFT 算法）<sup>[[8]](#ref8)</sup>，支持 DiskANN，使用 NVMe SSD 代替昂贵的 DRAM 存储向量数据，用相对低成本的硬件处理海量数据（成本可降低 10 倍，延迟会从微秒级增加到毫秒级）。
   - **一致性模型:** Milvus 支持多种一致性级别：Strong, Bounded, Session, Eventually（默认通常是 Bounded Staleness，有界过时，这意味着写入的数据可能需要几百毫秒（基于时间戳 TSO）才能被搜索到。如果业务强依赖“写完即读”，需在查询时手动调整一致性级别，但这会牺牲性能）。
   - **企业级特性:** 完整的 RBAC 权限控制、多租户资源隔离（Partition Key）、CDC（变更数据捕获）支持。
