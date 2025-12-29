@@ -1363,7 +1363,7 @@ graph TB
 
 ## 6. 相似度测量方式
 
-选择正确的相似度度量对向量搜索结果有决定性影响。本章详细介绍三种主流度量方式。
+选择正确的相似度度量对向量搜索结果有决定性影响。本章详细介绍 6 种主流度量方式。
 
 ### 6.1 欧几里得距离（L2 Distance）
 
@@ -1724,9 +1724,9 @@ graph LR
         COS --> |"等价"| DOT[点积排序（取反）]
     end
 
-    style L2 fill:#91d5ff
-    style COS fill:#b7eb8f
-    style DOT fill:#ffd591
+    style L2 fill:#91d5ff,color:#000000
+    style COS fill:#b7eb8f,color:#000000
+    style DOT fill:#ffd591,color:#000000
 ```
 
 #### 6.7.3 选择决策树
@@ -1741,8 +1741,9 @@ flowchart TD
     Q3 --> |是| USE_COS[使用余弦相似度]
     Q3 --> |否| USE_L2[使用欧几里得距离]
 
-    style USE_DOT fill:#52c41a,color:#fff
-    style USE_COS fill:#1890ff,color:#fff
+    style USE_DOT fill:#52c41a,color:#000000
+    style USE_COS fill:#1890ff,color:#000000
+    style USE_L2 fill:#91d5ff,color:#000000
 ```
 
 #### 6.7.4 常见向量模型的推荐度量
@@ -1891,8 +1892,8 @@ flowchart TD
     Q2 --> |是| PRE
     Q2 --> |否| POST
 
-    style POST fill:#ffd591
-    style PRE fill:#91d5ff
+    style POST fill:#ffd591,color:#000000
+    style PRE fill:#91d5ff,color:#000000
 ```
 
 ### 7.3 混合策略与高级技术
@@ -2003,19 +2004,32 @@ results = client.query.get("Article", ["title", "content"]).with_hybrid(
 #### 8.1.1 召回率与 QPS 的权衡
 
 ```mermaid
-graph LR
-    subgraph "召回率-QPS 权衡曲线"
-        P1["ef=10<br/>QPS: 50,000<br/>Recall: 85%"]
-        P2["ef=50<br/>QPS: 20,000<br/>Recall: 95%"]
-        P3["ef=200<br/>QPS: 5,000<br/>Recall: 99%"]
-        P4["ef=500<br/>QPS: 1,500<br/>Recall: 99.5%"]
-    end
-
-    P1 --> P2 --> P3 --> P4
-
-    style P2 fill:#52c41a,color:#fff
+---
+config:
+    xyChart:
+        width: 800
+        height: 400
+        xAxis:
+            titlePadding: 10
+            labelPadding: 5
+        yAxis:
+            titlePadding: 10
+            labelPadding: 5
+---
+xychart-beta
+    title "HNSW 性能调优：召回率 vs QPS"
+    x-axis "Recall (%)" [85, 95, 99, 99.5]
+    y-axis "QPS (查询/秒)" 0 --> 55000
+    line [50000, 20000, 5000, 1500]
 ```
 
+> [!TIP] 关键权衡点
+>
+> - **Recall 85%**: 飞一般的速度 (ef=10)
+> - **Recall 95%**: 最佳性价比 (ef=50)，推荐起点
+> - **Recall 99%**: 为最后 4% 的精度付出 4 倍性能代价 (ef=200)
+> - **Recall 99.5%**: 边际收益递减极快 (ef=500)
+>
 > **最佳实践**：大多数应用选择 95% 召回率作为目标，在速度和准确性之间取得平衡。
 
 #### 8.1.2 延迟分布
@@ -2073,8 +2087,8 @@ flowchart TD
     START[向量数据库选型] --> Q1{数据规模？}
 
     Q1 --> |"< 100 万"| SMALL[小规模]
-    Q1 --> |"100 万 - 1 亿"| MEDIUM[中规模]
-    Q1 --> |"> 1 亿"| LARGE[大规模]
+    Q1 --> |"100 万 - 10 亿"| MEDIUM[大规模]
+    Q1 --> |"> 10 亿"| LARGE[海量]
 
     SMALL --> Q2{已有 PostgreSQL？}
     Q2 --> |是| PGV[pgvector/VectorChord]
@@ -2087,7 +2101,7 @@ flowchart TD
     Q4 --> |弱| MANAGED[Zilliz Cloud / Pinecone]
 
     LARGE --> Q5{预算？}
-    Q5 --> |充足| CLOUD[全托管云服务]
+    Q5 --> |不限| CLOUD[全托管云服务]
     Q5 --> |有限| DISKANN[DiskANN + 自建]
 
     style PGV fill:#336791,color:#fff
