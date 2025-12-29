@@ -1,24 +1,26 @@
 ---
 id: vector-search-algorithm
 sidebar_position: 3.2
-title: 向量数据库原理与算法深度解析
+title: 向量索引算法速览
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-24
-  updated_at: 2025-12-28
+  updated_at: 2025-12-29
   version: 1.2
   status: Pending Review
 tags:
   - Vector Database
-  - ANN Algorithms
+  - ANN (Approximate Nearest Neighbor) Algorithms
   - Similarity Search
-  - HNSW
-  - IVF
-  - Product Quantization
+  - HNSW (Hierarchical Navigable Small World)
+  - IVF (Inverted File)
+  - PQ (Product Quantization)
   - Embedding
 ---
 
-> [!IMPORTANT] > **解读范围**：从 LLM 缺陷的角度出发，引出向量数据库的需求，然后深入解析向量数据库的数学模型、算法原理、实现细节、性能分析、应用场景与选型建议。
+> [!IMPORTANT]
+>
+> **解读范围**：从 LLM 缺陷的角度出发，引出向量数据库的需求，然后深入解析向量数据库的数学模型、算法原理、实现细节、性能分析、应用场景与选型建议。
 >
 > 向量数据库的需求不仅来自 LLM 应用，还受到如下有别于传统数据库因素的影响：
 >
@@ -35,28 +37,49 @@ tags:
 尽管以 GPT 为代表的大语言模型（LLM）展现了惊人的文本理解与生成能力，但它们存在几个关键的固有缺陷<sup>[[1]](#ref1)</sup>：
 
 ```mermaid
-mindmap
-  root((LLM 固有缺陷))
-    幻觉问题
-      生成虚假信息
-      编造不存在的事实
-      自信地给出错误答案
-    知识时效性
-      训练数据截止日期
-      无法获取实时信息
-      无法感知最新事件
-    上下文窗口限制
-      有限的 Token 数量
-      长文本处理困难
-      长期记忆缺失
-    领域知识缺乏
-      通用知识为主
-      缺乏专业领域深度
-      无法访问私有数据
-    推理能力局限
-      复杂数学推理困难
-      多步逻辑推理易出错
-      因果推理能力不足
+graph LR
+    %% Root Node
+    root((LLM 固有缺陷)):::root
+
+    %% Left Side: Predecessors (Flow: Left -> Root)
+    %% Explicitly linking LeftNode --- Root places LeftNode to the left
+    H(幻觉问题):::hallucination --- root
+    T(知识时效性):::timeliness --- root
+
+    %% Left Leaves (Flow: Leaf -> LeftNode)
+    H1[生成虚假信息] --- H
+    H2[编造不存在的事实] --- H
+    H3[自信地给出错误答案] --- H
+
+    T1[训练数据截止日期] --- T
+    T2[无法获取实时信息] --- T
+    T3[无法感知最新事件] --- T
+
+    %% Right Side: Successors (Flow: Root -> Right)
+    %% Explicitly linking Root --- RightNode places RightNode to the right
+    root --- C(上下文窗口限制):::context
+    root --- D(领域知识缺乏):::domain
+    root --- R(推理能力局限):::reasoning
+
+    %% Right Leaves (Flow: RightNode -> Leaft)
+    C --- C1[有限的 Token 数量]
+    C --- C2[长文本处理困难]
+    C --- C3[长期记忆缺失]
+
+    D --- D1[通用知识为主]
+    D --- D2[缺乏专业领域深度]
+    D --- D3[无法访问私有数据]
+
+    R --- R1[复杂数学推理困难]
+    R --- R2[多步逻辑推理易出错]
+    R --- R3[因果推理能力不足]
+
+    classDef root fill:#eb2f96,stroke:#fff,stroke-width:4px,color:#fff
+    classDef hallucination fill:#ff4d4f,stroke:#fff,color:#fff
+    classDef timeliness fill:#fa8c16,stroke:#fff,color:#fff
+    classDef context fill:#52c41a,stroke:#fff,color:#fff
+    classDef domain fill:#1890ff,stroke:#fff,color:#fff
+    classDef reasoning fill:#722ed1,stroke:#fff,color:#fff
 ```
 
 | 缺陷类型                  | 具体表现                                            | 影响                                 |
