@@ -267,29 +267,35 @@ sequenceDiagram
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
-graph TB
+graph LR
     subgraph "向量索引分类"
+        direction LR
         ROOT[向量索引算法]
 
-        ROOT --> TREE[基于树的索引]
-        ROOT --> HASH[基于哈希的索引]
-        ROOT --> QUANT[基于量化的索引]
-        ROOT --> GRAPH[基于图的索引]
+        %% 左侧分支 (Left Side)
+        TREE[基于树的索引] --- ROOT
+        HASH[基于哈希的索引] --- ROOT
 
-        TREE --> KD[KD-Tree]
-        TREE --> BALL[Ball-Tree]
-        TREE --> ANNOY[Annoy]
+        %% 左侧叶子 (Leaves extend to left)
+        KD[KD-Tree] --- TREE
+        BALL[Ball-Tree] --- TREE
+        ANNOY[Annoy] --- TREE
 
-        HASH --> LSH[LSH]
-        HASH --> MINHASH[MinHash]
+        LSH[LSH] --- HASH
+        MINHASH[MinHash] --- HASH
 
-        QUANT --> PQ[Product Quantization]
-        QUANT --> SQ[Scalar Quantization]
-        QUANT --> OPQ[Optimized PQ]
+        %% 右侧分支 (Right Side)
+        ROOT --- QUANT[基于量化的索引]
+        ROOT --- GRAPH[基于图的索引]
 
-        GRAPH --> NSW[NSW]
-        GRAPH --> HNSW[HNSW]
-        GRAPH --> VAMANA[Vamana/DiskANN]
+        %% 右侧叶子 (Leaves extend to right)
+        QUANT --- PQ[Product Quantization]
+        QUANT --- SQ[Scalar Quantization]
+        QUANT --- OPQ[Optimized PQ]
+
+        GRAPH --- NSW[NSW]
+        GRAPH --- HNSW[HNSW]
+        GRAPH --- VAMANA[Vamana/DiskANN]
     end
 
     style HNSW fill:#52c41a,color:#fff
@@ -351,22 +357,24 @@ graph LR
 
 ### 3 K-Means 聚类与向量量化
 
-#### 3.1.1 K-Means 算法原理
-
-K-Means 是向量量化（Vector Quantization）的基础算法，通过将数据划分为 K 个簇，用簇中心（Centroid）代表该簇所有向量<sup>[[9]](#ref9)</sup>。
-
-**数学目标**：最小化簇内方差和（Within-Cluster Sum of Squares, WCSS）：
-
-$$
-    J = \sum_{i=1}^{K} \sum_{x \in C_i} \|x - \mu_i\|^2
-$$
-
-其中：
-
-- $K$ 是簇的数量
-- $C_i$ 是第 $i$ 个簇
-- $\mu_i$ 是第 $i$ 个簇的中心
-- $\|x - \mu_i\|^2$ 是向量 $x$ 到簇中心的欧几里得距离的平方
+> [!IMPORTANT]
+>
+> **K-Means 算法原理**
+>
+> K-Means 是向量量化（Vector Quantization）的基础算法，通过将数据划分为 K 个簇，用簇中心（Centroid）代表该簇所有向量<sup>[[9]](#ref9)</sup>。
+>
+> **数学目标**：最小化簇内方差和（Within-Cluster Sum of Squares, WCSS）：
+>
+> $$
+>     J = \sum_{i=1}^{K} \sum_{x \in C_i} \|x - \mu_i\|^2
+> $$
+>
+> 其中：
+>
+> - $K$ 是簇的数量
+> - $C_i$ 是第 $i$ 个簇
+> - $\mu_i$ 是第 $i$ 个簇的中心
+> - $\|x - \mu_i\|^2$ 是向量 $x$ 到簇中心的欧几里得距离的平方
 
 **算法流程**：
 
@@ -378,8 +386,8 @@ flowchart TD
     D -->|否| B
     D -->|是| E[输出最终簇划分]
 
-    style A fill:#e6f7ff
-    style E fill:#f6ffed
+    style A fill:#e6f7ff,color:#000000
+    style E fill:#f6ffed,color:#000000
 ```
 
 **伪代码**：
@@ -404,13 +412,13 @@ def kmeans(vectors, k, max_iters=100):
     return centroids, clusters
 ```
 
-#### 3.1.2 向量量化应用：码本（Codebook）
-
-K-Means 在向量索引中的核心应用是构建**码本（Codebook）**。
-
-> [!NOTE] 码本是什么？
+> [!IMPORTANT]
 >
-> 码本就是一个 **"向量字典"**。如果不存原始向量，而是存这个向量"最像字典里的哪一个"，就能大幅压缩数据。字典里的每一个词条（中心向量），被称为**码字（Codeword）**。
+> **向量量化应用：码本（Codebook）**
+>
+> **码本**就是一个 **"向量字典"**。如果不存原始向量，而是存这个向量"最像字典里的哪一个"，就能大幅压缩数据。字典里的每一个词条（中心向量），被称为**码字（Codeword）**。
+>
+> K-Means 在向量索引中的核心应用是构建**码本（Codebook）**。
 
 ```mermaid
 graph LR
@@ -485,9 +493,11 @@ graph TD
 > - 承诺一（**对近邻负责**）： 如果两个向量非常像（距离小于 $d_1$），那么我保证它们大概率（概率大于 $p_1$）会被分到同一个桶里。
 > - 承诺二（**对远邻负责**）： 如果两个向量非常不像（距离大于 $d_2$），那么我保证它们小概率（概率小于 $p_2$）会被分到同一个桶里。
 
-#### 3.2.2 随机超平面投影 LSH
-
-对于余弦相似度，最常用的 LSH 方法是**随机超平面投影**<sup>[[10]](#ref10)</sup>：
+> [!IMPORTANT]
+>
+> **随机超平面投影**
+>
+> 对于余弦相似度，最常用的 LSH 方法是**随机超平面投影**<sup>[[10]](#ref10)</sup>：
 
 ```mermaid
 graph LR
