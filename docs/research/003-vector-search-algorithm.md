@@ -371,41 +371,47 @@ K-Means 的关键是**选举少数的代表来近似表示全量的对象**，�
 
 ### 2.2 LSH（Locality Sensitive Hashing, 局部敏感哈希）
 
+#### 2.2.1 算法核心
+
+如果说 K-Means 是精细的 **“选代表”**，那么 LSH 则是快速的 **“粗分桶”**。
+
+它的核心逻辑与我们熟知的传统哈希（如 MD5、SHA）截然相反：传统哈希追求 **“蝴蝶效应”**（输入微小改变，输出天翻地覆）；而 LSH 追求 **“稳定映射”**（输入微小改变，输出保持不变），从而让相似的向量落入同一个“哈希桶”中。
+
 > [!IMPORTANT]
 >
-> **LSH 核心思想**
+> **LSH 的核心思想是“刻意制造局部冲突”**：相似的向量以高概率被哈希到同一个桶，不相似的向量以低概率被哈希到同一个桶<sup>[[10]](#ref10)</sup>。
 >
-> **相似的向量以高概率被哈希到同一个桶，不相似的向量以低概率被哈希到同一个桶**<sup>[[10]](#ref10)</sup>。
+> ```mermaid
+> graph LR
+>     subgraph Traditional["🔴 传统哈希 (如 MD5) - 最小化冲突"]
+>         direction LR
+>         A["'apple'"] --> H1(Hash)
+>         B["'apply'"] --> H1
+>         H1 --> |分散| T1["0x5e..."]
+>         H1 --> |分散| T2["0x8a..."]
+>     end
+>
+>     subgraph LSH_Box["🟢 LSH (局部敏感) - 最大化冲突"]
+>         direction LR
+>         C["'apple'"] --> H2(LSH)
+>         D["'apply'"] --> H2
+>         H2 --> |聚合| L1["Bucket 01"]
+>     end
+>
+>     style L1 fill:#d9f7be,stroke:#52c41a,color:#000000
+>
+>     Traditional --> LSH_Box
+>
+>     style T1 fill:#ffccc7,stroke:#ff4d4f,color:#000000
+>     style T2 fill:#ffccc7,stroke:#ff4d4f,color:#000000
+>
+> ```
 
-与传统哈希（尽量减少冲突）相反，LSH **刻意增加相似项的冲突**<sup>[[10]](#ref10)</sup>：
-
-```mermaid
-graph TD
-    subgraph Traditional["🔴 传统哈希 (如 MD5) - 最小化冲突"]
-        A["'apple'"] --> H1(Hash)
-        B["'apply'"] --> H1
-        H1 --> |分散| T1["0x5e..."]
-        H1 --> |分散| T2["0x8a..."]
-    end
-
-    style T1 fill:#ffccc7,stroke:#ff4d4f,color:#000000
-    style T2 fill:#ffccc7,stroke:#ff4d4f,color:#000000
-```
-
-```mermaid
-graph TD
-    subgraph LSH_Box["🟢 LSH (局部敏感) - 最大化冲突"]
-        C["'apple'"] --> H2(LSH)
-        D["'apply'"] --> H2
-        H2 --> |聚合| L1["Bucket 01"]
-    end
-
-    style L1 fill:#d9f7be,stroke:#52c41a,color:#000000
-```
+使得数学式定义为：
 
 > [!NOTE]
 >
-> **数学定义**：一个哈希函数族 $\mathcal{H}$ 是 $(d_1, d_2, p_1, p_2)$-敏感的，当且仅当对任意 $v_1, v_2 \in \mathbb{R}^d$：
+> 一个哈希函数族 $\mathcal{H}$ 是 $(d_1, d_2, p_1, p_2)$ 敏感的，当且仅当对任意 $v_1, v_2 \in \mathbb{R}^d$：
 >
 > - 如果 $\text{dist}(v_1, v_2) \leq d_1$，则 $P[h(v_1) = h(v_2)] \geq p_1$
 > - 如果 $\text{dist}(v_1, v_2) \geq d_2$，则 $P[h(v_1) = h(v_2)] \leq p_2$
@@ -417,9 +423,17 @@ graph TD
 > - 承诺一（**对近邻负责**）： 如果两个向量非常像（距离小于 $d_1$），那么我保证它们大概率（概率大于 $p_1$）会被分到同一个桶里。
 > - 承诺二（**对远邻负责**）： 如果两个向量非常不像（距离大于 $d_2$），那么我保证它们小概率（概率小于 $p_2$）会被分到同一个桶里。
 
-> [!IMPORTANT]
+#### 2.2.2 Random Projection（随机超平面投影）
+
+那么，如何构造这样神奇的哈希函数？最直观的方法就是 **“切蛋糕”**。
+
+> [!TIP]
 >
-> 对于余弦相似度，最常用的 LSH 方法是**随机超平面投影**<sup>[[10]](#ref10)</sup>：
+> 想象向量空间是一块巨大的多维蛋糕，我们闭着眼睛随机切几刀（随机超平面）。离得很近的两个点（相似向量），大概率会被保留在同一块切片里；而离得很远的点，则很容易被某一刀切开。
+
+> [!NOTE]
+>
+> **随机超平面投影**是**余弦相似度**测量方式场景下的最常用 LSH 方法<sup>[[10]](#ref10)</sup>。其**随机投影流程**如下：
 >
 > ```mermaid
 > graph LR
@@ -436,52 +450,67 @@ graph TD
 >     end
 > ```
 >
-> **算法流程**：
->
 > 1. **生成随机超平面**：生成 $k$ 个随机单位向量 $r_1, r_2, ..., r_k$
 > 2. **计算哈希码**：对每个输入向量 $v$，计算 $h_i(v) = \text{sign}(v \cdot r_i)$
 > 3. **构建哈希表**：将具有相同哈希码的向量放入同一个桶
 > 4. **查询**：将查询向量哈希，检索同一桶中的候选向量
+>
+> 有一个著名的结论：两个向量被随机超平面分割开的概率，直接与它们之间的夹角 $\theta$ 正相关：
+>
+> $$
+>   P(h(x) \neq h(y)) = \frac{\theta}{\pi}
+> $$
+>
+> 这恰好对应了余弦距离（夹角大小），因此认为随机超平面投影是专门针对余弦相似度这种相似度量方式的索引算法。
 
-> [!TIP] 有一个著名的结论：
-> 两个向量被随机超平面分割开的概率，直接正比于它们之间的夹角 $\theta$。 $P(h(x) \neq h(y)) = \frac{\theta}{\pi}$，这恰好对应了余弦距离（夹角大小），因此认为随机超平面投影是专门针对余弦相似度这种相似度量方式的索引算法。
+> [!TIP]
+>
+> <details>
+> <summary>伪代码</summary>
+>
+> ```python
+> class RandomProjectionLSH:
+>     def __init__(self, dim, num_planes, num_tables):
+>         self.num_tables = num_tables
+>         # 每个哈希表有不同的随机超平面
+>         self.hyperplanes = [
+>             np.random.randn(num_planes, dim)
+>             for _ in range(num_tables)
+>         ]
+>         self.tables = [{} for _ in range(num_tables)]
+>
+>     def hash(self, vector, table_idx):
+>         # 计算向量与超平面的点积符号
+>         projections = self.hyperplanes[table_idx] @ vector
+>         return tuple((projections > 0).astype(int))
+>
+>     def insert(self, vector, label):
+>         for i in range(self.num_tables):
+>             hash_code = self.hash(vector, i)
+>             if hash_code not in self.tables[i]:
+>                 self.tables[i][hash_code] = []
+>             self.tables[i][hash_code].append(label)
+>
+>     def query(self, vector, k):
+>         candidates = set()
+>         for i in range(self.num_tables):
+>             hash_code = self.hash(vector, i)
+>             if hash_code in self.tables[i]:
+>                 candidates.update(self.tables[i][hash_code])
+>         # 对候选集进行精确距离计算，返回 Top-K
+>         return refine_and_rank(candidates, vector, k)
+> ```
+>
+> </details>
 
-**伪代码**：
+#### 2.2.3 LSH 参数调优（捕鱼策略）
 
-```python
-class RandomProjectionLSH:
-    def __init__(self, dim, num_planes, num_tables):
-        self.num_tables = num_tables
-        # 每个哈希表有不同的随机超平面
-        self.hyperplanes = [
-            np.random.randn(num_planes, dim)
-            for _ in range(num_tables)
-        ]
-        self.tables = [{} for _ in range(num_tables)]
+LSH 的效果高度依赖参数设置，这就像制定 **“捕鱼策略”**：
 
-    def hash(self, vector, table_idx):
-        # 计算向量与超平面的点积符号
-        projections = self.hyperplanes[table_idx] @ vector
-        return tuple((projections > 0).astype(int))
-
-    def insert(self, vector, label):
-        for i in range(self.num_tables):
-            hash_code = self.hash(vector, i)
-            if hash_code not in self.tables[i]:
-                self.tables[i][hash_code] = []
-            self.tables[i][hash_code].append(label)
-
-    def query(self, vector, k):
-        candidates = set()
-        for i in range(self.num_tables):
-            hash_code = self.hash(vector, i)
-            if hash_code in self.tables[i]:
-                candidates.update(self.tables[i][hash_code])
-        # 对候选集进行精确距离计算，返回 Top-K
-        return refine_and_rank(candidates, vector, k)
-```
-
-#### 3.2.3 LSH 参数调优
+- **$k$ (比特数) $\approx$ 渔网网眼的密度**：
+  网眼越密（$k$ 越大），区分度越高，但太密可能导致“漏鱼”（召回率下降）；网眼越疏，越容易捕获，但会捞进很多杂物（精度下降）。
+- **$L$ (哈希表数) $\approx$ 撒网的次数**：
+  一次捞不到，就多撒几次网（$L$ 增多）。撒网次数越多，捕获目标的概率越高（召回率提升），但同时也增加了体力和时间的消耗（计算和存储成本增加）。
 
 | 参数              | 含义             | 影响                             |
 | ----------------- | ---------------- | -------------------------------- |
@@ -489,15 +518,17 @@ class RandomProjectionLSH:
 | **L（哈希表数）** | 独立哈希表的数量 | 越多召回率越高，但内存和时间增加 |
 | **桶大小**        | 每个桶的容量     | 太大查询慢，太小可能漏掉相似项   |
 
-**召回率与哈希表数量的关系**：
+> [!TIP]
+>
+> **召回率与哈希表数量的关系**：
+>
+> $$
+>     P[\text{找到近邻}] = 1 - (1 - p^k)^L
+> $$
+>
+> 其中 $p$ 是两个相似向量被单个超平面分到同一侧的概率。
 
-$$
-    P[\text{找到近邻}] = 1 - (1 - p^k)^L
-$$
-
-其中 $p$ 是两个相似向量被单个超平面分到同一侧的概率。
-
-#### 3.2.4 LSH 变体
+#### 2.2.4 LSH 变体
 
 | LSH 变体              | 适用距离度量   | 特点                                       |
 | --------------------- | -------------- | ------------------------------------------ |
@@ -506,20 +537,19 @@ $$
 | **SimHash**           | 汉明距离       | 适用于文档去重<sup>[[10]](#ref10)</sup>    |
 | **p-stable LSH**      | Lp 距离        | 适用于 L1/L2 距离<sup>[[10]](#ref10)</sup> |
 
-### 3.3 导航小世界图（NSW）
+### 2.3 NSW（Navigable Small World, 导航小世界图）
 
-#### 3.3.1 小世界网络理论
+#### 2.3.1 小世界网络理论
 
-小世界现象源于社会学中的"六度分隔"理论：任意两个人之间平均只需要六个中间人就能建立联系。在图论中，小世界图具有以下特性<sup>[[11]](#ref11)</sup>：
+LSH 是靠 **“运气”**（概率）撞大运，而 NSW 则是靠 **“人脉”**（图关系）找捷径。
 
-- **高聚类系数**：局部节点紧密连接
-- **短平均路径**：任意两点之间的最短路径较短
+这基于著名的 **“六度分隔”** 理论：任意两个人之间平均只需要通过 6 个中间人就能建立联系。在向量世界里，如果我们能构建这样一张 **“小世界网络”**，就能从任意起点出发，通过几次跳跃快速找到目标<sup>[[11]](#ref11)</sup>。
 
 ```mermaid
 graph TB
     subgraph "小世界图特性"
         A[节点] --> B[局部连接]
-        A --> C[长程连接]
+        A --> C[长程连接 (捷径)]
         B --> D["高聚类系数<br/>邻居之间高度互连"]
         C --> E["短路径长度<br/>O(log n) 跳数"]
     end
