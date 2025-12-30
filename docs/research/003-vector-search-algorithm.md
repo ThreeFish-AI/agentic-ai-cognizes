@@ -258,13 +258,36 @@ graph TB
 
 ## 2. 基础索引算法
 
-本章将详细介绍向量索引的基础算法：K-Means 聚类、LSH（局部敏感哈希）和 NSW（导航小世界图）。
+本章将深入剖析构建向量索引大厦的三块基石：**K-Means 聚类**、**LSH (局部敏感哈希)** 和 **NSW (导航小世界图)**。理解它们，是掌握 HNSW、IVF 等现代高阶算法的必经之路。
 
 ### 2.1 K-Means 聚类
 
-#### 2.1.1 K-Means 算法原理
+#### 2.1.1 算法核心
 
-> K-Means 是向量量化（Vector Quantization）的基础算法，通过将数据划分为 K 个簇，用簇中心（Centroid）代表该簇所有向量<sup>[[9]](#ref9)</sup>。
+面对海量数据，最直观的索引思路便是 **“物以类聚”**。
+
+K-Means 就像是为数百万个向量选出 $K$ 个 **“代表”（Centroids）**。在查询时，如果不确定目标在哪里，我们只需先问这几个代表，就能快速缩小范围，而无需逐一排查。
+
+选出这些最佳“代表”并不是一蹴而就的，而是一个 **“选民站队 $\leftrightarrow$ 代表调整”** 的反复协商过程：
+
+```mermaid
+graph TD
+    Start[1. 随机提名] -->|"随机初始化 K 个代表"| Assign(2. 选民站队)
+    Assign -->|"选民归入最近邻代表<br/>所在的队伍"| Update(3. 代表调整)
+    Update -->|"队伍中心的选民晋升为代表"| Check{4. 是否稳定?}
+    Check -->|"代表变动"| Assign
+    Check -->|"代表未变"| Done[5. 选举完成]
+
+    style Start fill:#bae7ff,color:#000000
+    style Done fill:#d9f7be,color:#000000
+    style Check fill:#fff7e6,color:#000000
+```
+
+> [!IMPORTANT]
+>
+> **K-Means 定义**
+>
+> K-Means 是一种将数据划分为 $K$ 个簇的算法，用簇中心（Centroid）代表该簇所有向量，是向量量化（Vector Quantization）的基础<sup>[[9]](#ref9)</sup>。
 >
 > **数学目标**：最小化簇内方差和（Within-Cluster Sum of Squares, WCSS）：
 >
@@ -279,21 +302,8 @@ graph TB
 > - $\mu_i$ 是第 $i$ 个簇的中心
 > - $\|x - \mu_i\|^2$ 是向量 $x$ 到簇中心的欧几里得距离的平方
 
-**算法流程**：
-
-```mermaid
-flowchart TD
-    A[初始化: 随机选择 K 个中心点] --> B[分配步骤: 将每个点分配到最近的中心]
-    B --> C[更新步骤: 重新计算每个簇的中心]
-    C --> D{中心点是否收敛?}
-    D -->|否| B
-    D -->|是| E[输出最终簇划分]
-
-    style A fill:#e6f7ff,color:#000000
-    style E fill:#f6ffed,color:#000000
-```
-
-**伪代码**：
+<details>
+<summary>伪代码</summary>
 
 ```python
 def kmeans(vectors, k, max_iters=100):
@@ -313,7 +323,12 @@ def kmeans(vectors, k, max_iters=100):
         centroids = new_centroids
 
     return centroids, clusters
+
 ```
+
+</details>
+
+#### 2.1.2 构建码本
 
 > [!IMPORTANT]
 >
