@@ -825,28 +825,56 @@ class HNSW:
 
 </details>
 
-#### 4.1.3 HNSW 的搜索
+#### 3.1.3 HNSW 的搜索（卫星变焦）
+
+HNSW 的搜索过程，就像在 **Google Earth** 上找一家烤鸭店：
+
+1. **太空视角（顶层）**：转动地球仪，快速锁定到了“亚洲”（不用看美洲）。
+2. **高空视角（中层）**：放大地图，快速定位到“中国 $\rightarrow$ 北京 $\rightarrow$ 朝阳区”。
+3. **街景视角（底层）**：进入街道，精确寻找“xx 烤鸭店”。
+
+通过这种 **“由粗到细、逐层放大”** 的方式，避免在茫茫数据中盲目寻找。
 
 ```mermaid
-sequenceDiagram
-    participant Q as 查询
-    participant L3 as Layer 3
-    participant L2 as Layer 2
-    participant L1 as Layer 1
-    participant L0 as Layer 0
+graph TB
+    %% Define Layers
+    subgraph L2 ["Layer 2: 太空视角 (宏观)"]
+        direction LR
+        P0(( )) --> |"1. 贪婪跳跃"| P1(( ))
+        P1 --> |"跨洲际"| P2(( ))
+        P2 -.-> |"锁定亚洲"| Down1(⬇️)
+    end
 
-    Q->>L3: 从入口点开始
-    L3->>L3: 贪婪搜索，找到局部最优
-    L3->>L2: 下降到 Layer 2
-    L2->>L2: 继续贪婪搜索
-    L2->>L1: 下降到 Layer 1
-    L1->>L1: 贪婪搜索
-    L1->>L0: 下降到 Layer 0
-    L0->>L0: ef_search 范围搜索
-    L0->>Q: 返回 Top-K 结果
+    subgraph L1 ["Layer 1: 高空视角 (区域)"]
+        direction LR
+        P3(( )) --> |"2. 贪婪跳跃"| P4(( ))
+        P4 --> |"跨省市"| P5(( ))
+        P5 -.-> |"锁定北京"| Down2(⬇️)
+    end
+
+    subgraph L0 ["Layer 0: 街景视角 (精细)"]
+        direction LR
+        P6(( )) --> |"3. 局部搜索"| P7(( ))
+        P7 --> |"ef_search"| Target((📍 目标))
+    end
+
+    Entry((入口)) --> L2
+    L2 --> |"降落"| L1
+    L1 --> |"降落"| L0
+
+    %% Styling
+    linkStyle 0,1,3,4,6,7 stroke:#1890ff,stroke-width:2px;
+    linkStyle 2,5,8 stroke:#fa8c16,stroke-width:2px,stroke-dasharray: 5 5;
+
+    classDef layer fill:#f0f5ff,stroke:#adc6ff;
+    class L2,L1,L0 layer;
+
+    classDef highlight fill:#d9f7be,stroke:#52c41a;
+    class Target highlight;
 ```
 
-**搜索伪代码**：
+<details>
+<summary>伪代码</summary>
 
 ```python
 def search(self, query, k, ef_search=None):
@@ -886,6 +914,8 @@ def _search_layer(self, query, entry_point, ef, level):
 
     return [r[1] for r in result]
 ```
+
+</details>
 
 #### 4.1.4 HNSW 参数调优指南
 
