@@ -149,32 +149,38 @@ quadrantChart
 
 ### 1.3 RAG：弥合 LLM 缺陷的关键架构
 
-**检索增强生成（Retrieval-Augmented Generation, RAG）** 通过将外部知识注入 LLM 的上下文，有效解决了上述缺陷<sup>[[2]](#ref2)</sup>：
+**RAG（Retrieval-Augmented Generation, 检索增强生成）** 的本质，就是给这位天才博士配备一位**极其高效的图书管理员**。
+
+当用户提问时，管理员先利用 Embedding 在图书馆（向量数据库）中检索出最相关的几页资料，然后把**这些资料连同问题**一起递给博士。博士基于这些新鲜、准确的资料进行即时阅读和回答，从而有效解决了记忆截止和幻觉等固有缺陷<sup>[[2]](#ref2)</sup>：
 
 ```mermaid
-flowchart LR
-    subgraph "RAG 工作流程"
-        Q[用户查询] --> E1[查询嵌入]
-        E1 --> S[向量搜索]
-        S --> R[检索结果]
-        R --> C[上下文增强]
-        Q --> C
-        C --> LLM[大语言模型]
-        LLM --> A[增强回答]
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'mainBkg': '#1f2937', 'textColor': '#374151', 'lineColor': '#ffffff', 'signalColor': '#ffffff', 'signalTextColor': '#ffffff', 'noteBkgColor': '#1f2937', 'noteTextColor': '#ffffff', 'actorBkg': '#1f2937', 'actorBorder': '#ffffff', 'actorTextColor': '#ffffff'}, 'sequence': {'mirrorActors': false}}}%%
+sequenceDiagram
+    participant User as 🙋 用户
+    participant RAG as 💁 图书管理员 (RAG)
+    participant VDB as 📚 图书馆 (VectorDB)
+    participant LLM as 👨‍🎓 天才博士 (LLM)
+
+    Note over User, LLM: RAG 协同工作流程
+
+    User->>RAG: 1. 提问："2024 奥运冠军是谁？"
+
+    rect #374151
+    Note right of RAG: 检索阶段
+    RAG->>RAG: 把问题转化为"索书号" (Embedding)
+    RAG->>VDB: 2. 按"索书号"查找相关书籍
+    VDB-->>RAG: 3. 返回最相关的几页资料 (Top-K Chunks)
     end
 
-    subgraph "知识库"
-        D1[文档1] --> E2[嵌入向量]
-        D2[文档2] --> E3[嵌入向量]
-        D3[文档...] --> E4[嵌入向量]
-        E2 & E3 & E4 --> VDB[(向量数据库)]
+    rect #1f2937
+    Note right of RAG: 生成阶段
+    RAG->>LLM: 4. 递交资料："博士，这是查到的资料和原本的问题，请回答"
+    Note right of LLM: 阅读资料
+    LLM-->>User: 5. 准确回答 (基于资料)
     end
-
-    VDB --> S
-
-    style VDB fill:#52c41a,color:#fff
-    style LLM fill:#1890ff,color:#fff
 ```
+
+将上述 RAG 协同过程抽象为各自独立的协作组件：
 
 | RAG 组件       | 功能                       | 解决的 LLM 缺陷          |
 | -------------- | -------------------------- | ------------------------ |
