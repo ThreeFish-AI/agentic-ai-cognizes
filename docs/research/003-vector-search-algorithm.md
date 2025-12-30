@@ -47,13 +47,13 @@ graph LR
     T(知识时效性):::timeliness --- root
 
     %% Left Leaves (Flow: Leaf -> LeftNode)
-    H1[生成虚假信息] --- H
-    H2[编造不存在的事实] --- H
-    H3[自信地给出错误答案] --- H
+    H1[生成虚假信息]:::hallucination --- H
+    H2[编造不存在的事实]:::hallucination --- H
+    H3[自信地给出错误答案]:::hallucination --- H
 
-    T1[训练数据截止日期] --- T
-    T2[无法获取实时信息] --- T
-    T3[无法感知最新事件] --- T
+    T1[训练数据截止日期]:::timeliness --- T
+    T2[无法获取实时信息]:::timeliness --- T
+    T3[无法感知最新事件]:::timeliness --- T
 
     %% Right Side: Successors (Flow: Root -> Right)
     %% Explicitly linking Root --- RightNode places RightNode to the right
@@ -62,17 +62,17 @@ graph LR
     root --- R(推理能力局限):::reasoning
 
     %% Right Leaves (Flow: RightNode -> Leaft)
-    C --- C1[有限的 Token 数量]
-    C --- C2[长文本处理困难]
-    C --- C3[长期记忆缺失]
+    C --- C1[有限的 Token 数量]:::context
+    C --- C2[长文本处理困难]:::context
+    C --- C3[长期记忆缺失]:::context
 
-    D --- D1[通用知识为主]
-    D --- D2[缺乏专业领域深度]
-    D --- D3[无法访问私有数据]
+    D --- D1[通用知识为主]:::domain
+    D --- D2[缺乏专业领域深度]:::domain
+    D --- D3[无法访问私有数据]:::domain
 
-    R --- R1[复杂数学推理困难]
-    R --- R2[多步逻辑推理易出错]
-    R --- R3[因果推理能力不足]
+    R --- R1[复杂数学推理困难]:::reasoning
+    R --- R2[多步逻辑推理易出错]:::reasoning
+    R --- R3[因果推理能力不足]:::reasoning
 
     classDef root fill:#eb2f96,stroke:#fff,stroke-width:4px,color:#fff
     classDef hallucination fill:#ff4d4f,stroke:#fff,color:#fff
@@ -92,9 +92,9 @@ graph LR
 
 ### 1.2 Embedding：连接语义与计算的桥梁
 
-**Embedding（嵌入向量）** 是解决上述问题的关键技术之一。它将文本、图像、音频等非结构化数据转换为高维向量空间中的数值表示<sup>[[4]](#ref4)</sup>。
+**Embedding（嵌入向量）** 是弥合上述 LLMs 缺陷的关键技术之一。它将文本、图像、音频等非结构化数据转换为高维向量空间中的数值表示<sup>[[4]](#ref4)</sup>。
 
-> [!NOTE] Embedding 的数学本质
+> [!NOTE]
 >
 > **Embedding 的数学本质**是一个映射函数 $f: X \rightarrow \mathbb{R}^d$，将输入空间 $X$ 中的对象映射到 $d$ 维实数向量空间：
 >
@@ -119,9 +119,9 @@ quadrantChart
     quadrant-2 "高等智能"
     quadrant-3 "无生命物"
     quadrant-4 "简单生命体"
-    Cat: [0.8, 0.7]
-    Dog: [0.85, 0.75]
-    Car: [0.1, 0.1]
+    "🐱 Cat [0.8, 0.7]": [0.8, 0.7]
+    "🐶 Dog [0.85, 0.75]": [0.85, 0.75]
+    "🚗 Car [0.1, 0.1]": [0.1, 0.1]
 ```
 
 > [!TIP] **图示说明**
@@ -177,7 +177,9 @@ flowchart LR
 
 传统数据库（如 MySQL、PostgreSQL）设计初衷是处理结构化数据，无法高效处理高维向量的相似性搜索。向量数据库应运而生，解决 **维度诅咒（Curse of Dimensionality）** 这一核心挑战<sup>[[7]](#ref7)</sup>：
 
-> [!IMPORTANT] 随着维度增加，高维空间出现两个关键现象，导致传统数据库索引（如 KD-Tree, R-Tree）失效：
+> [!IMPORTANT]
+>
+> 随着维度增加，高维空间出现两个关键现象，导致传统数据库索引（如 KD-Tree, R-Tree）失效：
 >
 > 1. **距离集中效应**：高维下任意两点的距离差异消失，**所有点看起来都差不多远**。就像所有人距离你都是 99-100 米，"最近"和"最远"失去了界限。
 > 2. **空间稀疏性**：空间体积随维度指数级膨胀，数据变得**极端稀疏**。就像将一滴水（数据）分散到整个太平洋（高维空间），传统格子划分法（索引）会完全失效。
@@ -191,6 +193,7 @@ flowchart LR
 ### 1.5 向量数据库的核心能力
 
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 graph TB
     subgraph "向量数据库核心能力"
         A[高效向量存储]
@@ -212,7 +215,9 @@ graph TB
     style C fill:#1890ff,color:#fff
 ```
 
-> [!IMPORTANT] 精确搜索 vs 近似搜索
+> [!IMPORTANT]
+>
+> **精确搜索 vs. 近似搜索**
 >
 > | 搜索类型                    | 时间复杂度       | 召回率 | 适用场景                |
 > | --------------------------- | ---------------- | ------ | ----------------------- |
@@ -228,6 +233,7 @@ graph TB
 ### 2.1 构建与使用
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'mainBkg': '#1f2937', 'textColor': '#000000', 'lineColor': '#000000', 'signalColor': '#000000', 'noteBkgColor': '#374151', 'noteTextColor': '#ffffff', 'actorBkg': '#1f2937', 'actorBorder': '#000000', 'actorTextColor': '#ffffff'}}}%%
 sequenceDiagram
     participant U as 用户
     participant API as API 层
@@ -260,6 +266,7 @@ sequenceDiagram
 向量索引（Vector Index）是向量数据库的核心组件，决定了搜索效率和召回质量。主流索引算法可分为以下几类<sup>[[8]](#ref8)</sup>：
 
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 graph TB
     subgraph "向量索引分类"
         ROOT[向量索引算法]
