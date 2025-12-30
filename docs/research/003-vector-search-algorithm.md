@@ -866,10 +866,15 @@ graph TB
     linkStyle 0,1,3,4,6,7 stroke:#1890ff,stroke-width:2px;
     linkStyle 2,5,8 stroke:#fa8c16,stroke-width:2px,stroke-dasharray: 5 5;
 
-    classDef layer fill:#f0f5ff,stroke:#adc6ff;
-    class L2,L1,L0 layer;
+    classDef l2 fill:#fff7e6,stroke:#ffd591,color:#000
+    classDef l1 fill:#e6f7ff,stroke:#69c0ff,color:#000
+    classDef l0 fill:#f6ffed,stroke:#b7eb8f,color:#000
 
-    classDef highlight fill:#d9f7be,stroke:#52c41a;
+    class L2 l2
+    class L1 l1
+    class L0 l0
+
+    classDef highlight fill:#ffccc7,stroke:#ff4d4f,color:#000;
     class Target highlight;
 ```
 
@@ -917,7 +922,13 @@ def _search_layer(self, query, entry_point, ef, level):
 
 </details>
 
-#### 4.1.4 HNSW 参数调优指南
+#### 3.1.4 HNSW 参数调优
+
+HNSW 的参数调优本质上是在做 **“质量与速度”的极限拉扯**。我们可以将其看作是 **修建和运营高速公路** 的权衡：
+
+- **$M$ (车道数)**：车道越多（连接越多），路网越四通八达（召回率高），但造价越贵（内存消耗大，构建慢）。
+- **`ef_construction` (施工标准)**：地基打得越深、勘测越仔细（搜索越广），路面质量越好（索引更优），但工期也会显著拉长。
+- **`ef_search` (导航搜索范围)**：在开车导航时，搜索的范围越大（查看更多备选路线），越容易找到最佳出口（高召回），但计算耗时也越久（高延迟）。
 
 | 参数                | 含义           | 推荐值  | 影响                           |
 | ------------------- | -------------- | ------- | ------------------------------ |
@@ -930,21 +941,30 @@ def _search_layer(self, query, entry_point, ef, level):
 
 ```mermaid
 graph LR
-    subgraph "参数调优"
-        M[M=16] --> |"更高召回"| M32[M=32]
-        M32 --> |"更高召回"| M64[M=64]
-
-        EF[ef=10] --> |"更高召回"| EF100[ef=100]
-        EF100 --> |"更高召回"| EF500[ef=500]
+    subgraph Knobs ["🎛️ 参数调节 (加大投入)"]
+        direction TB
+        K1["M (车道数): 16 ➔ 64"]
+        K2["ef (搜索宽): 100 ➔ 800"]
     end
 
-    subgraph "权衡"
-        HIGH[高召回率 99%+] --> SLOW[延迟 10-50ms]
-        LOW[低召回率 90%] --> FAST[延迟 1-5ms]
+    subgraph Impact ["⚖️ 权衡结果 (双刃剑)"]
+        direction TB
+        Good["✅ 召回率 (Recall)<br/>95% ➔ 99.9%"]
+        Bad["⚠️ 延迟 (Latency)<br/>1ms ➔ 10ms"]
+        Cost["📉 内存/构建 (Cost)<br/>增加 2-4 倍"]
     end
+
+    K1 ==> Good & Bad & Cost
+    K2 ==> Good & Bad
+
+    style Good fill:#d9f7be,stroke:#52c41a,color:#000
+    style Bad fill:#fff1f0,stroke:#ff4d4f,color:#000
+    style Cost fill:#fffbe6,stroke:#fa8c16,color:#000
+    style K1 fill:#e6f7ff,stroke:#1890ff,color:#000
+    style K2 fill:#e6f7ff,stroke:#1890ff,color:#000
 ```
 
-#### 4.1.5 HNSW 复杂度分析
+#### 3.1.5 HNSW 复杂度分析
 
 | 指标     | 复杂度                  | 说明                         |
 | -------- | ----------------------- | ---------------------------- |
