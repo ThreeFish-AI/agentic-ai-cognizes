@@ -2081,33 +2081,51 @@ flowchart LR
 
 ---
 
-## 6. 混搜策略
+## 6. 混搜策略（全脑协同）
 
-在实际应用中，纯向量搜索往往不够用——需要结合元数据过滤和全文关键词搜索。
+纯向量搜索虽然强大，但它擅长“模糊联想”（右脑），却拙于“精确匹配”（左脑）。这就是为什么现代 RAG 系统必须使用 **混合搜索**。
 
-### 6.1 混合搜索概述
+### 6.1 核心直觉：左右脑协同
 
-**混合搜索（Hybrid Search）** 结合向量相似性搜索与传统结构化/非结构化查询<sup>[[20]](#ref20)</sup>：
+**Hybrid Search（混合搜索）** 就像是人类的 **“全脑思考”**。
+
+- **右脑 (Vector)**：负责 **“懂你意思”**。它知道“苹果”和“水果”有关，不管你关键词有没有输对。
+- **左脑 (Keyword/Filter)**：负责 **“抠字眼”** 和 **“查户口”**。它确保特定的专有名词（如 `Error 503`）必须出现，或者时间必须在 `2024` 年。
+
+只有两者结合，才能既 **“找得全”**（召回率高），又 **“找得准”**（精确度高）。
 
 ```mermaid
 graph TB
-    subgraph "混合搜索组成"
-        VS[向量搜索<br/>语义相似性]
-        KS[关键词搜索<br/>BM25]
-        MF[元数据过滤<br/>WHERE 条件]
+    subgraph "混合搜索: 全脑协同"
+        direction TB
+        subgraph RightBrain ["右脑 (感性/语义)"]
+            direction TB
+            VS["<b>向量搜索</b><br/>语义/模糊/神似"]
+        end
+
+        subgraph LeftBrain ["左脑 (理性/精确)"]
+            direction TB
+            KS["<b>关键词搜索</b><br/>字面/倒排索引"]
+            MF["<b>元数据过滤</b><br/>WHERE 条件/规则"]
+        end
     end
 
     Q[用户查询] --> VS
     Q --> KS
     Q --> MF
 
-    VS --> FUSION[结果融合]
+    VS --> FUSION["结果融合<br/>(RRF / Rerank)"]
     KS --> FUSION
     MF --> FUSION
     FUSION --> R[最终排序结果]
 
-    style VS fill:#1890ff,color:#fff
-    style FUSION fill:#52c41a,color:#fff
+    style VS fill:#1890ff,color:#fff,stroke:#fff
+    style KS fill:#fa8c16,color:#fff,stroke:#fff
+    style MF fill:#722ed1,color:#fff,stroke:#fff
+    style FUSION fill:#52c41a,color:#fff,stroke:#fff
+
+    style RightBrain fill:#e6f7ff,stroke:#1890ff,stroke-dasharray: 5 5,color:#1890ff
+    style LeftBrain fill:#fff7e6,stroke:#fa8c16,stroke-dasharray: 5 5,color:#fa8c16
 ```
 
 ### 6.2 过滤策略：Pre-filtering vs Post-filtering
