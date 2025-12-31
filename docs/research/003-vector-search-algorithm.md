@@ -2128,114 +2128,95 @@ graph TB
     style LeftBrain fill:#fff7e6,stroke:#fa8c16,stroke-dasharray: 5 5,color:#fa8c16
 ```
 
-### 6.2 过滤策略：Pre-filtering vs Post-filtering
+### 6.2 过滤策略（招聘的艺术）
 
-向量搜索中应用元数据过滤有两种主要策略<sup>[[21]](#ref21)</sup>：
+在向量搜索中叠加条件（如 `WHERE city='Shanghai'`），核心矛盾在于 **“什么时候执行过滤”**。这就像 **企业招聘**：
 
-#### 6.2.1 Post-filtering（后过滤）
+- **向量搜索**：**面试官**。寻找“能力最匹配”的人（模糊、语义）。
+- **过滤器**：**HR**。检查“硬性指标”（学历、居住地，精确）。
 
-**工作流程**：先执行向量搜索，再对结果应用过滤条件。
+#### 6.2.1 Post-filtering（后过滤：先面试，再查证）
 
-```mermaid
-sequenceDiagram
-    participant Q as 查询
-    participant VS as 向量搜索
-    participant F as 过滤器
-    participant R as 结果
+**策略**：面试官先海选出 Top-50（向量搜索），HR 再把不符合硬性条件的人剔除。
 
-    Q->>VS: 向量搜索 Top-K'（K' > K）
-    VS-->>F: K' 个候选结果
-    F->>F: 应用 WHERE 条件
-    F-->>R: 满足条件的 Top-K
-```
-
-**实现示例**：
-
-```python
-def post_filtering_search(query_vector, k, filter_condition, margin=2):
-    # 1. 获取比需要更多的候选
-    k_prime = k * margin  # 多取一些以备过滤损失
-    candidates = vector_index.search(query_vector, k_prime)
-
-    # 2. 应用过滤条件
-    filtered = [c for c in candidates if filter_condition(c)]
-
-    # 3. 返回 Top-K
-    return filtered[:k]
-```
-
-**优缺点**：
-
-| 优点               | 缺点                       |
-| ------------------ | -------------------------- |
-| 实现简单           | 可能返回不足 K 个结果      |
-| 向量索引无需修改   | 过滤严格时效率低           |
-| 适用于宽松过滤条件 | 可能错过满足条件的真正近邻 |
-
-#### 6.2.2 Pre-filtering（预过滤）
-
-**工作流程**：先应用过滤条件缩小搜索空间，再在子集中执行向量搜索。
+- **痛点**：**“白忙活”**。聊了半天，发现最优秀的前几名都不符合条件。原本想招 10 人，剔除后可能只剩 2 人（Result < K）。
+- **适用**：过滤条件 **很宽松**（绝大多数人都合格）时，这是实现最简单且高效的做法。
 
 ```mermaid
 sequenceDiagram
-    participant Q as 查询
-    participant F as 过滤器
-    participant VS as 向量搜索
-    participant R as 结果
+    %%{init: {'sequence': {'mirrorActors': false}}}%%
+    participant Q as 面试官 (Vector)
+    participant F as HR (Filter)
+    participant R as 录用名单
 
-    Q->>F: 评估 WHERE 条件
-    F->>F: 确定满足条件的向量 ID 集合
-    F-->>VS: 在子集中搜索
-    VS->>VS: 子集向量搜索
-    VS-->>R: Top-K 结果（保证满足条件）
+    Q->>Q: 1. 先海选面试 (Top-K')
+    Q->>F: 2. 推荐候选人
+    F->>F: 3. 剔除不合格者 (Filter)
+    F-->>R: 4. 剩余合格者 (可能不足 K 个)
 ```
 
-**实现示例**：
+```python
+def post_filtering_search(query, k, filter_func):
+    # 多抓一些人来面试 (margin)，防止被 HR 筛光了
+    candidates = vector_index.search(query, k * margin)
+    # HR 进行硬性过滤
+    return [c for c in candidates if filter_func(c)][:k]
+```
+
+#### 6.2.2 Pre-filtering（预过滤：先查证，再面试）
+
+**策略**：HR 先把所有不符合条件的人筛掉，面试官只在 **合格者名单** 中挑选。
+
+- **优势**：**“精准高效”**。保证选出来的每个人都符合条件，且一定能招满 K 个人。
+- **适用**：过滤条件 **很严格**（合格者很少）时，必须采用此策略，否则 Post-filtering 会筛空。
+
+```mermaid
+sequenceDiagram
+    %%{init: {'sequence': {'mirrorActors': false}}}%%
+    participant F as HR (Filter)
+    participant Q as 面试官 (Vector)
+    participant R as 录用名单
+
+    F->>F: 1. 筛选合格简历
+    F->>Q: 2. 提供合格 ID 列表 (Bitmap)
+    Q->>Q: 3. 只在名单内面试 (Search in Subset)
+    Q-->>R: 4. 最终录用 (Top-K)
+```
 
 ```python
-def pre_filtering_search(query_vector, k, filter_condition):
-    # 1. 获取满足过滤条件的向量 ID
+def pre_filtering_search(query, k, filter_condition):
+    # HR 先干活：拿到所有合格 ID
     valid_ids = metadata_index.query(filter_condition)
-
-    # 2. 仅在这些 ID 中进行向量搜索
-    if len(valid_ids) == 0:
-        return []
-
-    # 创建临时索引或使用 ID 过滤
-    results = vector_index.search_in_subset(query_vector, valid_ids, k)
-
-    return results
+    # 面试官只在圈定范围内搜
+    return vector_index.search_in_subset(query, valid_ids, k)
 ```
 
-**优缺点**：
+#### 6.2.3 决策指南：看“含鱼量”下网
 
-| 优点                        | 缺点                                            |
-| --------------------------- | ----------------------------------------------- |
-| 保证返回 K 个满足条件的结果 | 实现复杂，需要索引集成                          |
-| 高选择率过滤下非常高效      | 可能破坏 HNSW 图连通性<sup>[[21]](#ref21)</sup> |
-| 准确的召回保证              | 元数据索引成为瓶颈                              |
-
-#### 6.2.3 策略对比与选择
-
-| 场景                 | 推荐策略       | 原因                              |
-| -------------------- | -------------- | --------------------------------- |
-| 过滤条件宽松（>50%） | Post-filtering | 简单，损失可接受                  |
-| 过滤条件严格（<10%） | Pre-filtering  | Post-filtering 可能找不到足够结果 |
-| 实时性要求极高       | Pre-filtering  | 避免无效向量计算                  |
-| 过滤条件复杂         | Pre-filtering  | 避免过滤逻辑重复评估              |
+选择过滤策略的核心在于 **“合格率 (Selectivity)”**，即这片海里有多少鱼是你想要的。
 
 ```mermaid
-flowchart TD
-    START[选择过滤策略] --> Q1{过滤后剩余比例？}
-    Q1 --> |"> 50%"| POST[Post-filtering]
-    Q1 --> |"< 10%"| PRE[Pre-filtering]
-    Q1 --> |"10-50%"| Q2{是否需要精确 K 个结果？}
+flowchart LR
+    START[开始决策] --> Q1{"Q1: 过滤后还剩多少数据?<br/>(Selectivity)"}
+    Q1 --> |"很多 (> 50%)"| POST["<b>Post-filtering</b><br/>先搜后筛 (撒大网)"]
+    Q1 --> |"很少 (< 10%)"| PRE["<b>Pre-filtering</b><br/>先筛后搜 (精准定位)"]
+    Q1 --> |"中等 (10-50%)"| Q2{"Q2: 必须严格返回 Top-K?"}
     Q2 --> |是| PRE
-    Q2 --> |否| POST
+    Q2 --> |"否 (大概就行)"| POST
 
-    style POST fill:#ffd591,color:#000000
-    style PRE fill:#91d5ff,color:#000000
+    style POST fill:#ffd591,color:#000,stroke:#d46b08
+    style PRE fill:#91d5ff,color:#000,stroke:#0050b3
 ```
+
+- **Post-filtering (撒大网)**：适用于 **“鱼多”**（合格率 > 50%）。
+  - **策略**：不管三七二十一先捞一网（Top-K'），哪怕扔掉几条不合格的（过滤），剩下的也足够吃。
+- **Pre-filtering (先探鱼)**：适用于 **“鱼少”**（合格率 < 10%）。
+  - **策略**：必须先用声纳定位（元数据索引），锁定那几条珍稀的鱼，再精准下网。否则用撒大网的方式，可能捞上来全是杂鱼，一条能用的都没有（结果为空）。
+
+| 场景                        | 推荐策略           | 核心理由                                         |
+| :-------------------------- | :----------------- | :----------------------------------------------- |
+| **大众筛选** (如 `性别=男`) | **Post-filtering** | 只是简单排除一半人，随便抓几个替补就行。         |
+| **小众筛选** (如 `ID=9527`) | **Pre-filtering**  | 大海捞针，必须先用 ID 索引定位，否则根本搜不到。 |
 
 ### 6.3 混合策略与高级技术
 
@@ -2246,6 +2227,7 @@ flowchart TD
 ```mermaid
 graph LR
     subgraph "索引感知过滤"
+        direction LR
         N1[节点1<br/>满足条件] --> N2[节点2<br/>不满足 ❌]
         N2 --> |"跳过"| N3[节点3<br/>满足条件 ✓]
         N3 --> N4[节点4<br/>满足条件 ✓]
