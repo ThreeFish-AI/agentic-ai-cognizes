@@ -1568,17 +1568,26 @@ graph LR
 >     d_{L2}(a, b) = \sqrt{\sum_{i=1}^{d}(a_i - b_i)^2} = \|a - b\|_2
 > $$
 
+#### 5.1.2 几何意义
+
 ```mermaid
 graph LR
-    subgraph "L2: 拉直尺量距离"
+    subgraph "L2 几何意义: 多维差异聚合"
         direction LR
-        A((点 A)) --- |"📏 直线距离 (d=5)"| B((点 B))
-        style A fill:#fff,stroke:#333
-        style B fill:#333,stroke:#fff,color:#fff
+        A("点 A (x=1, y=1)")
+        B("点 B (x=4, y=5)")
+
+        A -- "Δx (维度 x 差异) = 3" --> B
+        A -- "Δy (维度 y 差异) = 4" --> B
+        A -- "📏 L2 距离 = √(3²+4²) = 5" --- B
+
+        linkStyle 0 stroke-dasharray: 5 5,color:#fff
+        linkStyle 1 stroke-dasharray: 5 5,color:#fff
+        linkStyle 2 stroke-width:3px,stroke:#1890ff,color:#1890ff
     end
 ```
 
-#### 5.1.2 特性与应用
+#### 5.1.3 特性与应用
 
 | 特性/场景    | 说明                                                                       |
 | :----------- | :------------------------------------------------------------------------- |
@@ -1637,7 +1646,7 @@ graph TB
         linkStyle 2 stroke:#52c41a,stroke-width:2px;
 
         %% Label: Q and B have different lengths but same direction
-        Q -.- B
+        Q -.- |"方向相近 (Sim=0.8)"| B
     end
 ```
 
@@ -1659,47 +1668,94 @@ def cosine_similarity(a, b):
     return dot_product / (norm_a * norm_b)
 ```
 
-### 6.3 点积相似度（Dot Product / Inner Product）
+### 5.3 Dot Product / Inner Product（有效做功）
 
-#### 6.3.1 数学定义
+#### 5.3.1 核心直觉
 
-**点积**（内积）直接计算两个向量对应元素的乘积之和<sup>[[19]](#ref19)</sup>：
+如果说余弦只看 **“方向（质）”**，那么 **点积** 就是兼顾 **“质与量”** 的综合指标。
+
+- **关注点**：同时衡量 **“方向的一致性”** 和 **“本身模长的大小”**。
+- **类比**：就像 **推车做功**。
+  - **方向**：你推的方向准不准？（与目标是否一致）
+  - **力度**：你用的力气大不大？（向量的模长）
+  - **点积**：**你对车前进的实际贡献量**。只有 **方向对** 且 **力气大**，点积才会最大。
+
+这在 **推荐系统** 中极具价值：我们既希望推荐的内容 **匹配用户兴趣**（方向对），又希望推荐的内容 **本身质量高/热度高**（模长大）。
+
+> [!NOTE]
+>
+> 数学定义<sup>[[19]](#ref19)</sup>
+>
+> **点积**（内积）直接计算两个向量对应元素的乘积之和：
+>
+> $$
+>     \langle a, b \rangle = a \cdot b = \sum_{i=1}^{d} a_i \cdot b_i
+> $$
+>
+> **与余弦相似度的关系**：
+>
+> $$
+>     a \cdot b = \|a\| \cdot \|b\| \cdot \cos(\theta)
+> $$
+>
+> **关键洞察**：
+>
+> - 当向量 **已归一化**（$\|a\| = \|b\| = 1$）时，点积 **等于** 余弦相似度
+> - 当向量 **未归一化** 时，点积同时考虑方向和长度
+
+#### 5.3.2 几何意义
+
+**点积的几何本质** 是 **“投影与放大”**。
 
 $$
-\langle a, b \rangle = a \cdot b = \sum_{i=1}^{d} a_i \cdot b_i
+    A \cdot B = \underbrace{(|A| \cos \theta)}_{\text{A 在 B 上的投影}} \times \underbrace{|B|}_{\text{B 的长度}}
 $$
 
-#### 6.3.2 与余弦相似度的关系
+它衡量了 **向量 A 在向量 B 方向上“积累”了多少有效贡献**。
 
-$$
-a \cdot b = \|a\| \cdot \|b\| \cdot \cos(\theta)
-$$
+```mermaid
+graph LR
+    subgraph "点积物理图解: 推车做功"
+        direction LR
+        O((起点))
+        Push((推力 F))
+        Car((车位移 S))
+        Effective((有效推力))
 
-**关键洞察**：
+        O --> |"💪 推力 F (手臂方向)"| Push
+        O ==> |"🚗 车位移 S (前进方向)"| Car
 
-- 当向量 **已归一化**（$\|a\| = \|b\| = 1$）时，点积 **等于** 余弦相似度
-- 当向量 **未归一化** 时，点积同时考虑方向和长度
+        Push -.- |"浪费的力 (垂直做无用功)"| Effective
+        O == "⚡️ 有效推力 (F·cosθ)" ==> Effective
 
-#### 6.3.3 特性分析
+        linkStyle 0 stroke:#1890ff
+        linkStyle 1 stroke:#52c41a,stroke-width:3px
+        linkStyle 3 stroke:#fa8c16,stroke-width:3px
+        style Effective size:0,opacity:0
+    end
+```
 
-| 特性             | 描述                                                 |
-| ---------------- | ---------------------------------------------------- |
-| **尺度敏感**     | 长向量的点积更大                                     |
-| **范围**         | $(-\infty, +\infty)$，值越大越相似                   |
-| **计算高效**     | 无需归一化，可使用 SIMD 加速                         |
-| **最大内积问题** | MIPS（Maximum Inner Product Search）是独立的研究问题 |
+#### 5.3.3 特性与应用
 
-#### 6.3.4 适用场景
+点积最大的特性是 **“对强度的奖励”**（Scale Sensitive）。
 
-- **归一化向量**：等价于余弦相似度，计算更快
-- **推荐系统**：用户向量 × 物品向量，长度代表置信度/流行度
-- **注意力机制**：Transformer 中的 Q·K^T
+- **类比**：**“带货能力”**。
+  - **方向（匹配度）**：产品是否符合粉丝口味？
+  - **模长（影响力）**：博主本身的粉丝基数大不大？
+  - **结果**：**大 V（长向量）** 带对了货，成交额（点积）会远远高于小博主。在推荐系统中，这意味着点积能天然地把 **热门/高质量** 的内容排在前面。
+
+| 特性/场景    | 说明                                                                            |
+| :----------- | :------------------------------------------------------------------------------ |
+| **赢家通吃** | **模长敏感**。长向量（高热度 Item）更容易获得高分，天然适合做排序（Ranking）。  |
+| **计算极速** | **最简单的运算**。纯加乘，无开方、无除法，能极大利用 CPU/GPU 的 SIMD 指令加速。 |
+| **核心战场** | **推荐系统**（兼顾兴趣与质量）、**注意力机制**（Transformer 的 $Q K^T$）。      |
 
 ```python
 def dot_product(a, b):
+    # 简单粗暴，速度最快
     return np.dot(a, b)
 
-# 归一化后的点积等于余弦相似度
+# 归一化后的点积 = 余弦相似度
 def normalized_dot_product(a, b):
     a_norm = a / np.linalg.norm(a)
     b_norm = b / np.linalg.norm(b)
