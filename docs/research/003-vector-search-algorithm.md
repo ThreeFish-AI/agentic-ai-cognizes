@@ -2414,238 +2414,127 @@ xychart-beta
 
 ---
 
-## 2. 向量索引概览
+## 8. 选型实战（购车指南）
 
-### 2.1 构建与使用
+### 8.1 决策导航：看人下菜碟
+
+面对琳琅满目的向量数据库，选型的逻辑其实和 **“买车”** 一样简单，核心取决于 **“你想拉多少货（规模）”** 和 **“你是否有专业驾照（运维）”**。
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'mainBkg': '#1f2937', 'textColor': '#000000', 'lineColor': '#000000', 'signalColor': '#000000', 'noteBkgColor': '#374151', 'noteTextColor': '#ffffff', 'actorBkg': '#1f2937', 'actorBorder': '#000000', 'actorTextColor': '#ffffff'}}}%%
-sequenceDiagram
-    participant U as 用户
-    participant API as API 层
-    participant IDX as 索引引擎
-    participant VDB as 向量存储
+flowchart LR
+    START[开始选型] --> Q1{数据规模？}
 
-    rect rgb(240, 248, 255)
-    Note over U,VDB: 索引构建阶段
-    U->>API: 插入向量 (id, vector, metadata)
-    API->>VDB: 存储原始向量
-    API->>IDX: 触发索引更新
-    IDX->>IDX: 计算索引结构
-    IDX->>VDB: 存储索引数据
-    end
+    Q1 --> |"小 (< 100万)"| SMALL[便利区]
+    Q1 --> |"中 (1亿级)"| MEDIUM[性能区]
+    Q1 --> |"大 (> 10亿)"| LARGE[成本区]
 
-    rect rgb(255, 248, 240)
-    Note over U,VDB: 查询阶段
-    U->>API: 搜索请求 (query_vector, top_k, filter)
-    API->>IDX: 执行 ANN 搜索
-    IDX->>IDX: 遍历索引结构
-    IDX->>VDB: 获取候选向量
-    IDX->>IDX: 计算精确距离
-    IDX-->>API: 返回 Top-K 结果
-    API-->>U: 返回 (id, score, metadata)
-    end
+    SMALL --> Q2{已有 Postgres?}
+    Q2 --> |"是 (最推荐)"| PG["<b>pgvector</b><br/>(家用轿车)"]
+    Q2 --> |否| Q3{Python 原型?}
+    Q3 --> |是| LITE["<b>Chroma / LanceDB</b><br/>(滑板车)"]
+    Q3 --> |否| QDRANT_L["Qdrant 本地版"]
+
+    MEDIUM --> Q4{有运维团队?}
+    Q4 --> |"有 (老司机)"| SELF["<b>Milvus / Qdrant</b><br/>(自驾超跑)"]
+    Q4 --> |"无 (小白)"| CLOUD["<b>Zilliz / Pinecone</b><br/>(打车/云服务)"]
+
+    LARGE --> Q5{预算充足?}
+    Q5 --> |"土豪"| MILL_C["<b>Milvus Cluster</b><br/>(超级车队)"]
+    Q5 --> |"有限"| DISK["<b>DiskANN</b><br/>(远洋货轮)"]
+
+    style PG fill:#a0d911,stroke:#5b8c00,color:#fff
+    style DISK fill:#fa8c16,stroke:#ad4e00,color:#fff
+    style SELF fill:#1890ff,stroke:#0050b3,color:#fff
 ```
 
-> [!NOTE]
+- **< 100 万（出门买菜）**：**便利至上**。
+  - 别买重卡去买菜。如果你已经有 PostgreSQL（家用轿车），直接装上 pgvector（后备箱）是最香的。
+  - 如果是 Python 原型开发，用 LanceDB/Chroma（电动滑板车）足矣。
+- **1000 万 - 1 亿（高速通勤）**：**性能至上**。
+  - 这时你需要专业的跑车或 SUV。Qdrant/Weaviate/Milvus 是首选。
+  - 如果不想自己修车（运维弱），就打车（用 Cloud 服务）。
+- **> 10 亿（远洋货运）**：**成本与规模至上**。
+  - 这时每公里的油耗（内存成本）都很关键。DiskANN（货轮）是省钱利器。
+
+### 8.2 场景化推荐：穿对鞋走对路
+
+选数据库就像 **“穿鞋”**：爬山穿登山靴，跑步穿跑鞋。
+
+#### 8.2.1 RAG / 知识库问答（图书管理员）
+
+这是最典型的 **“查资料”** 场景。需要极高的 **语义理解** 和 **混合搜索** 能力（既要查关键字，又要查意思）。
+
+| 需求维度   | 推荐方案                | 核心理由                                                             |
+| :--------- | :---------------------- | :------------------------------------------------------------------- |
+| **省心党** | **Pinecone Serverless** | **“电子书阅读器”**。开机即用，不用管服务器，按页付费。               |
+| **全能党** | **Weaviate**            | **“智能书柜”**。自带 embedding 模型，把“整理书”和“找书”全包了。      |
+| **实惠党** | **pgvector**            | **“家用书架”**。如果你本来就用 Postgres 存文章，直接加个插件最顺手。 |
+
+> [!TIP]
 >
-> **通俗案例：图书馆找书**
+> **标配装备**：
 >
-> 上述过程可以类比为图书馆的管理：
+> - **索引**：HNSW（为了准）
+> - **相似度**：Cosine（看语义）
+> - **切片**：512 tokens + 10% 重叠（防断章取义）
+
+#### 8.2.2 电商 / 推荐系统（带货主播）
+
+这是 **“拼手速”** 的场景。流量巨大，延迟必须低，而且通常需要结合 **用户标签**（过滤）。
+
+| 需求维度     | 推荐方案                | 核心理由                                                         |
+| :----------- | :---------------------- | :--------------------------------------------------------------- |
+| **极致性能** | **Milvus + GPU**        | **“F1 车队”**。扛得住双 11 的流量洪峰，毫秒级响应。              |
+| **灵活过滤** | **Qdrant**              | **“越野车”**。在复杂的 User ID / Tags 过滤条件下，依然跑得飞快。 |
+| **海量商品** | **DiskANN (in Vamana)** | **“货轮”**。商品上亿时，为了省钱（内存），必须用 SSD。           |
+
+> [!TIP]
 >
-> 1.  **索引构建（新书上架）**：
->     管理员拿到一本新书《三体》（插入向量），并不仅仅是把它扔进仓库（存储），而是会提取它的分类号（计算索引），然后把它放到“科幻小说区”的特定书架上（更新索引结构），以便日后查找。
-> 2.  **查询阶段（读者借书）**：
->     读者问：“有没有关于外星文明的书？”（搜索请求）。管理员不会从第一本书翻到最后一本（暴力搜索），而是直接走到“科幻区”（ANN 搜索，缩小范围），拿出几本最相关的书（候选向量），最后把最符合读者要求的那本递给他（返回 Top-K）。
+> **标配装备**：
+>
+> - **索引**：IVFPQ（为了快和省）或 HNSW
+> - **相似度**：IP (点积，直接关联热度)
+> - **策略**：Post-filtering（因为符合条件的一抓一大把）
 
-### 2.2 向量索引算法概览
+#### 8.2.3 图像 / 多模态搜索（艺术鉴赏）
 
-向量索引（Vector Index）是向量数据库的核心组件，决定了搜索效率和召回质量。主流索引算法可分为以下几类<sup>[[8]](#ref8)</sup>：
+这是 **“看细节”** 的场景。向量维度通常很高（512-1024+），对精度要求极高。
 
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-graph LR
-    subgraph "向量索引分类"
-        direction LR
-        ROOT[向量索引算法]
+| 需求维度     | 推荐方案                 | 核心理由                                                      |
+| :----------- | :----------------------- | :------------------------------------------------------------ |
+| **多模态**   | **Weaviate + Multi2Vec** | **“多功能画廊”**。直接支持搜图、搜视频，不用自己搞模型转换。  |
+| **人脸识别** | **Milvus**               | **“精密显微镜”**。对 1:1 比对的精度要求极高，原生支持多向量。 |
 
-        %% 左侧分支 (Left Side)
-        TREE[基于树的索引] --- ROOT
-        HASH[基于哈希的索引] --- ROOT
+> [!TIP]
+>
+> **标配装备**：
+>
+> - **维度**：512-768 (CLIP/ViT)
+> - **归一化**：**必须**（为了用点积加速 Cosine 计算）
+> - **索引**：HNSW（精度优先）
 
-        %% 左侧叶子 (Leaves extend to left)
-        KD[KD-Tree] --- TREE
-        BALL[Ball-Tree] --- TREE
-        ANNOY[Annoy] --- TREE
+### 8.3 成本估算参考（养车账单）
 
-        LSH[LSH] --- HASH
-        MINHASH[MinHash] --- HASH
+买车容易养车难，算算不同规模下的 **“停车费”**（存储与计算成本）。
 
-        %% 右侧分支 (Right Side)
-        ROOT --- QUANT[基于量化的索引]
-        ROOT --- GRAPH[基于图的索引]
+| 数据规模      | 方案选择          | 月供估算         | 类比与点评                                                                      |
+| :------------ | :---------------- | :--------------- | :------------------------------------------------------------------------------ |
+| **10 万级**   | Pinecone Starter  | **$0 (免费)**    | **路边免费车位**。随便停，也就是练练手，不能当真。                              |
+| **100 万级**  | pgvector (自建)   | **$50 (低)**     | **自家车库**。利用现有的 Postgres，只需多付点电费（资源），最划算。             |
+| **1000 万级** | Milvus (自建)     | **$200 (中)**    | **租私家车位**。需要专门的服务器资源，得有人打理。                              |
+| **1 亿级**    | Zilliz Cloud      | **$1,000+ (高)** | **代客泊车 (Valet)**。贵是贵了点，但有专人伺候（托管），（**未必**）省心。      |
+| **10 亿级**   | DiskANN vs. Cloud | **$2k vs. $10k** | **自建停车场 vs 机场 VIP**。海量数据下，自建（DiskANN）比托管能省下一辆法拉利。 |
 
-        %% 右侧叶子 (Leaves extend to right)
-        QUANT --- PQ[Product Quantization]
-        QUANT --- SQ[Scalar Quantization]
-        QUANT --- OPQ[Optimized PQ]
+### 8.4 技术栈匹配（充电桩适配）
 
-        GRAPH --- NSW[NSW]
-        GRAPH --- HNSW[HNSW]
-        GRAPH --- VAMANA[Vamana/DiskANN]
-    end
+选数据库要把 **“充电口”** 对上，别硬插。
 
-    style HNSW fill:#52c41a,color:#fff
-    style PQ fill:#1890ff,color:#fff
-    style LSH fill:#fa8c16,color:#fff
-```
-
-| 索引类型     | 代表算法       | 时间复杂度 | 空间开销 | 召回率 | 适用场景             |
-| ------------ | -------------- | ---------- | -------- | ------ | -------------------- |
-| **基于树**   | KD-Tree, Annoy | O(log n)   | 中       | 高     | 低维数据（<20 维）   |
-| **基于哈希** | LSH            | O(1) 平均  | 低-中    | 中     | 高吞吐、容忍精度损失 |
-| **基于量化** | PQ, SQ         | O(K × M)   | 极低     | 中-高  | 内存受限场景         |
-| **基于图**   | HNSW, NSW      | O(log n)   | 高       | 极高   | 高召回要求           |
-| **复合索引** | IVF + PQ       | O(√n × M)  | 低       | 高     | 大规模生产环境       |
-
-### 2.3 向量类型分类
-
-| 向量类型             | 描述                     | 存储效率      | 精度 | 典型应用              |
-| -------------------- | ------------------------ | ------------- | ---- | --------------------- |
-| **Dense Vector**     | 密集向量，所有维度有值   | 中            | 高   | 文本/图像嵌入         |
-| **Sparse Vector**    | 稀疏向量，大部分维度为零 | 高            | 高   | TF-IDF、BM25          |
-| **Binary Vector**    | 二值向量，仅含 0/1       | 极高（1-bit） | 低   | SimHash、局部敏感哈希 |
-| **Quantized Vector** | 量化向量，压缩表示       | 高            | 中   | PQ 编码向量           |
-
-### 2.4 向量数值精度
-
-```mermaid
-graph LR
-    subgraph "数值精度对比"
-        F32[Float32<br/>4 字节/维]
-        F16[Float16<br/>2 字节/维]
-        BF16[BFloat16<br/>2 字节/维]
-        I8[Int8<br/>1 字节/维]
-        B1[Binary<br/>1/8 字节/维]
-    end
-
-    F32 --> |"精度最高"| APP1[精确计算]
-    F16 --> |"GPU 友好"| APP2[推理加速]
-    I8 --> |"4x 压缩"| APP3[大规模存储]
-    B1 --> |"32x 压缩"| APP4[极限压缩]
-
-    style F32 fill:#1890ff,color:#fff
-    style I8 fill:#52c41a,color:#fff
-```
-
-| 精度类型   | 存储空间   | 相对误差 | 计算速度 | 推荐场景           |
-| ---------- | ---------- | -------- | -------- | ------------------ |
-| **FP32**   | 4 字节     | 基准     | 基准     | 精确计算、训练     |
-| **FP16**   | 2 字节     | <0.1%    | 1.5-2x   | GPU 推理、存储优化 |
-| **BF16**   | 2 字节     | <0.5%    | 1.5-2x   | 训练稳定性         |
-| **INT8**   | 1 字节     | <1%      | 2-4x     | 大规模部署         |
-| **Binary** | 0.125 字节 | 5-10%    | 10-32x   | 极端压缩、初筛     |
-
----
-
-## 9. 选型建议与场景化方案
-
-### 9.1 决策框架
-
-```mermaid
-flowchart TD
-    START[向量数据库选型] --> Q1{数据规模？}
-
-    Q1 --> |"< 100 万"| SMALL[小规模]
-    Q1 --> |"100 万 - 10 亿"| MEDIUM[大规模]
-    Q1 --> |"> 10 亿"| LARGE[海量]
-
-    SMALL --> Q2{已有 PostgreSQL？}
-    Q2 --> |是| PGV[pgvector/VectorChord]
-    Q2 --> |否| Q3{需要托管服务？}
-    Q3 --> |是| PINECONE[Pinecone Free]
-    Q3 --> |否| EMBEDDED[Milvus Lite / Chroma]
-
-    MEDIUM --> Q4{运维能力？}
-    Q4 --> |强| SELF[Milvus / Qdrant 自托管]
-    Q4 --> |弱| MANAGED[Zilliz Cloud / Pinecone]
-
-    LARGE --> Q5{预算？}
-    Q5 --> |不限| CLOUD[全托管云服务]
-    Q5 --> |有限| DISKANN[DiskANN + 自建]
-
-    style PGV fill:#336791,color:#fff
-    style PINECONE fill:#5048E5,color:#fff
-    style SELF fill:#00A1EA,color:#fff
-```
-
-### 9.2 场景化推荐
-
-#### 9.2.1 RAG / 知识库问答
-
-| 需求维度     | 推荐方案               | 原因                 |
-| ------------ | ---------------------- | -------------------- |
-| **快速启动** | Pinecone Serverless    | 零运维，按量付费     |
-| **成本敏感** | pgvector + VectorChord | 复用现有 PostgreSQL  |
-| **高性能**   | Milvus Distributed     | 高 QPS，低延迟       |
-| **开箱即用** | Weaviate               | 内置向量化，简化流程 |
-
-**推荐配置**：
-
-- 向量维度：1536（OpenAI）或 768（开源模型）
-- 索引类型：HNSW
-- 相似度：余弦相似度
-- 分块大小：512 tokens
-
-#### 9.2.2 电商/推荐系统
-
-| 需求维度     | 推荐方案     | 原因                  |
-| ------------ | ------------ | --------------------- |
-| **实时推荐** | Milvus + GPU | 极高 QPS，毫秒级延迟  |
-| **用户画像** | Qdrant       | 强大的过滤能力        |
-| **商品搜索** | Weaviate     | 混合搜索（向量+属性） |
-
-**推荐配置**：
-
-- 向量维度：128-256（商品特征）
-- 索引类型：IVFPQ（大规模）或 HNSW（中规模）
-- 相似度：点积（考虑流行度）
-- 过滤策略：Pre-filtering
-
-#### 9.2.3 图像/多模态搜索
-
-| 需求维度     | 推荐方案             | 原因           |
-| ------------ | -------------------- | -------------- |
-| **通用图搜** | Milvus + CLIP        | 原生多向量支持 |
-| **人脸识别** | Milvus + GPU         | 高精度要求     |
-| **商品图搜** | Weaviate + multi2vec | 一站式多模态   |
-
-**推荐配置**：
-
-- 向量维度：512-768（CLIP/ViT）
-- 索引类型：HNSW（高召回）
-- 相似度：余弦相似度
-- 归一化：是
-
-### 9.3 成本估算参考
-
-| 数据规模    | 方案选择            | 月成本估算（USD） |
-| ----------- | ------------------- | ----------------- |
-| 10 万向量   | Pinecone Starter    | $0（免费）        |
-| 100 万向量  | pgvector（自托管）  | $50-100           |
-| 1000 万向量 | Milvus（自托管）    | $200-500          |
-| 1 亿向量    | Zilliz Cloud        | $1,000-3,000      |
-| 10 亿向量   | Pinecone Enterprise | $10,000+          |
-
-### 9.4 技术栈匹配
-
-| 技术栈         | 推荐向量数据库           | 集成难度 |
-| -------------- | ------------------------ | -------- |
-| **Python**     | Milvus, Qdrant, Weaviate | 低       |
-| **Node.js**    | Pinecone, Weaviate       | 低       |
-| **PostgreSQL** | pgvector, VectorChord    | 极低     |
-| **Kubernetes** | Milvus, Qdrant, Weaviate | 中       |
-| **Serverless** | Pinecone, Zilliz Cloud   | 低       |
+| 你的技术栈     | 完美适配                  | 匹配理由（类比）                                                               |
+| :------------- | :------------------------ | :----------------------------------------------------------------------------- |
+| **Python**     | **全兼容**                | **“万能插座”**。AI 领域的通用语，所有向量库都把 Python SDK 捧在手心里。        |
+| **PostgreSQL** | **pgvector, VectorChord** | **“原厂配件”**。无需改装，直接无缝集成到现有的数据库引擎中。                   |
+| **Node.js**    | **Pinecone / Weaviate**   | **“Type-C 接口”**。JSON 风格的 API 设计亲和力极佳，像写 Web 后端一样顺手。     |
+| **Kubernetes** | **Milvus / Qdrant**       | **“集装箱标准”**。天生就是云原生的，虽然部署重（Operator），但扩容就像堆积木。 |
 
 ---
 
@@ -2892,19 +2781,153 @@ faiss.write_index(index_hnsw, "hnsw.index")
 loaded_index = faiss.read_index("hnsw.index")
 ```
 
-### 10.4 性能调优检查清单
+### 10.4 性能调优速查表
 
 | 阶段     | 检查项               | 优化建议                            |
 | -------- | -------------------- | ----------------------------------- |
 | **数据** | 向量维度             | 优先选择较低维度模型（768 vs 1536） |
-| **数据** | 向量归一化           | 使用余弦/点积时必须归一化           |
+|          | 向量归一化           | 使用余弦/点积时必须归一化           |
 | **索引** | 索引类型选择         | 数据量 < 100 万用 HNSW，否则 IVFPQ  |
-| **索引** | HNSW M 参数          | 16-32 为平衡值，高召回需求用 48+    |
-| **索引** | HNSW ef_construction | 100-200，追求质量可用 400           |
+|          | HNSW M 参数          | 16-32 为平衡值，高召回需求用 48+    |
+|          | HNSW ef_construction | 100-200，追求质量可用 400           |
 | **查询** | ef_search / nprobe   | 逐步调大直到召回率满足需求          |
-| **查询** | 批量 vs 单条         | 尽量批量查询以提高吞吐              |
+|          | 批量 vs 单条         | 尽量批量查询以提高吞吐              |
 | **硬件** | 内存                 | 确保索引完全加载到内存              |
-| **硬件** | SSD vs HDD           | 使用 DiskANN 时必须用 SSD           |
+|          | SSD vs HDD           | 使用 DiskANN 时必须用 SSD           |
+
+---
+
+## 2. 向量索引概览
+
+### 2.1 构建与使用
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'darkMode': true, 'mainBkg': '#1f2937', 'textColor': '#000000', 'lineColor': '#000000', 'signalColor': '#000000', 'noteBkgColor': '#374151', 'noteTextColor': '#ffffff', 'actorBkg': '#1f2937', 'actorBorder': '#000000', 'actorTextColor': '#ffffff'}}}%%
+sequenceDiagram
+    participant U as 用户
+    participant API as API 层
+    participant IDX as 索引引擎
+    participant VDB as 向量存储
+
+    rect rgb(240, 248, 255)
+    Note over U,VDB: 索引构建阶段
+    U->>API: 插入向量 (id, vector, metadata)
+    API->>VDB: 存储原始向量
+    API->>IDX: 触发索引更新
+    IDX->>IDX: 计算索引结构
+    IDX->>VDB: 存储索引数据
+    end
+
+    rect rgb(255, 248, 240)
+    Note over U,VDB: 查询阶段
+    U->>API: 搜索请求 (query_vector, top_k, filter)
+    API->>IDX: 执行 ANN 搜索
+    IDX->>IDX: 遍历索引结构
+    IDX->>VDB: 获取候选向量
+    IDX->>IDX: 计算精确距离
+    IDX-->>API: 返回 Top-K 结果
+    API-->>U: 返回 (id, score, metadata)
+    end
+```
+
+> [!NOTE]
+>
+> **通俗案例：图书馆找书**
+>
+> 上述过程可以类比为图书馆的管理：
+>
+> 1.  **索引构建（新书上架）**：
+>     管理员拿到一本新书《三体》（插入向量），并不仅仅是把它扔进仓库（存储），而是会提取它的分类号（计算索引），然后把它放到“科幻小说区”的特定书架上（更新索引结构），以便日后查找。
+> 2.  **查询阶段（读者借书）**：
+>     读者问：“有没有关于外星文明的书？”（搜索请求）。管理员不会从第一本书翻到最后一本（暴力搜索），而是直接走到“科幻区”（ANN 搜索，缩小范围），拿出几本最相关的书（候选向量），最后把最符合读者要求的那本递给他（返回 Top-K）。
+
+### 2.2 向量索引算法概览
+
+向量索引（Vector Index）是向量数据库的核心组件，决定了搜索效率和召回质量。主流索引算法可分为以下几类<sup>[[8]](#ref8)</sup>：
+
+```mermaid
+%%{init: {'theme': 'dark'}}%%
+graph LR
+    subgraph "向量索引分类"
+        direction LR
+        ROOT[向量索引算法]
+
+        %% 左侧分支 (Left Side)
+        TREE[基于树的索引] --- ROOT
+        HASH[基于哈希的索引] --- ROOT
+
+        %% 左侧叶子 (Leaves extend to left)
+        KD[KD-Tree] --- TREE
+        BALL[Ball-Tree] --- TREE
+        ANNOY[Annoy] --- TREE
+
+        LSH[LSH] --- HASH
+        MINHASH[MinHash] --- HASH
+
+        %% 右侧分支 (Right Side)
+        ROOT --- QUANT[基于量化的索引]
+        ROOT --- GRAPH[基于图的索引]
+
+        %% 右侧叶子 (Leaves extend to right)
+        QUANT --- PQ[Product Quantization]
+        QUANT --- SQ[Scalar Quantization]
+        QUANT --- OPQ[Optimized PQ]
+
+        GRAPH --- NSW[NSW]
+        GRAPH --- HNSW[HNSW]
+        GRAPH --- VAMANA[Vamana/DiskANN]
+    end
+
+    style HNSW fill:#52c41a,color:#fff
+    style PQ fill:#1890ff,color:#fff
+    style LSH fill:#fa8c16,color:#fff
+```
+
+| 索引类型     | 代表算法       | 时间复杂度 | 空间开销 | 召回率 | 适用场景             |
+| ------------ | -------------- | ---------- | -------- | ------ | -------------------- |
+| **基于树**   | KD-Tree, Annoy | O(log n)   | 中       | 高     | 低维数据（<20 维）   |
+| **基于哈希** | LSH            | O(1) 平均  | 低-中    | 中     | 高吞吐、容忍精度损失 |
+| **基于量化** | PQ, SQ         | O(K × M)   | 极低     | 中-高  | 内存受限场景         |
+| **基于图**   | HNSW, NSW      | O(log n)   | 高       | 极高   | 高召回要求           |
+| **复合索引** | IVF + PQ       | O(√n × M)  | 低       | 高     | 大规模生产环境       |
+
+### 2.3 向量类型分类
+
+| 向量类型             | 描述                     | 存储效率      | 精度 | 典型应用              |
+| -------------------- | ------------------------ | ------------- | ---- | --------------------- |
+| **Dense Vector**     | 密集向量，所有维度有值   | 中            | 高   | 文本/图像嵌入         |
+| **Sparse Vector**    | 稀疏向量，大部分维度为零 | 高            | 高   | TF-IDF、BM25          |
+| **Binary Vector**    | 二值向量，仅含 0/1       | 极高（1-bit） | 低   | SimHash、局部敏感哈希 |
+| **Quantized Vector** | 量化向量，压缩表示       | 高            | 中   | PQ 编码向量           |
+
+### 2.4 向量数值精度
+
+```mermaid
+graph LR
+    subgraph "数值精度对比"
+        F32[Float32<br/>4 字节/维]
+        F16[Float16<br/>2 字节/维]
+        BF16[BFloat16<br/>2 字节/维]
+        I8[Int8<br/>1 字节/维]
+        B1[Binary<br/>1/8 字节/维]
+    end
+
+    F32 --> |"精度最高"| APP1[精确计算]
+    F16 --> |"GPU 友好"| APP2[推理加速]
+    I8 --> |"4x 压缩"| APP3[大规模存储]
+    B1 --> |"32x 压缩"| APP4[极限压缩]
+
+    style F32 fill:#1890ff,color:#fff
+    style I8 fill:#52c41a,color:#fff
+```
+
+| 精度类型   | 存储空间   | 相对误差 | 计算速度 | 推荐场景           |
+| ---------- | ---------- | -------- | -------- | ------------------ |
+| **FP32**   | 4 字节     | 基准     | 基准     | 精确计算、训练     |
+| **FP16**   | 2 字节     | <0.1%    | 1.5-2x   | GPU 推理、存储优化 |
+| **BF16**   | 2 字节     | <0.5%    | 1.5-2x   | 训练稳定性         |
+| **INT8**   | 1 字节     | <1%      | 2-4x     | 大规模部署         |
+| **Binary** | 0.125 字节 | 5-10%    | 10-32x   | 极端压缩、初筛     |
 
 ---
 
