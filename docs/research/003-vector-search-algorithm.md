@@ -256,7 +256,7 @@ graph TB
 
 ---
 
-## 2. 基础索引算法
+## 2. 基础索引算法（向量索引的基石）
 
 本章将深入剖析构建向量索引大厦的三块基石：**K-Means 聚类**、**LSH (局部敏感哈希)** 和 **NSW (导航小世界图)**。理解它们，是掌握 HNSW、IVF 等现代高阶算法的必经之路。
 
@@ -667,7 +667,7 @@ graph LR
 
 ---
 
-## 3. 高级索引算法
+## 3. 高级索引算法（向量索引的落地）
 
 本章介绍三种最重要的高级索引算法：HNSW（分层导航小世界图）、IVF（倒排文件索引）系列和 PQ（积量化）。
 
@@ -1296,7 +1296,7 @@ PQ 虽然强大，但并非万能。为了在 **精度、速度、内存** 之�
 
 ---
 
-## 4. 磁盘索引与 GPU 加速
+## 4. 磁盘索引与 GPU 加速（空间与时间的突破）
 
 当数据规模超出内存容量，或需要极致性能时，需要考虑磁盘索引和 GPU 加速方案。
 
@@ -2081,11 +2081,11 @@ flowchart LR
 
 ---
 
-## 7. 混合搜索与过滤策略
+## 6. 混搜策略
 
-在实际应用中，纯向量搜索往往不够——我们需要结合元数据过滤和全文关键词搜索。
+在实际应用中，纯向量搜索往往不够用——需要结合元数据过滤和全文关键词搜索。
 
-### 7.1 混合搜索概述
+### 6.1 混合搜索概述
 
 **混合搜索（Hybrid Search）** 结合向量相似性搜索与传统结构化/非结构化查询<sup>[[20]](#ref20)</sup>：
 
@@ -2110,11 +2110,11 @@ graph TB
     style FUSION fill:#52c41a,color:#fff
 ```
 
-### 7.2 过滤策略：Pre-filtering vs Post-filtering
+### 6.2 过滤策略：Pre-filtering vs Post-filtering
 
 向量搜索中应用元数据过滤有两种主要策略<sup>[[21]](#ref21)</sup>：
 
-#### 7.2.1 Post-filtering（后过滤）
+#### 6.2.1 Post-filtering（后过滤）
 
 **工作流程**：先执行向量搜索，再对结果应用过滤条件。
 
@@ -2154,7 +2154,7 @@ def post_filtering_search(query_vector, k, filter_condition, margin=2):
 | 向量索引无需修改   | 过滤严格时效率低           |
 | 适用于宽松过滤条件 | 可能错过满足条件的真正近邻 |
 
-#### 7.2.2 Pre-filtering（预过滤）
+#### 6.2.2 Pre-filtering（预过滤）
 
 **工作流程**：先应用过滤条件缩小搜索空间，再在子集中执行向量搜索。
 
@@ -2197,7 +2197,7 @@ def pre_filtering_search(query_vector, k, filter_condition):
 | 高选择率过滤下非常高效      | 可能破坏 HNSW 图连通性<sup>[[21]](#ref21)</sup> |
 | 准确的召回保证              | 元数据索引成为瓶颈                              |
 
-#### 7.2.3 策略对比与选择
+#### 6.2.3 策略对比与选择
 
 | 场景                 | 推荐策略       | 原因                              |
 | -------------------- | -------------- | --------------------------------- |
@@ -2219,9 +2219,9 @@ flowchart TD
     style PRE fill:#91d5ff,color:#000000
 ```
 
-### 7.3 混合策略与高级技术
+### 6.3 混合策略与高级技术
 
-#### 7.3.1 Single-Stage Filtering（单阶段过滤）
+#### 6.3.1 Single-Stage Filtering（单阶段过滤）
 
 一些向量数据库（如 Qdrant）实现了**索引感知过滤**，在图遍历过程中实时跳过不满足条件的节点<sup>[[21]](#ref21)</sup>：
 
@@ -2239,7 +2239,7 @@ graph LR
 
 这种方法结合了两种策略的优点，但需要向量数据库原生支持。
 
-#### 7.3.2 分区索引
+#### 6.3.2 分区索引
 
 对于高选择性的类别字段（如 `tenant_id`），可以为每个值创建独立索引：
 
@@ -2254,9 +2254,9 @@ CREATE INDEX idx_tenant_2 ON items
   WHERE tenant_id = 2;
 ```
 
-### 7.4 向量 + 全文的结果融合
+### 6.4 向量 + 全文的结果融合
 
-#### 7.4.1 融合方法
+#### 6.4.1 融合方法
 
 当同时使用向量搜索和关键词搜索时，需要融合两者的排序结果<sup>[[20]](#ref20)</sup>：
 
@@ -2266,7 +2266,7 @@ CREATE INDEX idx_tenant_2 ON items
 | **倒数排名融合（RRF）** | $s = \sum \frac{1}{k + rank}$                 | 无需归一化，效果稳定 |
 | **学习排序（LTR）**     | 机器学习模型                                  | 最优但复杂           |
 
-#### 7.4.2 Reciprocal Rank Fusion (RRF)
+#### 6.4.2 Reciprocal Rank Fusion (RRF)
 
 RRF 是最常用的无参数融合方法：
 
@@ -2297,7 +2297,7 @@ def reciprocal_rank_fusion(rankings, k=60):
     return sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
 ```
 
-#### 7.4.3 Weaviate 混合搜索示例
+#### 6.4.3 Weaviate 混合搜索示例
 
 ```python
 # Weaviate 混合搜索：alpha 控制权重分配
