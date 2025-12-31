@@ -2218,33 +2218,38 @@ flowchart LR
 | **大众筛选** (如 `性别=男`) | **Post-filtering** | 只是简单排除一半人，随便抓几个替补就行。         |
 | **小众筛选** (如 `ID=9527`) | **Pre-filtering**  | 大海捞针，必须先用 ID 索引定位，否则根本搜不到。 |
 
-### 6.3 混合策略与高级技术
+### 6.3 高阶混合过滤
 
-#### 6.3.1 Single-Stage Filtering（单阶段过滤）
+#### 6.3.1 Single-Stage Filtering（单阶段过滤：带路障的导航）
 
-一些向量数据库（如 Qdrant）实现了**索引感知过滤**，在图遍历过程中实时跳过不满足条件的节点<sup>[[21]](#ref21)</sup>：
+这是 Qdrant 等现代向量库的杀手锏。它不再把“搜索”和“过滤”割裂开，而是像 **“实时路况导航”**：
+
+- **机制**：在 HNSW 图遍历的每一步，**一边找路，一边看路牌**。
+- **效果**：如果发现某个节点（路口）不符合过滤条件（如 `❌`），只是不把它加入最终结果，但依然可以通过它去找到其他符合条件的邻居（或者智能跳过）。这就既避免了 Post-filtering 的召回不足，又避免了 Pre-filtering 的 **索引碎片化**。
 
 ```mermaid
 graph LR
-    subgraph "索引感知过滤"
+    subgraph "导航过程：实时避开不合规节点"
         direction LR
-        N1[节点1<br/>满足条件] --> N2[节点2<br/>不满足 ❌]
-        N2 --> |"跳过"| N3[节点3<br/>满足条件 ✓]
-        N3 --> N4[节点4<br/>满足条件 ✓]
+        N1[节点1<br/>符合] --> N2[节点2<br/>❌ 不符合]
+        N2 -.-> |"路径探索"| N3[节点3<br/>✅ 符合]
+        N1 --> |"直接跳转(如有边)"| N3
+        N3 --> N4[节点4<br/>✅ 符合]
     end
 
-    style N2 fill:#ff4d4f,color:#fff
+    style N2 fill:#ff4d4f,color:#fff,stroke-dasharray: 5 5
     style N3 fill:#52c41a,color:#fff
 ```
 
-这种方法结合了两种策略的优点，但需要向量数据库原生支持。
+#### 6.3.2 分区索引（物理隔离：独立的档案室）
 
-#### 6.3.2 分区索引
+对于 **多租户 (SaaS)** 场景，最简单的提效手段不是算法，而是 **“物理隔离”**。
 
-对于高选择性的类别字段（如 `tenant_id`），可以为每个值创建独立索引：
+- **策略**：别把所有公司的文件堆在一个大仓库里。给每个租户（Tenant）建一个 **独立的档案室**（独立索引）。
+- **优势**：搜 Tenant A 的数据时，根本不受 Tenant B 的干扰。性能随数据量线性扩展，且天然隔离更安全。
 
 ```sql
--- PostgreSQL + pgvector 示例
+-- PostgreSQL + pgvector：为不同房客建不同房间
 CREATE INDEX idx_tenant_1 ON items
   USING hnsw (embedding vector_cosine_ops)
   WHERE tenant_id = 1;
@@ -2254,57 +2259,60 @@ CREATE INDEX idx_tenant_2 ON items
   WHERE tenant_id = 2;
 ```
 
-### 6.4 向量 + 全文的结果融合
+### 6.4 向量 + 全文的结果融合（殿试放榜）
 
-#### 6.4.1 融合方法
+当 **“右脑”**（向量）和 **“左脑”**（关键词）分别给出了两份不同的推荐名单时，我们需要一位 **“决策者”**（Fusion）来拍板名单的最终排序。
 
-当同时使用向量搜索和关键词搜索时，需要融合两者的排序结果<sup>[[20]](#ref20)</sup>：
+#### 6.4.1 融合方法：从独裁到民主
 
-| 融合方法                | 公式                                          | 特点                 |
-| ----------------------- | --------------------------------------------- | -------------------- |
-| **线性加权**            | $s = \alpha \cdot s_v + (1-\alpha) \cdot s_k$ | 简单，需调参         |
-| **倒数排名融合（RRF）** | $s = \sum \frac{1}{k + rank}$                 | 无需归一化，效果稳定 |
-| **学习排序（LTR）**     | 机器学习模型                                  | 最优但复杂           |
+| 融合方法                        | 类比                  | 核心逻辑                                                                                                   |
+| :------------------------------ | :-------------------- | :--------------------------------------------------------------------------------------------------------- |
+| **线性加权 (Linear Weighting)** | **“老板拍板” (独裁)** | **指定权重**（如 $\alpha=0.7$）。<br>问题：两者的分数范围不同（Cos 是 0-1，BM25 可能是 0-100），很难调平。 |
+| **倒数排名融合 (RRF)**          | **“公平投票” (民主)** | **只看排名，不看分数**。<br>不管你考了多少分，只看你是第几名。排名越靠前，票的分量越重。                   |
+| **学习排序 (LTR)**              | **“AI 裁判”**         | 用另一个模型来专门学习如何给这两人打分（成本最高）。                                                       |
 
-#### 6.4.2 Reciprocal Rank Fusion (RRF)
+#### 6.4.2 Reciprocal Rank Fusion (RRF)：无需调参的魔法
 
-RRF 是最常用的无参数融合方法：
+RRF 是目前最流行的融合算法，因为它 **不需要归一化** 分数，完全基于排名。
+
+- **直觉**：**“第一名很贵，第十名很水”**。
+  - 第一名的票非常有价值（$1/61$）。
+  - 第十名的票价值衰减很快。
+  - 如果一个文档在两份名单里**都排前几名**，它的总分就会暴涨，从而脱颖而出。
 
 $$
-RRF(d) = \sum_{r \in R} \frac{1}{k + r(d)}
+    RRF(d) = \sum_{r \in R} \frac{1}{k + r(d)}
 $$
 
 其中：
 
 - $R$ 是所有排序列表
 - $r(d)$ 是文档 $d$ 在排序列表 $r$ 中的排名
-- $k$ 是平滑参数（通常 $k=60$）
+- $k$（通常为 60）：平滑因子，防止排名第一及第二的差距过大。
 
 ```python
 def reciprocal_rank_fusion(rankings, k=60):
     """
-    rankings: List[List[doc_id]] - 多个排序列表
-    返回: 融合后的排序
+    rankings: [["doc_A", "doc_B"], ["doc_B", "doc_C"]] (多位专家的排名)
     """
     scores = {}
     for ranking in rankings:
         for rank, doc_id in enumerate(ranking):
-            if doc_id not in scores:
-                scores[doc_id] = 0
-            scores[doc_id] += 1 / (k + rank + 1)  # rank 从 0 开始
+            # 排名越高 (rank 越小)，得分越高
+            # 1/(60+0) > 1/(60+9)
+            scores[doc_id] = scores.get(doc_id, 0) + 1 / (k + rank)
 
-    # 按分数降序排列
     return sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
 ```
 
 #### 6.4.3 Weaviate 混合搜索示例
 
 ```python
-# Weaviate 混合搜索：alpha 控制权重分配
+# Weaviate 让用户选择“偏听偏信”还是“兼听则明”
 results = client.query.get("Article", ["title", "content"]).with_hybrid(
     query="机器学习最新进展",
-    alpha=0.5,  # 0 = 纯 BM25，1 = 纯向量
-    fusion_type="rankedFusion"  # 或 "relativeScoreFusion"
+    alpha=0.5,  # 0.5 = 左右脑平等对话（BM25 与 向量同权）；1.0 = 只听右脑的（纯向量）
+    fusion_type="rankedFusion"  # 使用 RRF 排名融合
 ).with_limit(10).do()
 ```
 
