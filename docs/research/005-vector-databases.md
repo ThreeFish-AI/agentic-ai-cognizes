@@ -1,68 +1,40 @@
 ---
 id: vector-databases
 sidebar_position: 5
-title: 向量数据库深度调研报告
+title: 向量数据库深度调研
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-23
-  updated_at: 2025-12-23
-  version: 1.1
+  updated_at: 2026-01-01
+  version: 1.2
   status: Pending Review
 tags:
   - Vector Databases
-  - ANN Search
   - PGVector
   - VectorChord
   - Milvus
   - Weaviate
   - Pinecone
+  - Qdrant
 ---
 
 > [!IMPORTANT]
 >
-> **调研范围**：架构设计、产品实现、索引算法、性能指标、集成方式、场景推荐
+> 在前置调研中，我们已经对主流 **ANN 向量索引算法**（HNSW / IVF / PQ / DiskANN 等）建立了比较完整的认识，并对市场上主流向量数据库做过一次“从全景到分层”的宏观梳理。接下来需要回答的问题，会从“向量检索为什么能跑、怎么跑得快”，收束到“在我的真实业务里，选哪一个能长期跑得稳、迭代成本最低”。
+>
+> 因此，本文会把调研范围进一步聚焦到 6 个最具代表性的候选：**Milvus、Weaviate、Pinecone、PGVector、VectorChord**，并从架构形态、能力边界、工程落地和 TCO 控制四个维度做更深入的对比。
+>
+> | 类型                            | 产品        | 核心特点                             |
+> | ------------------------------- | ----------- | ------------------------------------ |
+> | **PostgreSQL Extension**        | PGVector    | 官方扩展，与现有 PostgreSQL 完美集成 |
+> | **PostgreSQL Extension**        | VectorChord | 高性能扩展，突破 PGVector 性能瓶颈   |
+> | **Specialized Vector DataBase** | Milvus      | 开源分布式，支持百亿级向量           |
+> | **Specialized Vector DataBase** | Weaviate    | AI-Native，内置向量化模块            |
+> | **Specialized Vector DataBase** | Pinecone    | 全托管 SaaS，零运维                  |
 
 ---
 
-## 1. 调研概述
-
-### 1.1 调研背景
-
-随着大语言模型（LLM）和 RAG（Retrieval-Augmented Generation）技术的快速发展，向量数据库已成为 AI 应用的核心基础设施<sup>[[1]](#ref1)</sup>。本调研旨在深入分析当前主流向量数据库解决方案，为本项目的技术选型提供决策依据。
-
-### 1.2 调研对象分类
-
-```mermaid
-graph TB
-    subgraph "PostgreSQL 扩展方案"
-        PGV[PGVector<br/>官方 PostgreSQL 扩展]
-        VC[VectorChord<br/>高性能 PostgreSQL 扩展]
-    end
-
-    subgraph "Specialized Vector DB"
-        MV[Milvus<br/>开源分布式向量数据库]
-        WV[Weaviate<br/>开源 AI-Native 向量数据库]
-        PC[Pinecone<br/>全托管向量数据库服务]
-    end
-
-    style PGV fill:#336791,color:#fff
-    style VC fill:#336791,color:#fff
-    style MV fill:#00A1EA,color:#fff
-    style WV fill:#38b2ac,color:#fff
-    style PC fill:#5048E5,color:#fff
-```
-
-| 类型                            | 产品        | 核心特点                             |
-| ------------------------------- | ----------- | ------------------------------------ |
-| **PostgreSQL Extension**        | PGVector    | 官方扩展，与现有 PostgreSQL 完美集成 |
-| **PostgreSQL Extension**        | VectorChord | 高性能扩展，突破 PGVector 性能瓶颈   |
-| **Specialized Vector DataBase** | Milvus      | 开源分布式，支持百亿级向量           |
-| **Specialized Vector DataBase** | Weaviate    | AI-Native，内置向量化模块            |
-| **Specialized Vector DataBase** | Pinecone    | 全托管 SaaS，零运维                  |
-
----
-
-## 2. PostgreSQL + PGVector
+## 1. PostgreSQL + PGVector
 
 ### 2.1 产品概述
 
