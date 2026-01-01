@@ -1,6 +1,6 @@
 ---
 id: vector-search-algorithm
-sidebar_position: 3.2
+sidebar_position: 3
 title: 向量索引算法俗解
 last_update:
   author: Aurelius Huang

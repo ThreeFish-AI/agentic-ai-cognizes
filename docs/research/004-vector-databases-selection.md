@@ -1,6 +1,6 @@
 ---
 id: vector-databases-selection
-sidebar_position: 3.1
+sidebar_position: 4
 title: 向量数据库的选型决策路径
 last_update:
   author: Aurelius Huang

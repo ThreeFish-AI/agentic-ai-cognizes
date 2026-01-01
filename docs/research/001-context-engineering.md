@@ -1,7 +1,7 @@
 ---
 id: context-engineering
 sidebar_position: 1
-title: Context Engineering 深度调研报告
+title: Context Engineering 通俗全解
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-19
@@ -15,8 +15,6 @@ tags:
 ---
 
 > [!NOTE]
->
-> **执行摘要**：
 >
 > **Context Engineering（上下文工程）** 是构建可靠、可扩展 AI Agent 系统的核心学科。它从传统的"写 Prompt"演进为**系统性地设计和优化 AI 系统运行时所需的整个动态信息生态系统**——涵盖上下文的收集（Collection）、管理（Management）和使用（Usage）。
 >

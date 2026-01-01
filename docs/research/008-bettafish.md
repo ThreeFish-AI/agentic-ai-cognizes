@@ -1,6 +1,6 @@
 ---
 id: bettafish
-sidebar_position: 5
+sidebar_position: 8
 title: BettaFish（微舆）深度调研报告
 last_update:
   author: Aurelius Huang

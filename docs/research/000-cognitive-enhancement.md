@@ -1,6 +1,6 @@
 ---
 id: cognitive-enhancement
-sidebar_position: 1
+sidebar_position: 0
 title: 智能认知增强课题调研报告
 last_update:
   author: Aurelius Huang

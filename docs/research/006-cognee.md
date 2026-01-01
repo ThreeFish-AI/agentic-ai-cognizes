@@ -1,6 +1,6 @@
 ---
 id: cognee
-sidebar_position: 4
+sidebar_position: 6
 title: Cognee 深度调研报告
 last_update:
   author: Aurelius Huang
