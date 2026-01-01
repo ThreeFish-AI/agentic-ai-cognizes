@@ -13,7 +13,9 @@ tags:
   - Architecture
 ---
 
-> [!IMPORTANT] **立意**：Agentic AI 学术研究与工程应用方案定制
+> [!IMPORTANT]
+>
+> **立意**：Agentic AI 学术研究与工程应用方案定制
 
 ---
 

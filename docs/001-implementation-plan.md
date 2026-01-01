@@ -12,7 +12,9 @@ tags:
   - Implementation Plan
 ---
 
-> [!IMPORTANT] **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)
+> [!IMPORTANT]
+>
+> **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)
 
 ---
 
@@ -1572,6 +1574,7 @@ async def forum_discussion(request: ForumRequest):
 #### 5.7.4 优先级说明
 
 > [!NOTE]
+>
 > 此任务为**可选增强功能**，建议在 Phase 3 核心任务完成后再实施。
 >
 > **推荐顺序**：多跳推理 → RAGAS 评估 → 记忆持久化 → 图谱可视化 → Solutions Architect → ForumEngine

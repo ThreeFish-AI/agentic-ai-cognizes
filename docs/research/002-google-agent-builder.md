@@ -45,7 +45,9 @@ Google 的架构设计体现了典型的 "Managed Service Mesh" 思路，将不�
     - 代表 **可能跨越多个历史会话** 或包含外部数据源的信息存储。
     - 充当 Agent 可搜索的知识库，用于回忆即时对话之外的信息或上下文。
 
-> [!IMPORTANT] > **关键洞察**: `State` 是"单次会话内的临时变量"，而 `Memory` 是"跨会话的持久化知识"。这与我们 Roadmap 中 `Short-term (Session Log)` vs `Episodic/Semantic (Long-term Memory)` 的划分完全对应。
+> [!IMPORTANT]
+>
+> **关键洞察**: `State` 是"单次会话内的临时变量"，而 `Memory` 是"跨会话的持久化知识"。这与我们 Roadmap 中 `Short-term (Session Log)` vs `Episodic/Semantic (Long-term Memory)` 的划分完全对应。
 
 ### 2.3 关键架构流 (Architecture Flow)
 
@@ -154,7 +156,9 @@ ADK 提供了丰富的 Callback 钩子，用于在 Agent 执行流程的关键�
 | **Custom**       | Supported           | 任何 Python 框架均可通过自定义 `query()` 方法部署。 |
 | **A2A Protocol** | Supported (Preview) | Agent-to-Agent 开放协议，允许跨框架 Agent 协作。    |
 
-> [!TIP] > **Roadmap 启示**: 我们的 OceanBase 适配层应优先支持 **ADK** 和 **LangGraph**，因为它们是 Google 重点推广的框架，且 ADK 的 Service 抽象（`SessionService`, `MemoryService`）设计得非常干净，适合作为 OceanBase 适配的标准接口。
+> [!TIP]
+>
+> **Roadmap 启示**: 我们的 OceanBase 适配层应优先支持 **ADK** 和 **LangGraph**，因为它们是 Google 重点推广的框架，且 ADK 的 Service 抽象（`SessionService`, `MemoryService`）设计得非常干净，适合作为 OceanBase 适配的标准接口。
 
 ---
 

@@ -12,7 +12,9 @@ tags:
   - Task Checklist
 ---
 
-> [!IMPORTANT] **基于**：[Implementation Plan v1.1](./001-implementation-plan.md)  
+> [!IMPORTANT]
+>
+> **基于**：[Implementation Plan v1.1](./001-implementation-plan.md)  
 > **对齐**：[PRD & Architecture v1.1](./000-prd-architecture.md)
 
 ---

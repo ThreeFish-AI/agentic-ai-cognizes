@@ -12,7 +12,9 @@ tags:
   - OceanBase V4.5.0
 ---
 
-> [!IMPORTANT] **调研范围**：TP（事务处理）、AP（分析处理）、Vector DB（向量数据库）三位一体能力
+> [!IMPORTANT]
+>
+> **调研范围**：TP（事务处理）、AP（分析处理）、Vector DB（向量数据库）三位一体能力
 
 ---
 

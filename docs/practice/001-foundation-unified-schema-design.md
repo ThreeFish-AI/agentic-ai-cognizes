@@ -62,6 +62,7 @@ docker logs -f ob-agent-engine | grep "boot success!"
 OceanBase 启动后，默认会有 `sys` 租户。我们需要创建一个业务租户来测试 Vector 功能。可以通过宿主机的 `mysql` 客户端或容器内的 `obclient` 进行连接。
 
 > [!NOTE]
+>
 > OceanBase V4.5.0 引入了原生向量类型 `VECTOR` 和 HNSW 索引，无需额外插件。确保租户内存资源充足（建议 2G+）以支持向量索引构建。
 
 ```bash
@@ -146,7 +147,9 @@ mysql -h127.0.0.1 -P2881 -uroot@agent_tenant
     - **进阶提示**：如果需要更强的兼容性，可在 `Drivers` 中搜索并使用 OceanBase 专用驱动 (支持更多 OB 特有语法提示)，但标准 MySQL 驱动已足够支持 Vector 相关的 SQL 操作。
 5.  **测试连接**：点击 `Test Connection`。成功后即可像操作本地 MySQL 一样管理 OceanBase 及其向量数据。
 
-> [!IMPORTANT] > **关于 `CREATE` 失败的常见错误排查**:
+> [!IMPORTANT]
+>
+> **关于 `CREATE` 失败的常见错误排查**:
 >
 > 1. `ERROR 4733 ... CPU resource not enough`:
 >    - 原因: 资源被其他租户 (默认的 `test` 或 `sys`) 占满。

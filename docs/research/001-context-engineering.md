@@ -14,20 +14,26 @@ tags:
   - 主流框架
 ---
 
-> [!NOTE] 执行摘要：
+> [!NOTE]
+>
+> **执行摘要**：
 >
 > **Context Engineering（上下文工程）** 是构建可靠、可扩展 AI Agent 系统的核心学科。它从传统的"写 Prompt"演进为**系统性地设计和优化 AI 系统运行时所需的整个动态信息生态系统**——涵盖上下文的收集（Collection）、管理（Management）和使用（Usage）。
 >
 > **Context Engineering** 不仅仅是 Prompt 设计，更是一个涵盖记忆系统（**Memory**）、会话管理（**Session**）、状态持久化（**Persistence**）、知识检索（**RAG**）的完整架构问题。
 
-> [!IMPORTANT] Context Engineering 是 AI Agent 系统从"玩具"迈向"生产"的关键技术。本报告系统性地梳理了：
+> [!IMPORTANT]
+>
+> Context Engineering 是 AI Agent 系统从"玩具"迈向"生产"的关键技术。本报告系统性地梳理了：
 >
 > - **理论框架**：从 Dey (2001) 的定义到 SII-GAIR (2025) 的形式化演进
 > - **三大支柱**：Context 的 Collection、Management、Usage 完整技术栈
 > - **框架对比**：Google ADK、Agno、LangGraph 的实现策略
 > - **项目实践**：OceanBase 统一存储 + 统一 Service 接口的架构设计
 
-> [!NOTE] 本调研基于：
+> [!NOTE]
+>
+> **本调研基于**：
 >
 > - **学术论文**：
 >   - 《Context Engineering 2.0: The Context of Context Engineering》<sup>[[1]](#ref1)</sup>
@@ -38,7 +44,9 @@ tags:
 >   - LangChain<sup>[[8]](#ref8)</sup>
 >   - LangGraph<sup>[[9]](#ref9)</sup>
 
-> [!TIP] 下一步行动：
+> [!TIP]
+>
+> **下一步行动**：
 >
 > 1. 验证 OceanBase Vector 查询性能
 > 2. 实现 `OceanBaseSessionService` 和 `OceanBaseMemoryService`
@@ -53,7 +61,9 @@ tags:
 
 Context Engineering 并非 Agent 时代的新发明。根据 Dey (2001) 的开创性工作<sup>[[2]](#ref2)</sup>，早在 2000 年代初期，研究者就已经在探索"上下文感知计算"（Context-Aware Computing）。
 
-> [!NOTE] Context-Aware Computing
+> [!NOTE]
+>
+> **Context-Aware Computing**
 >
 > "Context is a poorly used source of information in our computing environments. As a result, we have an impoverished understanding of what context is and how it can be used." — Dey<sup>[[2]](#ref2)</sup>
 >
@@ -61,7 +71,9 @@ Context Engineering 并非 Agent 时代的新发明。根据 Dey (2001) 的开�
 >
 > 在我们的计算环境中，上下文这一信息来源被使用得不够充分。因此，我们对于“上下文”究竟是什么以及如何运用它，都缺乏深入的理解。
 
-> [!NOTE] Dey 的定义 (2001)
+> [!NOTE]
+>
+> **Dey 的定义 (2001)**
 >
 > **Context** is any information that can be used to characterize the situation of an entity. An entity is a person, place, or object that is considered relevant to the interaction between a user and an application, including the user and applications themselves.
 >
@@ -73,7 +85,9 @@ Context Engineering 并非 Agent 时代的新发明。根据 Dey (2001) 的开�
 
 SII-GAIR 论文《Context Engineering 2.0: The Context of Context Engineering》<sup>[[1]](#ref1)</sup> 提供了严谨的形式化定义：
 
-> [!NOTE] Context
+> [!NOTE]
+>
+> **Context**
 >
 > 对于给定的用户 - 应用的交互，上下文 $C$ 定义为：
 >
@@ -84,9 +98,13 @@ SII-GAIR 论文《Context Engineering 2.0: The Context of Context Engineering》
 > - $E_{rel} \subseteq E$ 是与交互相关的实体集合
 > - $Char(e)$ 返回描述实体 $e$ 的信息集合
 
-> [!IMPORTANT] 解读：上下文是"可用于描述与用户和应用之间交互相关的实体情况的任何信息"。这包括用户输入、应用配置、环境状态、外部工具、记忆模块等。
+> [!IMPORTANT]
+>
+> 解读：上下文是"可用于描述与用户和应用之间交互相关的实体情况的任何信息"。这包括用户输入、应用配置、环境状态、外部工具、记忆模块等。
 
-> [!NOTE] Context Engineering
+> [!NOTE]
+>
+> **Context Engineering**
 >
 > $$CE: (C, T) \rightarrow f_{context}$$
 >
@@ -134,7 +152,10 @@ gantt
 | Era 3.0     | 未来       | Human-Level   | 深度意图理解、最小显式上下文需求         |
 | Era 4.0     | 遥远未来   | Superhuman    | 机器引导人类、人机角色反转               |
 
-> [!TIP] 当前阶段：Era 2.0
+> [!TIP]
+>
+> **当前阶段**：
+>
 > 我们当前处于 **Era 2.0**，核心挑战是让 Agent 能够：
 >
 > - 理解自然语言输入
@@ -142,7 +163,9 @@ gantt
 > - 处理不完整信息
 > - 在有限的 Context Window 中做出最优选择
 
-> [!TIP] 未来挑战：Era 3.0
+> [!TIP]
+>
+> **未来挑战**：Era 3.0
 >
 > 根据论文 [[1]](#ref1) 预测，未来的 Context Engineering 将面临：
 >
@@ -190,7 +213,9 @@ graph TD
 
 论文 [[1]](#ref1) 指出：
 
-> [!TIP] "Context engineering aims to **collect** relevant context information through sensors or other channels."
+> [!TIP]
+>
+> "Context engineering aims to **collect** relevant context information through sensors or other channels."
 >
 > ---
 >
@@ -214,32 +239,50 @@ graph TD
 
 上下文管理关注的是如何组织、压缩和存储上下文。论文 [[1]](#ref1) 提出了关键的**分层记忆架构（Layered Memory Architecture）**，Google ADK<sup>[[5]](#ref5)</sup> 等框架的设计与此架构高度一致：
 
-> [!NOTE] 定义 1：短期记忆 (Short-term Memory)
+> [!NOTE]
 >
-> $$M_s = f_{short}(c \in C : w_{temporal}(c) > \theta_s)$$
+> 定义 1：**短期记忆 (Short-term Memory)**
+>
+> $$
+>   M_s = f_{short}(c \in C : w_{temporal}(c) > \theta_s)
+> $$
 >
 > - 高时间相关性
 > - 快速检索，但可能快速变得不相关
 
-> [!IMPORTANT] 解读：对应各框架的**对话历史 (Chat History)** 和 **会话状态 (Session State)**
-
-> [!NOTE] 定义 2：长期记忆 (Long-term Memory)
+> [!IMPORTANT]
 >
-> $$M_l = f_{long}(c \in C : w_{importance}(c) > \theta_l \land w_{temporal}(c) \leq \theta_s)$$
+> 解读：对应各框架的**对话历史 (Chat History)** 和 **会话状态 (Session State)**
+
+> [!NOTE]
+>
+> 定义 2：**长期记忆 (Long-term Memory)**
+>
+> $$
+>   M_l = f_{long}(c \in C : w_{importance}(c) > \theta_l \land w_{temporal}(c) \leq \theta_s)
+> $$
 >
 > - 高重要性
 > - 经过抽象和压缩处理
 
-> [!IMPORTANT] 解读：对应各框架 **Memory Service** 中的 **持久化存储 (Persistent Storage)**
-
-> [!NOTE] 定义 3：记忆迁移 (Memory Transfer)
+> [!IMPORTANT]
 >
-> $$f_{transfer}: M_s \rightarrow M_l$$
+> 解读：对应各框架 **Memory Service** 中的 **持久化存储 (Persistent Storage)**
+
+> [!NOTE]
+>
+> 定义 3：**记忆迁移 (Memory Transfer)**
+>
+> $$
+>   f_{transfer}: M_s \rightarrow M_l
+> $$
 >
 > - 巩固过程：高频访问或高重要性的短期记忆经处理后成为长期记忆
 > - 受重复频率、情感意义、与现有知识结构的相关性等因素影响
 
-> [!IMPORTANT] 解读：对应 Google Memory Bank 中 **"Session → Insight" 的异步记忆提炼（巩固）过程**。
+> [!IMPORTANT]
+>
+> 解读：对应 Google Memory Bank 中 **"Session → Insight" 的异步记忆提炼（巩固）过程**。
 
 #### 2.2.2 Context Compression Strategies（上下文压缩策略）
 
@@ -257,7 +300,9 @@ graph TD
 
 论文 [[1]](#ref1) 提出通过 **Sub-Agent 架构** 隔离上下文，减少单一 Agent 的上下文负载：
 
-> [!TIP] Sub-Agent 架构
+> [!TIP]
+>
+> **Sub-Agent 架构**
 >
 > "Each sub-agent has its own focused context window, and the main agent coordinates through efficient communication."
 >
@@ -265,7 +310,9 @@ graph TD
 >
 > 每个 Sub-Agent 拥有独立的、聚焦的上下文窗口，主 Agent 通过高效通信协调各 Sub-Agent。
 
-> [!IMPORTANT] 解读：对应 Google 的 Agent-to-Agent Protocol，以及 ADK 的 Multi-Agent、LangGraph 的 Subgraph 等设计。
+> [!IMPORTANT]
+>
+> 解读：对应 Google 的 Agent-to-Agent Protocol，以及 ADK 的 Multi-Agent、LangGraph 的 Subgraph 等设计。
 
 ### 2.3 Context Usage（上下文使用）
 
@@ -287,7 +334,9 @@ graph TD
 
 论文 [[1]](#ref1) 强调 Context Engineering 应使 Agent 能够**主动推断**用户未明确表达的需求。
 
-> [!TIP] Proactive User Need Inference（主动用户需求推断）
+> [!TIP]
+>
+> Proactive User Need Inference（主动用户需求推断）
 >
 > - **学习用户偏好**：分析对话历史和个人数据，识别沟通风格、兴趣和决策模式
 > - **从相关问题推断隐藏目标**：分析查询序列，预测更广泛的目标
@@ -538,7 +587,9 @@ agent.print_response(
 )  # Agent 会记住偏好
 ```
 
-> [!IMPORTANT] Knowledge 集成
+> [!IMPORTANT]
+>
+> **Knowledge 集成**
 >
 > Agno 将 Knowledge（知识库/RAG）与 Memory（记忆）区分：
 >
@@ -737,7 +788,9 @@ graph LR
 
 ## 4. 工程验证
 
-> [!IMPORTANT] OceanBase 之类三位一体数据库的潜在优势：
+> [!IMPORTANT]
+>
+> OceanBase 之类三位一体数据库的潜在优势：
 >
 > 1. **强一致性 (ACID)**：事务级保证避免"记忆分裂"
 > 2. **HTAP 能力**：高频写入 + 复杂分析查询的统一处理

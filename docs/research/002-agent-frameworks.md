@@ -13,7 +13,13 @@ tags:
   - 技术选型
 ---
 
-> [!IMPORTANT] **调研范围**：Google Agent Development Kit (ADK) 与 Anthropic Claude Agent SDK（含 Agent Skills）
+> [!IMPORTANT]
+>
+> **调研范围**：
+>
+> - Google Agent Development Kit (ADK)
+> - Anthropic Claude Agent SDK（含 Agent Skills）
+>
 > **目标读者**：AI Agent 开发者、架构师、技术决策者
 
 ---
@@ -938,7 +944,10 @@ description: 执行代码审查，检查代码质量、安全问题和最佳实�
 
 Skills 安全最佳实践<sup>[[3]](#ref3)</sup>：
 
-> [!CAUTION] > **仅使用可信来源的 Skills**
+> [!CAUTION]
+>
+> **仅使用可信来源的 Skills**
+>
 > Skills 可以指导 Claude 执行代码和调用工具。恶意 Skill 可能导致数据泄露或系统损害。
 
 **安全检查清单**：

@@ -13,7 +13,9 @@ tags:
   - 项目参考
 ---
 
-> [!IMPORTANT] 项目地址：[https://github.com/666ghj/BettaFish](https://github.com/666ghj/BettaFish)<sup>[[1]](#ref1)</sup>
+> [!IMPORTANT]
+>
+> 项目地址：[https://github.com/666ghj/BettaFish](https://github.com/666ghj/BettaFish)<sup>[[1]](#ref1)</sup>
 >
 > BettaFish（微舆）是一个设计精良、工程完整的开源多 Agent 舆情分析系统。其最大亮点在于：
 >
