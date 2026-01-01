@@ -1,11 +1,11 @@
 ---
 id: vector-search-algorithm
 sidebar_position: 3.2
-title: 向量索引算法速览
+title: 向量索引算法俗解
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-24
-  updated_at: 2025-12-21
+  updated_at: 2025-12-31
   version: 1.3
   status: Reviewed
 tags:
@@ -20,7 +20,7 @@ tags:
 
 > [!IMPORTANT]
 >
-> **速览范围**：从 LLM 的缺陷出发，引出向量数据库的需求，然后深入解析向量数据库的数学模型、算法原理、技术细节、性能对比、应用场景与选型推荐。
+> **解读范围**：从 LLM 的缺陷出发，引出向量数据库的需求，然后深入解析向量数据库的数学模型、算法原理、技术细节、性能对比、应用场景与选型推荐。
 
 ---
 
@@ -258,7 +258,7 @@ graph TB
 
 ## 2. 基础索引算法（向量索引的基石）
 
-本章将深入剖析构建向量索引大厦的三块基石：**K-Means 聚类**、**LSH (局部敏感哈希)** 和 **NSW (导航小世界图)**。理解它们，是掌握 HNSW、IVF 等现代高阶算法的必经之路。
+本章将通俗解读构建向量索引大厦的三块基石：**K-Means 聚类**、**LSH (局部敏感哈希)** 和 **NSW (导航小世界图)**。理解它们，是掌握 HNSW、IVF 等现代高阶算法的必经之路。
 
 ### 2.1 K-Means 聚类
 
@@ -271,7 +271,7 @@ K-Means 就像是为数百万个向量选出 $K$ 个 **“代表”（Centroids�
 选出这些最佳“代表”并不是一蹴而就的，而是一个 **“选民站队 $\leftrightarrow$ 代表调整”** 的反复协商过程：
 
 ```mermaid
-graph TD
+graph LR
     Start[1. 随机提名] -->|"随机初始化 K 个代表"| Assign(2. 选民站队)
     Assign -->|"选民归入最近邻代表<br/>所在的队伍"| Update(3. 代表调整)
     Update -->|"队伍中心的选民晋升为代表"| Check{4. 是否稳定?}
