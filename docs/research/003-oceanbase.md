@@ -1100,7 +1100,3 @@ FROM oceanbase.GV$OB_SERVERS;
 <a id="ref20"></a>[20] OceanBase, _OceanBase 数据库 V4.5.0: 部署数据库_, 2024.
 
 <a id="ref21"></a>[21] OceanBase, "OceanBase," _GitHub Repository_, 2024. [Online]. Available: https://github.com/oceanbase/oceanbase
-
----
-
-> **调研结论**：OceanBase V4.5.0 的三位一体能力（TP/AP/Vector DB）已经成熟，能够有效支持本项目的论文知识库、RAG 问答系统和研究分析等场景。建议采用 Docker 部署方式进行原型验证，成功后可过渡到 OCP 管理的生产环境。
