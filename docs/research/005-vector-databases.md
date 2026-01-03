@@ -22,42 +22,45 @@ tags:
 >
 > 在前置调研中，我们已经对主流 **ANN 向量索引算法**（HNSW / IVF / PQ / DiskANN 等）建立了比较完整的认识，并对市场上主流向量数据库做过一次“从全景到分层”的宏观梳理。接下来需要回答的问题，会从“向量检索为什么能跑、怎么跑得快”，收束到“在我的真实业务里，选哪一个能长期跑得稳、迭代成本最低”。
 >
-> 因此，本文会把调研范围进一步聚焦到 6 个最具代表性的候选：**Milvus、Weaviate、Pinecone、PGVector、VectorChord**，并从架构形态、能力边界、工程落地和 TCO 控制四个维度做更深入的对比。
+> 因此，本文会把调研范围进一步聚焦到 5 个最具代表性的候选：**Milvus、Weaviate、Pinecone、PGVector、VectorChord**，并从架构形态、能力边界、工程落地和 TCO 控制四个维度做更深入的对比。
 >
 > | 类型                            | 产品        | 核心特点                             |
 > | ------------------------------- | ----------- | ------------------------------------ |
 > | **PostgreSQL Extension**        | PGVector    | 官方扩展，与现有 PostgreSQL 完美集成 |
-> | **PostgreSQL Extension**        | VectorChord | 高性能扩展，突破 PGVector 性能瓶颈   |
+> |                                 | VectorChord | 高性能扩展，突破 PGVector 性能瓶颈   |
 > | **Specialized Vector DataBase** | Milvus      | 开源分布式，支持百亿级向量           |
-> | **Specialized Vector DataBase** | Weaviate    | AI-Native，内置向量化模块            |
-> | **Specialized Vector DataBase** | Pinecone    | 全托管 SaaS，零运维                  |
+> |                                 | Weaviate    | AI-Native，内置向量化模块            |
+> |                                 | Pinecone    | 全托管 SaaS，零运维                  |
 
 ---
 
 ## 1. PostgreSQL + PGVector
 
-### 2.1 产品概述
+### 1.1 产品概述
 
-PGVector 是 PostgreSQL 的开源向量相似性搜索扩展，由社区开发维护<sup>[[2]](#ref2)</sup>。它允许用户在 PostgreSQL 中存储向量数据并执行相似性搜索，同时享受 PostgreSQL 的所有企业级特性。
+**核心定位**：**PostgreSQL 用户的首选“零迁移”方案，用架构的统一性换取绝大多数业务场景下的“够用”性能。**
 
-**核心定位**：为已使用 PostgreSQL 的用户提供零迁移成本的向量搜索能力。
+作为“改良派”向量数据库的标杆，PGVector 走了一条与其他竞品截然不同的**原生融合**路线。如果将独立向量数据库（如 Milvus）比作**专为赛道打造的 F1 赛车**，那么 PGVector 就像是**为你现有的家用 SUV 加装了一套高性能导航系统**。
+
+- **F1 赛车（独立库）**：为了极致的检索速度和规模而生，但你需要付出昂贵的“赛道维护费”（独立的运维成本与基础设施）。
+- **SUV 升级（PGVector）**：它依然是你那辆皮实耐用、通过性极好的座驾（ACID 事务、复杂查询，以及 PostgreSQL 的所有企业级特性）。你不需要换车（数据迁移），只需一次简单的改装，它就能带你驶向“语义检索”的新领域。
 
 ```mermaid
 graph LR
-    subgraph "PGVector 核心能力"
-        A[向量存储] --> B[精确搜索]
-        A --> C[近似搜索]
-        B --> D[ACID 事务]
-        C --> E[HNSW 索引]
-        C --> F[IVFFlat 索引]
-    end
+    subgraph "PGVector：传统数据库的 AI 进化"
+        direction LR
+        A[PostgreSQL] --> B[结构化数据<br/>（ACID）]
+        A --> C[+ PGVector 扩展]
+        C --> D[向量检索能力<br/>（HNSW、IVFFlat）]
+        B & D --> E[统一 SQL 查询]
 
-    style A fill:#336791,color:#fff
-    style E fill:#4285f4,color:#fff
-    style F fill:#34a853,color:#fff
+        style A fill:#336791,color:#fff
+        style C fill:#e67e22,color:#fff
+        style E fill:#27ae60,color:#fff
+    end
 ```
 
-### 2.2 核心特性
+### 1.2 核心特性
 
 | 特性          | 描述             | 技术规格                                      |
 | ------------- | ---------------- | --------------------------------------------- |
@@ -67,136 +70,121 @@ graph LR
 | **索引类型**  | 近似最近邻       | HNSW、IVFFlat                                 |
 | **ACID 支持** | 完整事务保证     | ✅ 支持                                       |
 
-### 2.3 向量数据类型
+### 1.3 向量数据类型
+
+选择向量精度就像选择**图片格式**：
+
+- **vector (FP32)**：**RAW 格式**。精度无损，细节最全，但体积最大。
+- **halfvec (FP16)**：**高清 JPEG**。**推荐首选**。肉眼（模型）难以分辨差异，但空间节省一半，速度更快。
+- **bit**：**黑白位图**。极致压缩，仅适用于特定二值化场景。
+- **sparsevec**：**稀疏向量**。仅存储非零元素，适用于稀疏向量场景。
 
 ```sql
--- 创建向量列表
 CREATE TABLE items (
     id bigserial PRIMARY KEY,
-    embedding vector(1536)  -- 1536 维向量（OpenAI Ada）
+    -- 推荐：大多数 AI 场景使用 halfvec 平衡性能与成本
+    embedding halfvec(1536)
 );
 
--- 插入向量数据
-INSERT INTO items (embedding) VALUES ('[1,2,3,...]');
-
--- 支持的向量类型
--- vector(n)    - 单精度浮点，最多 2,000 维（HNSW 索引）
--- halfvec(n)   - 半精度浮点，最多 4,000 维（HNSW 索引）
--- bit(n)       - 二进制向量，最多 64,000 维
--- sparsevec(n) - 稀疏向量，最多 1,000 非零元素
+-- 插入操作（PGVector 会自动处理类型转换）
+INSERT INTO items (embedding) VALUES ('[1.1, 2.2, 3.3, ...]');
 ```
 
-### 2.4 距离度量操作符
+### 1.4 距离度量
 
-| 操作符 | 距离类型     | 适用场景   | 说明              |
-| ------ | ------------ | ---------- | ----------------- |
-| `<->`  | L2 距离      | 物理相似度 | 欧氏距离          |
-| `<#>`  | 负内积       | 归一化向量 | 返回负值，需乘 -1 |
-| `<=>`  | 余弦距离     | 语义相似度 | 推荐用于文本嵌入  |
-| `<+>`  | L1 距离      | 曼哈顿距离 | 特定场景          |
-| `<~>`  | 汉明距离     | 二进制向量 | bit 类型专用      |
-| `<%>`  | Jaccard 距离 | 二进制向量 | bit 类型专用      |
+计算相似度，取决于你手里拿的是哪把**尺子**：
 
-### 2.5 索引算法详解
+- **Cosine (<=>)**：**指南针**。只看**方向**是否一致，不看长短。**语义搜索（NLP）的标准尺子**。
+- **L2 (<->)**：**直尺**。测量两点间的绝对距离。常用于图像或音频的物理特征匹配。
+- **Inner Product (<#>)**：**投影仪**。计算向量的投影强度。在向量归一化后，它是最高效的替代方案。
 
-#### 2.5.1 HNSW 索引
+| 操作符 | 距离类型     | 核心场景       | 备注             |
+| :----- | :----------- | :------------- | :--------------- |
+| `<=>`  | 余弦距离     | 语义相似度     | 推荐用于文本嵌入 |
+| `<->`  | L2 欧氏距离  | 图片/音频搜索  | 物理特征         |
+| `<#>`  | 负内积       | 高性能推荐系统 | 需归一化         |
+| `<+>`  | L1 距离      | 曼哈顿距离     | 特定场景         |
+| `<~>`  | 汉明距离     | 二进制向量     | bit 类型专用     |
+| `<%>`  | Jaccard 距离 | 二进制向量     | bit 类型专用     |
 
-HNSW（Hierarchical Navigable Small World）是一种基于图的近似最近邻算法<sup>[[3]](#ref3)</sup>：
+### 1.5 索引算法
 
-```mermaid
-graph TB
-    subgraph "HNSW 多层结构"
-        L3[Layer 3<br/>稀疏层 - 快速定位]
-        L2[Layer 2<br/>中间层]
-        L1[Layer 1<br/>中间层]
-        L0[Layer 0<br/>稠密层 - 精确搜索]
-    end
+> [!TIP]
+>
+> 索引是面对海量数据的**导航策略**：
+>
+> - **HNSW（Hierarchical Navigable Small World，分层导航小世界图）**：**立体交通网**（Graph）。利用高速公路和立体枢纽实现跨越式寻找。**性能最强（首选）**，但像修路一样成本高（构建慢）、占地大（吃内存）。
+> - **IVFFlat（Inverted File with Flat Clustering，倒排文件与平面聚类）**：**行政区划图**（Cluster）。把城市划分为若干个方格（聚类列表），只去目标所在的方格里找。**简单省地（不仅省内存，还能快速构建）**，但前提是必须先有人（数据）才能划分区域。
+>
+> 💡 算法底层原理及技术细节请参阅 [003-vector-search-algorithm](./003-vector-search-algorithm.md)。
 
-    Q[查询向量] --> L3
-    L3 --> L2
-    L2 --> L1
-    L1 --> L0
-    L0 --> R[最近邻结果]
+#### 1.5.1 HNSW 索引
 
-    style L3 fill:#ffe58f
-    style L0 fill:#91d5ff
-```
+HNSW 是目前综合性能最好的索引算法，实现了**速度与召回率的最佳平衡**。
 
 ```sql
 -- 创建 HNSW 索引
+-- m: 每层最大连接数（默认 16，建议 16-64），"路口"的分岔数。分岔越多搜索越快，但路也越宽（内存占用↑）。
+-- ef_construction: 构建时搜索宽度（默认 64，建议 100-200）。建路时的探索范围。范围越大路网质量越好，但修路越慢。
 CREATE INDEX ON items USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 
--- 参数说明
--- m: 每层最大连接数（默认 16，建议 16-64）
--- ef_construction: 构建时搜索宽度（默认 64，建议 100-200）
-
--- 查询时调整搜索精度
-SET hnsw.ef_search = 100;  -- 默认 40
+-- ef_search: 查询时搜索宽度（默认 40，建议 100-200）。
+SET hnsw.ef_search = 100;
 ```
 
-**HNSW 特点**：
+#### 1.5.2 IVFFlat 索引
 
-- ✅ 查询性能优于 IVFFlat（速度-召回权衡更优）
-- ✅ 无需训练数据即可创建索引
-- ❌ 构建时间较长，内存占用较高
-
-#### 2.5.2 IVFFlat 索引
-
-IVFFlat（Inverted File Flat）通过聚类划分向量空间<sup>[[4]](#ref4)</sup>：
+IVFFlat 是一种基于聚类的倒排索引，构建速度快，内存占用低，适合**内存受限**的场景，但查询性能稍逊于 HNSW。
 
 ```sql
--- 创建 IVFFlat 索引（需要先有数据）
+-- 创建 IVFFlat 索引
+-- ⚠️ 必须表中已有数据（建议 >10万行）才能计算聚类中心
+-- lists: 把数据划分成多少个“格子”。rows < 1M: lists = rows / 1000；rows >= 1M: lists = sqrt(rows)。
 CREATE INDEX ON items USING ivfflat (embedding vector_l2_ops)
 WITH (lists = 100);
 
--- lists 参数建议
--- rows < 1M: lists = rows / 1000
--- rows >= 1M: lists = sqrt(rows)
-
--- 查询时调整探针数
+-- probes: 探针数，每次查询要翻找最近的几个“格子”（查询时 SET ivfflat.probes）。
 SET ivfflat.probes = 10;  -- 建议 sqrt(lists)
 ```
 
-**IVFFlat 特点**：
+### 1.6 过滤与混合查询策略
 
-- ✅ 构建速度快，内存占用低
-- ❌ 需要表中已有数据才能创建
-- ❌ 查询性能稍逊于 HNSW
+现实查询往往带有条件（`WHERE`）。这就像在找人（相似度）的同时，要求他必须穿红衣服（过滤）：
 
-### 2.6 过滤与迭代索引扫描
+- **先筛选（列索引）**：**按名单点名**。如果穿红衣服的人极少，直接把他们叫出来逐个比对长相最快。
+- **先检索（向量索引）**：**广场扫视**。如果穿红衣服的人满大街都是，直接在广场上找长得像的人，大概率他正好穿红衣服。
+- **专用分区（部分索引/分区）**：**VIP 包间**。如果经常只在“红衣俱乐部”里找人，干脆把他们单独关在一个房间搜，互不干扰，效率最高。
 
-#### 2.6.1 过滤策略
-
-带 `WHERE` 条件的向量搜索有多种索引策略<sup>[[22]](#ref22)</sup>：
+#### 1.6.1 策略选择指南
 
 ```sql
--- 基础过滤查询
+-- 混合查询：既要“长得像”，又要“满足条件”
 SELECT * FROM items WHERE category_id = 123 ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
 ```
 
-**过滤策略选择**：
+| 策略              | 适用场景                             | 对应逻辑           | 建议                                                                                                                                              |
+| :---------------- | :----------------------------------- | :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **列索引优先**    | **强过滤**（符合条件的数据**很少**） | 精确找 -> 算距离   | 建立普通 B-Tree 索引。<br/>`CREATE INDEX ON items (category_id)`                                                                                  |
+| **向量索引优先**  | **弱过滤**（符合条件的数据**很多**） | 近似搜 -> 剔除不符 | 适当增大 `ef_search` 防止搜不到                                                                                                                   |
+| **部分/分区索引** | **固定高频**（特定业务域）           | 在子集中搜 HNSW    | 性能最佳，适合多租户/类别固定的场景。<br/>`CREATE INDEX ON items USING hnsw (...) WHERE (category_id = 123)`<br/>`PARTITION BY LIST(category_id)` |
 
-| 策略             | 适用场景       | 实现方式                                                           |
-| ---------------- | -------------- | ------------------------------------------------------------------ |
-| **列索引优先**   | 低选择率过滤   | `CREATE INDEX ON items (category_id)`                              |
-| **向量索引优先** | 高选择率过滤   | 增大 `hnsw.ef_search`                                              |
-| **部分索引**     | 固定少量值过滤 | `CREATE INDEX ON items USING hnsw (...) WHERE (category_id = 123)` |
-| **分区表**       | 多值过滤       | `PARTITION BY LIST(category_id)`                                   |
+#### 1.6.2 迭代索引扫描 (v0.8.0+)
 
-#### 2.6.2 迭代索引扫描 (v0.8.0+)
+这是为了解决“先检索后过滤”可能导致结果不足的问题。就像 **HR 招聘**：
 
-近似索引的过滤会在索引扫描**后**应用，可能导致返回结果不足。迭代索引扫描可自动扫描更多索引直到获得足够结果<sup>[[22]](#ref22)</sup>：
+- **普通模式**：你要求“招 5 个懂 Rust 的专家（Filter）”。猎头按技术排名找来前 5 名大牛（Vector），结果发现只有 1 个人懂 Rust。于是只给你 1 份简历，任务结束。
+- **迭代扫描**：猎头发现前 5 名里只有 1 个符合，于是自动继续往下翻第 6-10 名、第 11-20 名... 直到凑齐 5 个懂 Rust 的专家给你。
 
 ```sql
--- 严格顺序：结果按距离精确排序
+-- 宽松顺序（Relaxed Order）：为了凑齐人数，允许稍微牺牲一点排序的严格性（性能更好）
+SET hnsw.iterative_scan = relaxed_order;
+
+-- 严格顺序（Strict Order）：必须严格按距离排序，哪怕要扫描更多数据
 SET hnsw.iterative_scan = strict_order;
+-- SET ivfflat.iterative_scan = relaxed_order;  -- IVFFlat 索引的迭代扫描模式
 
--- 宽松顺序：允许轻微乱序，但召回更高
-SET hnsw.iterative_scan = relaxed_order;  -- HNSW
-SET ivfflat.iterative_scan = relaxed_order;  -- IVFFlat
-
--- 使用物化 CTE 在宽松顺序下获取严格排序
+-- 使用物化 CTE 在宽松顺序下获取高频查询的严格排序
 WITH relaxed_results AS MATERIALIZED (
     SELECT id, embedding <-> '[1,2,3]' AS distance
     FROM items WHERE category_id = 123
@@ -211,33 +199,48 @@ WITH relaxed_results AS MATERIALIZED (
 | `hnsw.max_scan_tuples` | HNSW 最大扫描元组数    | 20000  |
 | `ivfflat.max_probes`   | IVFFlat 最大探测列表数 | 全部   |
 
-#### 2.6.3 混合搜索（向量 + 全文）
+#### 1.6.3 混合搜索（向量 + 全文）
+
+这是 "Just use PostgreSQL" 的重要原因，比如 **刑侦破案**：
+
+- **向量搜索**：拿着**嫌疑人素描**找长得像的人（模糊语义）。
+- **全文搜索**：查**车牌号**包含 "888" 的记录（精确关键词）。
+- **混合威力**：在同一个 SQL 里，既查“长得像素描”又查“车牌对得上”的人，无需拼接两个系统的结果。
 
 ```sql
--- 结合向量搜索与 PostgreSQL 全文检索
+-- 混合搜查令：结合“车牌号”与“素描画”
 SELECT id, content,
-    ts_rank(to_tsvector('english', content), query) AS text_score
+    -- 综合嫌疑指数 = 车牌匹配度(30%) + 长相相似度(70%)
+    ts_rank(to_tsvector('english', content), query) * 0.3  -- [车牌] 关键词匹配得分
+    + (1 - (embedding <=> '[...]')) * 0.7                  -- [素描] 向量相似度得分
+    AS final_score
 FROM items, plainto_tsquery('english', 'machine learning') query
-WHERE to_tsvector('english', content) @@ query
-ORDER BY embedding <=> '[...]'::vector
+WHERE to_tsvector('english', content) @@ query  -- [初筛] 必须包含关键线索
+ORDER BY final_score DESC
 LIMIT 10;
 ```
 
-### 2.7 性能调优指南
+### 1.7 性能调优指南
 
-| 场景         | 优化策略              | 配置建议                                     |
-| ------------ | --------------------- | -------------------------------------------- |
-| **批量导入** | 使用 COPY，索引后创建 | `COPY items FROM STDIN WITH (FORMAT BINARY)` |
-| **索引构建** | 增大维护内存          | `SET maintenance_work_mem = '8GB'`           |
-| **并行构建** | 增加并行工作进程      | `SET max_parallel_maintenance_workers = 7`   |
-| **查询优化** | 调整搜索宽度          | `SET hnsw.ef_search = 100`                   |
-| **精确搜索** | 向量归一化 + 内积     | 使用 `<#>` 操作符                            |
+要想数据库跑得快，除了引擎好，还得会**保养和驾驶**：
+
+- **数据导入**：像**搬家**。先把东西全搬进屋（COPY），最后再慢慢整理归位（建索引）。边搬边整最慢。
+- **索引构建**：给工人准备**大工作台**（Memory）与**多帮手**（Workers），干活才能快。
+- **查询精度**：像**寻宝**。搜得越细（ef_search 大），结果越准，但耗时越长。
+
+| 关键动作     | 形象比喻         | 优化策略                                   | 核心配置                                     |
+| :----------- | :--------------- | :----------------------------------------- | :------------------------------------------- |
+| **批量导入** | **先搬家后整理** | 使用 `COPY` 协议，**先插入数据，后建索引** | `COPY items FROM STDIN WITH (FORMAT BINARY)` |
+| **索引构建** | **加大工作台**   | 临时调大维护内存，避免频繁读写磁盘         | `SET maintenance_work_mem = '8GB'`           |
+| **并行构建** | **多请几个工人** | 增加并行进程数，充分利用多核 CPU           | `SET max_parallel_maintenance_workers = 7`   |
+| **查询优化** | **搜得更仔细**   | 增大搜索广度，用时间换召回率               | `SET hnsw.ef_search = 100`                   |
+| **极致性能** | **抄近道**       | 归一化向量改用内积（投影）计算             | 替换 `<=>` 为 `<#>`                          |
 
 ---
 
-## 3. VectorChord
+## 2. VectorChord
 
-### 3.1 产品概述
+### 2.1 产品概述
 
 VectorChord（原 pgvecto.rs）是由 TensorChord 开发的高性能 PostgreSQL 向量搜索扩展<sup>[[5]](#ref5)</sup>。它采用 Rust 语言编写，提供比 PGVector 更优的性能表现。
 
