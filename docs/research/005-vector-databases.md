@@ -220,7 +220,7 @@ ORDER BY final_score DESC
 LIMIT 10;
 ```
 
-### 1.7 性能调优指南
+### 1.7 性能调优
 
 要想数据库跑得快，除了引擎好，还得会**保养和驾驶**：
 
@@ -242,116 +242,115 @@ LIMIT 10;
 
 ### 2.1 产品概述
 
-VectorChord（原 pgvecto.rs）是由 TensorChord 开发的高性能 PostgreSQL 向量搜索扩展<sup>[[5]](#ref5)</sup>。它采用 Rust 语言编写，提供比 PGVector 更优的性能表现。
+**核心定位**：**即便死守 PostgreSQL 生态，也不想在性能上向独立向量数据库（如 Milvus）低头的“极客方案”。**
 
-> ⚠️ **注意**：TensorChord 推荐新用户使用 VectorChord（新一代实现），而非旧版 pgvecto.rs<sup>[[6]](#ref6)</sup>。
+如果说 PGVector 是 PostgreSQL 的“官方标配”，那么 VectorChord 就是追求极限性能的**第三方改装套件**。
 
-**核心定位**：为 PostgreSQL 用户提供企业级高性能向量搜索能力。
+还是那辆熟悉的 **PostgreSQL (SUV)**，但 VectorChord 为它换上了 **Rust 打造的涡轮增压引擎**：
+
+- **原厂车 (PGVector)**：主打稳健兼容，适合绝大多数通用途径。
+- **改装车 (VectorChord)**：主打**暴力性能**。不换车也能体验“推背感”——查询快 5 倍，写入快 16 倍，且能承载超大规格货物（60K 维）。
+
+> ⚠️ **注意**：VectorChord 是由 TensorChord 开发的原 pgvecto.rs 的下一代重构版本，新项目请直接使用 VectorChord<sup>[[5]](#ref5)</sup>。
 
 ```mermaid
-graph TB
-    subgraph "VectorChord 技术优势"
-        A[5x 查询性能提升]
-        B[16x 写入吞吐提升]
-        C[16x 索引构建加速]
-        D[RaBitQ 量化算法]
-        E[60,000 维支持]
+graph LR
+    subgraph "VectorChord：Rust 驱动的性能怪兽"
+        direction LR
+        A[PostgreSQL]:::pg --> B("VectorChord 扩展<br/>(RaBitQ 量化算法)"):::vc
+        B --> C[5x 查询速度]:::feat
+        B --> D[16x 写入吞吐]:::feat
+        B --> E[60K 维超宽向量]:::feat
     end
 
-    style A fill:#52c41a,color:#fff
-    style D fill:#fa541c,color:#fff
+    classDef pg fill:#336791,color:#fff
+    classDef vc fill:#e67e22,color:#fff
+    classDef feat fill:#87d068,color:#fff
 ```
 
-### 3.2 核心特性对比 PGVector
+### 2.2 核心特性对比 PGVector
 
-| 特性             | PGVector     | VectorChord | 提升倍数 |
-| ---------------- | ------------ | ----------- | -------- |
-| **查询性能**     | 基准         | 5x 更快     | 5x       |
-| **写入吞吐**     | 基准         | 16x 更高    | 16x      |
-| **索引构建**     | 基准         | 16x 更快    | 16x      |
-| **最大维度**     | 2,000 (HNSW) | 60,000      | 30x      |
-| **向量存储成本** | $6/400K      | $1/400K     | 6x       |
+| 特性         | PGVector (原厂) | VectorChord (改装) | 提升幅度 |
+| :----------- | :-------------- | :----------------- | :------- |
+| **查询性能** | 基准            | **5x 更快**        | 🚀 5x    |
+| **写入吞吐** | 基准            | **16x 更高**       | 🚀 16x   |
+| **索引构建** | 基准            | **16x 更快**       | 🚀 16x   |
+| **最大维度** | 2,000 (HNSW)    | **60,000**         | 📏 30x   |
+| **存储成本** | $6/400K         | **$1/400K**        | 💰 省 6x |
 
-### 3.3 RaBitQ 量化算法
+### 2.3 RaBitQ 量化算法
 
-VectorChord 采用 RaBitQ（Randomized Bit Quantization）算法实现高效向量压缩<sup>[[7]](#ref7)</sup>：
+**RaBitQ（Randomized Bit Quantization）**<sup>[[7]](#ref7)</sup> 就像是给每个向量拍了一张**超微缩略图**。在搜索时，先快速比对缩略图（二进制量化，体积仅为原始数据的 1/32）剔除绝大多数无关数据，再对剩下的候选者进行精细比对。这让它能在极低的内存占用下实现极速检索。
 
 ```sql
--- 创建 VectorChord 索引（vchordrq）
+-- 标准创建（推荐）
 CREATE INDEX ON items USING vchordrq (embedding vector_l2_ops);
 
--- 带量化选项
+-- 极客模式：通过 TOML 风格配置微调参数
 CREATE INDEX ON items USING vchordrq (embedding vector_cosine_ops)
 WITH (options = $$
-    residual_quantization = true
+    residual_quantization = true  -- [照片增强] 不仅存缩略图，还保留了和原图的差异细节，越看越清
     [build.internal]
-    lists = [1000]
-    spherical_centroids = true
-    build_threads = 8
+    lists = [2000]                -- [城市规划] 强制划分为 2000 个行政区（若不填则 AI 自动规划）
+    spherical_centroids = true    -- [球面投影] 适合 Cosine 距离，像在地球仪表面划分区域而不是平面地图
+    build_threads = 8             -- [施工队] 8 个工人同时干活
 $$);
 ```
 
-### 3.4 索引调优指南
+### 2.4 索引调优
 
-| 数据规模   | lists 配置   | probes 建议 |
-| ---------- | ------------ | ----------- |
-| < 1M       | `[]`（自动） | 默认        |
-| 1M - 10M   | `[2000]`     | 10          |
-| 10M - 100M | `[10000]`    | 30          |
-| > 100M     | `[80000]`    | 100         |
+参数调优的核心是 **“分区管理”**，就像**城市规划**：
+
+- **lists (分区数)**：城市越大，**行政区（Lists）** 就要划得越细，防止单区人口爆炸，检索变慢。
+- **probes (探针数)**：找人时，需要排查多少个**相邻行政区**。排查越多越准，但越慢。
+
+| 数据规模                | lists (规划建议) | probes (搜寻建议) |
+| :---------------------- | :--------------- | :---------------- |
+| **< 1M (小镇)**         | `[]` (自动)      | 默认              |
+| **1M - 10M (城市)**     | `[2000]`         | 10                |
+| **10M - 100M (大都会)** | `[10000]`        | 30                |
+| **> 100M (巨型城市)**   | `[80000]`        | 100               |
 
 ```sql
--- 查询参数设置
+-- 查询时调整搜索范围（即搜寻多少个相邻行政区）
 SET vchordrq.probes TO '10';
 SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 10;
 ```
 
-### 3.5 与 PGVector 兼容性
+### 2.5 与 PGVector 兼容性
 
-VectorChord 完全兼容 pgvector 的数据类型和语法<sup>[[8]](#ref8)</sup>：
+VectorChord 就像是能插进**标准插座（PGVector 接口）**的**超级充电器**。它沿用了 PGVector 的数据类型（插头形状一样）<sup>[[8]](#ref8)</sup>，你不需要修改表结构或业务代码，只需换个“内部引擎”（索引类型），就能瞬间获得性能提升。
 
 ```sql
--- 依赖 pgvector
+-- 依赖 vchord
 CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
+-- 1. 数据表还是原来的配方（使用 vector 类型）
+CREATE TABLE items (embedding vector(1536));
 
--- 使用 pgvector 的 vector 类型
-CREATE TABLE items (
-    id bigserial PRIMARY KEY,
-    embedding vector(3)
-);
-
--- 无缝迁移
--- 只需将索引类型从 hnsw 改为 vchordrq
+-- 2. 只需要在创建索引时，悄悄将“引擎”名从 hnsw 改为 vchordrq
+-- CREATE INDEX ON items USING hnsw ...  <-- 旧引擎
+CREATE INDEX ON items USING vchordrq ...  -- <-- 新引擎
 ```
 
-### 3.6 vchordg 图索引 (v0.5.0+)
+### 2.6 vchordg 图索引 (v0.5.0+)
 
-VectorChord 还提供基于磁盘的图索引 `vchordg`，内存消耗更低<sup>[[23]](#ref23)</sup>：
+相比 `vchordrq` 是全内存索引，飞快但贵；`vchordg` 则是基于磁盘的**离线地图包**（DiskANN 技术）：它允许你把庞大的向量数据存在便宜的 SSD 硬盘上，只把最关键的“路标”加载到内存。**适合数据量大到内存装不下的场景。**
 
 ```sql
--- 创建 vchordg 图索引
-CREATE INDEX ON items USING vchordg (embedding vector_l2_ops);
-
--- 带参数配置
+/**
+ * 离线地图模式 (Disk-Based Index)
+ * 适合场景：内存有限，但有一块极速 SSD
+ */
 CREATE INDEX ON items USING vchordg (embedding vector_cosine_ops)
 WITH (options = $$
-    bits = 2
-    m = 32
-    ef_construction = 64
-    alpha = [1.0, 1.2]
+    bits = 2                -- [地图缩放] 2x 缩放。值越小越省地，但地图越模糊（易指错路）；1 = 极省空间，2 = 兼顾准确；RaBitQ 量化比率，默认 2
+    m = 32                  -- [交通枢纽] 规定每个路口最多连接 32 条路。路越多越精准，但路网越复杂；每顶点最大邻居数，默认 32
+    ef_construction = 64    -- [勘测范围] 造地图时，先探索周边 64 个路标来确定最佳路线。探索越广，地图质量越高；构建时的搜索范围，默认 64
+    alpha = [1.0, 1.2]      -- [绕路容忍度] 允许在建图时稍微绕点路（1.0-1.2倍），以发现潜在的捷径，防止陷入局部死胡同；剪枝时的 alpha 值，默认 [1.0, 1.2]
 $$);
 ```
 
-**vchordg 参数说明**：
-
-| 参数              | 描述               | 默认值     | 建议                   |
-| ----------------- | ------------------ | ---------- | ---------------------- |
-| `bits`            | RaBitQ 量化比率    | 2          | 2 = 高召回，1 = 低内存 |
-| `m`               | 每顶点最大邻居数   | 32         | 对应 HNSW/DiskANN 的 M |
-| `ef_construction` | 构建时动态列表大小 | 64         | 越大越慢但质量越好     |
-| `alpha`           | 剪枝时的 alpha 值  | [1.0, 1.2] | 对应 DiskANN 的 alpha  |
-
-### 3.7 预过滤 Prefilter (v0.4.0+)
+### 2.7 预过滤 Prefilter (v0.4.0+)
 
 VectorChord 的 `vchordrq.prefilter` 参数允许向量索引利用过滤条件进行剪枝<sup>[[24]](#ref24)</sup>：
 
@@ -364,13 +363,15 @@ SET vchordrq.prefilter = on;
 -- 10% 选择率时可获得 5% QPS 提升
 ```
 
+> [!WARNING]
+>
 > **注意**：预过滤仅推荐用于**严格**（过滤大量行）且**低成本**（计算开销远低于向量距离计算）的过滤条件。
 
 ---
 
-## 4. Milvus
+## 3. Milvus
 
-### 4.1 产品概述
+### 3.1 产品概述
 
 Milvus 是由 Zilliz 开发的开源、云原生分布式向量数据库<sup>[[9]](#ref9)</sup>。它是 LF AI & Data Foundation 的毕业项目，专为大规模向量相似性搜索设计，支持百亿级向量的高性能检索。
 
@@ -394,7 +395,7 @@ graph TB
     style Z fill:#722ed1,color:#fff
 ```
 
-### 4.2 核心架构
+### 3.2 核心架构
 
 Milvus 采用存储计算分离的云原生分布式架构<sup>[[10]](#ref10)</sup>：
 
@@ -444,7 +445,7 @@ graph TB
 | **工作节点层** | Worker Nodes      | 向量搜索、数据持久化、索引构建       |
 | **存储层**     | etcd + MinIO + MQ | 元数据、向量/索引存储、WAL 日志      |
 
-### 4.3 索引算法体系
+### 3.3 索引算法体系
 
 Milvus 支持丰富的向量索引类型<sup>[[11]](#ref11)</sup>：
 
@@ -477,7 +478,7 @@ graph LR
 | **DiskANN**   | 磁盘图索引      | 超大规模数据   | 极低     |
 | **GPU_CAGRA** | GPU 优化图      | GPU 加速场景   | N/A      |
 
-### 4.4 距离度量
+### 3.4 距离度量
 
 | 度量类型     | 标识符    | 适用场景   |
 | ------------ | --------- | ---------- |
@@ -487,7 +488,7 @@ graph LR
 | 汉明距离     | `HAMMING` | 二进制向量 |
 | Jaccard 距离 | `JACCARD` | 集合相似度 |
 
-### 4.5 搜索能力
+### 3.5 搜索能力
 
 ```python
 from pymilvus import MilvusClient
@@ -535,7 +536,7 @@ results = client.search(
 | **全文搜索**   | BM25 关键词搜索     | ✅       |
 | **重排序**     | BGE/Cohere Reranker | ✅       |
 
-### 4.6 性能基准
+### 3.6 性能基准
 
 基于 Milvus 2.2 官方基准测试<sup>[[12]](#ref12)</sup>：
 
@@ -546,7 +547,7 @@ results = client.search(
 | **扩展性**  | CPU 核数      | 线性扩展      |
 | **vs 其他** | VectorDBBench | 2-5x 性能优势 |
 
-### 4.7 部署模式对比
+### 3.7 部署模式对比
 
 | 模式             | 适用场景          | 数据规模 | 运维复杂度 |
 | ---------------- | ----------------- | -------- | ---------- |
@@ -557,9 +558,9 @@ results = client.search(
 
 ---
 
-## 5. Weaviate
+## 4. Weaviate
 
-### 5.1 产品概述
+### 4.1 产品概述
 
 Weaviate 是一款开源的 AI-Native 向量数据库，专为构建 AI 应用而设计<sup>[[13]](#ref13)</sup>。它的核心特点是内置向量化模块，可以自动将数据转化为向量嵌入。
 
@@ -581,7 +582,7 @@ graph TB
     style WC fill:#805ad5,color:#fff
 ```
 
-### 5.2 核心特性
+### 4.2 核心特性
 
 | 特性           | 描述                 | 优势                    |
 | -------------- | -------------------- | ----------------------- |
@@ -591,7 +592,7 @@ graph TB
 | **RAG 支持**   | 内置生成式搜索       | 简化 RAG 流程           |
 | **模块化架构** | 可插拔的向量化模块   | 灵活选择模型            |
 
-### 5.3 向量索引类型
+### 4.3 向量索引类型
 
 Weaviate 支持三种向量索引类型<sup>[[14]](#ref14)</sup>：
 
@@ -617,7 +618,7 @@ graph LR
 | **Flat**    | 暴力搜索 | 小规模数据 | 完美召回，适合多租户     |
 | **Dynamic** | 自动切换 | 未知规模   | 小时用 Flat，大时切 HNSW |
 
-### 5.4 向量化模块
+### 4.4 向量化模块
 
 Weaviate 支持多种向量化模块<sup>[[15]](#ref15)</sup>：
 
@@ -629,7 +630,7 @@ Weaviate 支持多种向量化模块<sup>[[15]](#ref15)</sup>：
 | **multi2vec-clip**       | OpenAI CLIP | 图像 + 文本 |
 | **multi2vec-bind**       | ImageBind   | 多模态      |
 
-### 5.5 距离度量
+### 4.5 距离度量
 
 | 度量类型   | 标识符       | 适用场景           |
 | ---------- | ------------ | ------------------ |
@@ -638,7 +639,7 @@ Weaviate 支持多种向量化模块<sup>[[15]](#ref15)</sup>：
 | 点积       | `dot`        | 归一化向量         |
 | 汉明距离   | `hamming`    | 二进制向量         |
 
-### 5.6 搜索能力
+### 4.6 搜索能力
 
 ```python
 import weaviate
@@ -686,7 +687,7 @@ results = collection.query.hybrid(
 | **过滤搜索**   | 属性条件过滤          | ✅       |
 | **分组聚合**   | Group by              | ✅       |
 
-### 5.7 部署选项
+### 4.7 部署选项
 
 | 部署方式           | 适用场景   | 特点                   |
 | ------------------ | ---------- | ---------------------- |
@@ -695,7 +696,7 @@ results = collection.query.hybrid(
 | **Kubernetes**     | 自托管生产 | 高可用，零停机更新     |
 | **Embedded**       | 快速评估   | Python/JS 直接启动     |
 
-### 5.8 向量量化技术<sup>[[25]](#ref25)</sup>
+### 4.8 向量量化技术<sup>[[25]](#ref25)</sup>
 
 Weaviate 支持四种向量压缩方法：
 
@@ -719,7 +720,7 @@ collection = client.collections.create(
 
 > **提示**：Weaviate 使用**过度获取 + 重排序**策略来弥补量化导致的精度损失。
 
-### 5.9 集群架构<sup>[[26]](#ref26)</sup>
+### 4.9 集群架构<sup>[[26]](#ref26)</sup>
 
 Weaviate 采用 **Raft + Leaderless** 混合架构：
 
