@@ -373,142 +373,162 @@ SET vchordrq.prefilter = on;
 
 ### 3.1 产品概述
 
-Milvus 是由 Zilliz 开发的开源、云原生分布式向量数据库<sup>[[9]](#ref9)</sup>。它是 LF AI & Data Foundation 的毕业项目，专为大规模向量相似性搜索设计，支持百亿级向量的高性能检索。
+**核心定位**：**用（较高的）运维复杂度，换取（极高的）水平扩展能力。是“大厂”构建核心 AI 基础设施的首选。**
 
-**核心定位**：企业级分布式向量数据库，为 AI 应用提供可扩展的向量检索基础设施。
+告别“插件化”的轻量级方案，我们进入**云原生分布式**的重工业领域。Milvus 是 LF AI & Data Foundation 基金会的毕业项目，专为 **十亿级（Billion-scale）** 向量检索而生。
+
+Milvus 的部署模式就像**从“乐高积木”到“摩天大楼”**的进化：
+
+- **Milvus Lite**：**乐高小人**。嵌入 Python 进程，零依赖，写 Demo 最快。
+- **Standalone**：**单层平房**。一个 Docker 容器搞定，适合测试或中小规模。
+- **Distributed**：**摩天大楼群**。基于 Kubernetes 的微服务架构，存算分离，专治各种“数据量大到存不下”的疑难杂症。
 
 ```mermaid
-graph TB
-    subgraph "Milvus 部署模式"
-        L[Milvus Lite<br/>Python 嵌入式]
-        S[Milvus Standalone<br/>Docker 单机]
-        D[Milvus Distributed<br/>Kubernetes 集群]
-        Z[Zilliz Cloud<br/>全托管服务]
+graph LR
+    subgraph "Milvus：从玩具到摩天楼"
+        direction LR
+        L["Lite<br/>(嵌入式)"]:::lego
+        S["Standalone<br/>(Docker)"]:::house
+        D["Distributed<br/>(K8s)"]:::city
+        Z["Zilliz Cloud<br/>(托管)"]:::cloud
+
+        L --> |开发| S
+        S --> |生产| D
+        D -.-> |托管| Z
     end
 
-    L --> |开发| S
-    S --> |生产| D
-    D --> |运维托管| Z
-
-    style L fill:#e6f7ff
-    style D fill:#00A1EA,color:#fff
-    style Z fill:#722ed1,color:#fff
+    classDef lego fill:#b7eb8f,stroke:none,color:#000
+    classDef house fill:#40a9ff,color:#fff,stroke:none
+    classDef city fill:#003a8c,color:#fff,stroke:none
+    classDef cloud fill:#722ed1,color:#fff,stroke:none
 ```
 
 ### 3.2 核心架构
 
-Milvus 采用存储计算分离的云原生分布式架构<sup>[[10]](#ref10)</sup>：
+Milvus 的运作机制就像一个繁忙的**国际机场**：
+
+- **访问层 (Proxy)**：**值机大厅**。负责接待旅客（请求），本来不干重活，只管把人引导到正确的登机口。
+- **协调层 (Coordinators)**：**塔台**。不亲自开飞机，但指挥所有飞机的起降顺序，确保航线不冲突（事务一致性）。
+- **工作节点 (Worker Nodes)**：**地勤人员**。最苦最累的一线。有的搬行李（DataNode），有的修飞机（IndexNode），有的负责安检扫描（QueryNode）。
+- **存储层 (etcd + MinIO + MQ)**：**停机坪与仓库**。真正的物资集散地。etcd 存航班表，MinIO 存行李，Kafka 是行李传送带。
 
 ```mermaid
 graph TB
-    subgraph "访问层"
-        Proxy[Proxy<br/>负载均衡与请求路由]
+    subgraph "Milvus: 国际机场架构"
+        direction TB
+        subgraph "访问层(值机大厅)"
+            Proxy[Proxy<br/>负载均衡与请求路由]:::proxy
+        end
+
+        subgraph "协调层(塔台)"
+            RC[Root Coord<br/>DDL/DCL 管理]:::coord
+            QC[Query Coord<br/>查询调度]:::coord
+            DC[Data Coord<br/>数据调度]:::coord
+            IC[Index Coord<br/>索引调度]:::coord
+        end
+
+        subgraph "工作节点层(地勤)"
+            QN[Query Node<br/>向量搜索]:::work
+            DN[Data Node<br/>数据持久化]:::work
+            IN[Index Node<br/>索引构建]:::work
+        end
+
+        subgraph "存储层(仓库)"
+            ETCD[(etcd<br/>元数据)]:::store
+            MINIO[(MinIO/S3<br/>对象存储)]
+            MQ[Kafka/Pulsar<br/>消息队列]:::store
+        end
+
+        Proxy --> RC & QC & DC & IC
+        QC --> QN
+        DC --> DN
+        IC --> IN
+        QN & DN & IN --> MINIO
+        RC --> ETCD
+        DN --> MQ
     end
 
-    subgraph "协调层"
-        RC[Root Coord<br/>DDL/DCL 管理]
-        QC[Query Coord<br/>查询调度]
-        DC[Data Coord<br/>数据调度]
-        IC[Index Coord<br/>索引调度]
-    end
+    classDef proxy fill:#00A1EA,color:#fff,stroke:none
+    classDef coord fill:#722ed1,color:#fff,stroke:none
+    classDef work fill:#faad14,color:#fff,stroke:none
+    classDef store fill:#52c41a,color:#fff,stroke:none
 
-    subgraph "工作节点层"
-        QN[Query Node<br/>向量搜索]
-        DN[Data Node<br/>数据持久化]
-        IN[Index Node<br/>索引构建]
-    end
-
-    subgraph "存储层"
-        ETCD[(etcd<br/>元数据)]
-        MINIO[(MinIO/S3<br/>对象存储)]
-        MQ[Kafka/Pulsar<br/>消息队列]
-    end
-
-    Proxy --> RC & QC & DC & IC
-    QC --> QN
-    DC --> DN
-    IC --> IN
-    QN & DN & IN --> MINIO
-    RC --> ETCD
-    DN --> MQ
-
-    style Proxy fill:#00A1EA,color:#fff
     style MINIO fill:#ff5722,color:#fff
 ```
 
-**四层架构说明**：
+**组件分工表**：
 
-| 层级           | 组件              | 职责                                 |
-| -------------- | ----------------- | ------------------------------------ |
-| **访问层**     | Proxy             | 无状态代理，处理客户端请求与结果聚合 |
-| **协调层**     | Coordinators      | 集群拓扑管理、任务调度、一致性控制   |
-| **工作节点层** | Worker Nodes      | 向量搜索、数据持久化、索引构建       |
-| **存储层**     | etcd + MinIO + MQ | 元数据、向量/索引存储、WAL 日志      |
+| 层级       | 组件              | 机场角色     | 核心职责                                                            | 扩展性                                   |
+| :--------- | :---------------- | :----------- | :------------------------------------------------------------------ | :--------------------------------------- |
+| **访问层** | Proxy             | **值机大厅** | 门面担当，聚合结果<br/>无状态代理，处理客户端请求与结果聚合         | 无状态，随便加机器                       |
+| **协调层** | Coordinators      | **塔台**     | 发号施令，脑部中枢<br/>集群拓扑管理、任务调度、一致性控制           | 压力较小，通常不需要扩展                 |
+| **工作层** | Worker Nodes      | **地勤**     | **算力黑洞**。搜索、建索引全靠它<br/>向量搜索、数据持久化、索引构建 | **弹性伸缩的核心**（忙时加人，闲时裁员） |
+| **存储层** | etcd + MinIO + MQ | **仓库**     | 数据底座，持久化存储<br/>元数据、向量/索引存储、WAL 日志            | 依赖 S3/MinIO 的无限容量                 |
 
 ### 3.3 索引算法体系
 
-Milvus 支持丰富的向量索引类型<sup>[[11]](#ref11)</sup>：
+拥有了能够无限扩展的**存储架构**后，Milvus 进一步提供了覆盖全场景的**索引分级体系**，让你在“速度、成本、精度”的不可能三角中自由裁决。
+
+Milvus 的索引体系就像一个**多级物流网络**：
+
+- **HNSW (内存索引)**：**前置仓（极速达）**。货物就在市中心（内存），下单即送达（延迟最低），但租金寸土寸金，适合热点数据。
+- **IVF_PQ (压缩索引)**：**集约化货架（高密度）**。通过真空压缩（量化）技术，在同样的仓库里塞进 10 倍的货物，虽然取货多一道工序，但性价比极高。
+- **DiskANN (磁盘索引)**：**郊区中心仓（海量）**。建在地皮便宜的郊区（SSD），通过高速公路（NVMe）临时调货，成本仅为前置仓的 1/10，适合百亿级数据兜底。
+- **GPU Index (GPU 索引)**：**自动化流水线（高吞吐）**。遇到“双 11”海量订单（高 QPS），直接上机器臂集群（GPU），处理效率是人工的几十倍。
+
+为了支撑上述多级物流体系，同时处理复杂的元数据过滤（如查找特定类别的商品），Milvus 构建了业界最全的**索引分类树**：
 
 ```mermaid
-graph LR
-    subgraph "向量索引"
-        IVF[IVF 系列<br/>IVF_FLAT, IVF_SQ8, IVF_PQ]
-        Graph[图索引<br/>HNSW, SCANN]
-        Disk[磁盘索引<br/>DiskANN]
-        GPU[GPU 索引<br/>GPU_IVF_FLAT, CAGRA]
-    end
-
-    subgraph "标量索引"
-        INV[倒排索引]
-        BIT[Bitmap 索引]
-        TRIE[Trie 索引]
-    end
-
-    style IVF fill:#4285f4,color:#fff
-    style Graph fill:#34a853,color:#fff
-    style GPU fill:#ea4335,color:#fff
+mindmap
+  root((Milvus 索引全景))
+    向量索引
+      图索引(HNSW 前置仓)
+        HNSW
+        [HNSW_SQ|PQ|PRQ]
+      IVF 系列(IVF 集约货架)
+        [IVF_FLAT|SQ8|PQ|RABITQ]
+      磁盘索引(DiskANN 中心仓)
+      GPU 索引(GPU 自动化)
+        [GPU_CAGRA|IVF_FLAT|IVF_PQ|BRUTE_FORCE]
+    标量索引
+      倒排索引：物品清单-查名称
+      Bitmap 索引：状态看板-查库存
+      Trie 索引：货号前缀-查批次
 ```
 
-| 索引类型      | 算法            | 适用场景       | 内存要求 |
-| ------------- | --------------- | -------------- | -------- |
-| **IVF_FLAT**  | 聚类 + 精确搜索 | 高召回场景     | 中       |
-| **IVF_SQ8**   | 聚类 + 标量量化 | 平衡性能与召回 | 低       |
-| **IVF_PQ**    | 聚类 + 乘积量化 | 大规模低内存   | 极低     |
-| **HNSW**      | 多层图搜索      | 低延迟高召回   | 高       |
-| **DiskANN**   | 磁盘图索引      | 超大规模数据   | 极低     |
-| **GPU_CAGRA** | GPU 优化图      | GPU 加速场景   | N/A      |
+| 索引类型      | 物流角色     | 算法            | 适用场景                                       | 资源消耗    |
+| ------------- | ------------ | --------------- | ---------------------------------------------- | ----------- |
+| **HNSW**      | **前置仓**   | 多层图搜索      | **唯快不破**。低延迟高召回                     | 🧠 内存极高 |
+| **IVF_FLAT**  | **集约货架** | 聚类 + 精确搜索 | 高召回场景                                     | 🧠 内存中   |
+| **IVF_SQ8**   | **集约货架** | 聚类 + 标量量化 | **空间魔法**。通过量化压缩数据，平衡性能与召回 | 🧠 内存低   |
+| **IVF_PQ**    | **集约货架** | 聚类 + 积量化   | **空间魔法**。通过量化压缩数据，大规模低内存   | 🧠 内存极低 |
+| **DiskANN**   | **中心仓**   | 磁盘图索引      | **成本杀手**。使用 SSD 存储超大规模数据        | 💾 依赖 SSD |
+| **GPU Index** | **自动化**   | GPU 优化图      | **暴力吞吐**。GPU 加速，适合超高并发场景       | 🎮 显存     |
 
-### 3.4 距离度量
+### 3.4 搜索能力
 
-| 度量类型     | 标识符    | 适用场景   |
-| ------------ | --------- | ---------- |
-| 欧氏距离     | `L2`      | 物理相似度 |
-| 内积         | `IP`      | 归一化向量 |
-| 余弦相似度   | `COSINE`  | 语义相似度 |
-| 汉明距离     | `HAMMING` | 二进制向量 |
-| Jaccard 距离 | `JACCARD` | 集合相似度 |
-
-### 3.5 搜索能力
+Milvus 的 `pymilvus` SDK 就是**智能仓储系统的“手持终端”**，简单几行指令就能调度底层的庞大算力。
 
 ```python
 from pymilvus import MilvusClient
 
-# 初始化客户端
-client = MilvusClient("demo.db")  # Milvus Lite
+# 1. 登录终端 (连接 Lite 版或集群)
+client = MilvusClient("demo.db")
 
-# 创建 Collection
+# 2. 划分库区 (创建集合)
 client.create_collection(
     collection_name="demo_collection",
-    dimension=768
+    dimension=768  # 货架规格
 )
 
-# 插入数据
+# 3. 商品入库 (插入数据)
 client.insert(
     collection_name="demo_collection",
     data=[{"id": 1, "vector": [...], "subject": "history"}]
 )
 
-# ANN 搜索
+# 4. 模糊找货 (ANN 搜索)
+# "帮我找几个跟这个样品最像的货"
 results = client.search(
     collection_name="demo_collection",
     data=[query_vector],
@@ -516,38 +536,38 @@ results = client.search(
     output_fields=["subject"]
 )
 
-# 带过滤的搜索
+# 5. 精确筛选 (带过滤搜索)
+# "在'历史区'帮我找跟这个样品最像的货"
 results = client.search(
     collection_name="demo_collection",
     data=[query_vector],
-    filter='subject == "history"',
+    filter='subject == "history"',  # 先去历史区
     limit=10
 )
 ```
 
-**搜索功能矩阵**：
+**全能检索矩阵**：
 
-| 功能           | 描述                | 支持情况 |
-| -------------- | ------------------- | -------- |
-| **ANN 搜索**   | 近似最近邻          | ✅       |
-| **元数据过滤** | 标量条件过滤        | ✅       |
-| **范围搜索**   | 指定半径内搜索      | ✅       |
-| **混合搜索**   | 多向量字段联合搜索  | ✅       |
-| **全文搜索**   | BM25 关键词搜索     | ✅       |
-| **重排序**     | BGE/Cohere Reranker | ✅       |
+| 能力           | 描述          | 价值                                                        |
+| :------------- | :------------ | :---------------------------------------------------------- |
+| **ANN 搜索**   | 近似最近邻    | **核心能力**。亿级数据毫秒响应。                            |
+| **元数据过滤** | 标量条件过滤  | **精准定位**。支持复杂的 boolean 表达式。                   |
+| **混合搜索**   | 多路召回融合  | **全能视角**。同时利用向量、BM25 关键词、图片等多模态信息。 |
+| **范围搜索**   | Radius Search | **画圈圈地**。只找特定相似度范围内的结果。                  |
+| **重排序**     | Rerank        | **精修整备**。引入高精度模型对粗排结果进行二次精选。        |
 
-### 3.6 性能基准
+### 3.5 性能基准
 
-基于 Milvus 2.2 官方基准测试<sup>[[12]](#ref12)</sup>：
+基于 Milvus 2.2 官方基准测试<sup>[[12]](#ref12)</sup>，单 QueryNode（8 核 CPU、8GB 内存、1M 128D Dataset）性能表现：
 
-| 指标        | 数据规模      | 性能表现      |
-| ----------- | ------------- | ------------- |
-| **QPS**     | 1M 128D       | 10k - 30k     |
-| **延迟**    | 标准集群      | < 10ms (P99)  |
-| **扩展性**  | CPU 核数      | 线性扩展      |
-| **vs 其他** | VectorDBBench | 2-5x 性能优势 |
+| 指标        | 性能表现                        |
+| ----------- | ------------------------------- |
+| **QPS**     | 7153                            |
+| **延迟**    | 127ms (P99)<br/> 83ms (P50)     |
+| **扩展性**  | 线性扩展（CPU）                 |
+| **vs 其他** | 2.5x Latency、4.5x QPS 性能优势 |
 
-### 3.7 部署模式对比
+### 3.6 部署模式对比
 
 | 模式             | 适用场景          | 数据规模 | 运维复杂度 |
 | ---------------- | ----------------- | -------- | ---------- |
