@@ -1444,72 +1444,17 @@ graph LR
 | **Cognee**     | ✅       | ⚠️          | ✅       | ✅              | ✅       | ⚠️                          |
 | **Python SDK** | psycopg2 | psycopg2    | pymilvus | weaviate-client | pinecone | google-cloud-spanner        |
 
----
-
-## 8. 场景推荐与选型指南
-
-### 8.1 决策流程图
-
-```mermaid
-flowchart TD
-    Start[开始选型] --> Q1{已有 PostgreSQL?}
-
-    Q1 --> |是| Q2{性能要求高?}
-    Q1 --> |否| Q3{需要私有部署?}
-
-    Q2 --> |是| VC[VectorChord]
-    Q2 --> |否| PGV[PGVector]
-
-    Q3 --> |是| Q4{数据规模?}
-    Q3 --> |否| Q5{预算敏感?}
-
-    Q4 --> |< 10M| WV[Weaviate]
-    Q4 --> |> 10M| MV[Milvus]
-
-    Q5 --> |是| MV2[Milvus/Weaviate<br/>自托管]
-    Q5 --> |否| PC[Pinecone]
-
-    style VC fill:#336791,color:#fff
-    style PGV fill:#336791,color:#fff
-    style MV fill:#00A1EA,color:#fff
-    style WV fill:#38b2ac,color:#fff
-    style PC fill:#5048E5,color:#fff
-```
-
-### 8.2 场景推荐矩阵
+### 7.6 场景推荐矩阵
 
 | 场景                     | 首选方案        | 备选方案       | 理由                   |
 | ------------------------ | --------------- | -------------- | ---------------------- |
-| **已有 PostgreSQL 系统** | VectorChord     | PGVector       | 零迁移成本，数据一致性 |
-| **快速原型开发**         | Pinecone        | Weaviate Cloud | 零运维，快速上手       |
+| **已有 PostgreSQL 系统** | PGVector        | VectorChord    | 零迁移成本，数据一致性 |
 | **大规模生产系统**       | Milvus          | Weaviate       | 分布式架构，高可扩展   |
 | **AI-Native 应用**       | Weaviate        | Milvus         | 内置向量化，RAG 支持   |
 | **成本敏感型**           | PGVector/Milvus | VectorChord    | 开源免费，自托管       |
 | **企业合规要求**         | Milvus/Weaviate | VectorChord    | 私有部署，数据主权     |
+| **快速原型开发**         | Pinecone        | Weaviate Cloud | 零运维，快速上手       |
 | **多租户 SaaS**          | Pinecone        | Weaviate Cloud | 命名空间隔离           |
-
-### 8.3 本项目推荐方案
-
-基于本项目（Agentic AI 学术研究与工程应用方案定制）的需求分析：
-
-| 需求维度        | 本项目要求                  | 匹配评估                 |
-| --------------- | --------------------------- | ------------------------ |
-| **数据规模**    | 初期 < 1M，长期 > 10M       | Milvus 支持百亿级扩展    |
-| **混合检索**    | 向量 + 全文 + 图谱          | Milvus BM25 + Neo4j 图谱 |
-| **多模态支持**  | 文本、代码、图像            | Milvus 多向量字段        |
-| **AI 框架集成** | LangChain/LlamaIndex/Cognee | Milvus 全覆盖            |
-| **开发便捷性**  | 本地开发快速迭代            | Milvus Lite 嵌入式       |
-| **生产部署**    | 私有化、高可用              | Milvus Distributed       |
-
-> **推荐方案**：选择 **Milvus** 作为本项目的向量数据库方案。
-
-**选择理由**：
-
-1. **开发测试便捷**：Milvus Lite 支持纯 Python 嵌入式运行，无需 Docker
-2. **平滑扩展**：从 Lite → Standalone → Distributed 无缝升级
-3. **生态完善**：LangChain/LlamaIndex/Cognee 全面支持
-4. **性能优秀**：10k+ QPS，支持 GPU 加速
-5. **Apache 2.0**：开源协议友好，可商用
 
 ---
 
@@ -1519,15 +1464,9 @@ flowchart TD
 
 ```mermaid
 graph TB
-    subgraph "数据层"
-        MV[(Milvus<br/>向量检索)]
-        PG[(PostgreSQL<br/>关系数据)]
-        Neo4j[(Neo4j<br/>知识图谱)]
-    end
-
     subgraph "检索层"
-        VEC[向量检索<br/>Milvus HNSW/IVF]
-        FTS[全文检索<br/>Milvus BM25]
+        VEC[向量检索<br/>HNSW/IVF]
+        FTS[全文检索<br/>BM25]
         GRAPH[图谱检索<br/>Neo4j Cypher]
     end
 
@@ -1540,10 +1479,6 @@ graph TB
     VEC & FTS & GRAPH --> RRF
     RRF --> LLM
     LLM --> Result[检索结果]
-
-    style MV fill:#00A1EA,color:#fff
-    style PG fill:#336791,color:#fff
-    style Neo4j fill:#018bff,color:#fff
 ```
 
 ### 10.2 Milvus 向量检索实现
