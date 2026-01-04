@@ -1,10 +1,10 @@
 ---
 id: agent-frameworks
 sidebar_position: 2
-title: Agent 框架调研报告
+title: Agent Framework 调研
 last_update:
   author: Aurelius Huang
-  created_at: 2025-12-22
+  created_at: 2025-12-19
   updated_at: 2025-12-25
   version: 1.1
   status: Pending Review
@@ -13,22 +13,9 @@ tags:
   - 技术选型
 ---
 
-> [!IMPORTANT]
->
-> **调研范围**：
->
-> - Google Agent Development Kit (ADK)
-> - Anthropic Claude Agent SDK（含 Agent Skills）
->
-> **目标读者**：AI Agent 开发者、架构师、技术决策者
+## 1. 概述
 
----
-
-## 1. 调研概述
-
-### 1.1 调研背景
-
-随着大语言模型（LLM）能力的快速发展，AI Agent 已成为实现复杂自动化任务的关键技术方向。Google 和 Anthropic 作为 AI 领域的领先企业，分别推出了各自的 Agent 开发框架：
+在 AI Agent 领域， Google 和 Anthropic 作为 AI 领域的领先企业，分别推出了各自的 Agent 开发框架：
 
 - **Google Agent Development Kit (ADK)**：一个开源的、模块化的框架，支持构建、评估和部署复杂的 AI Agent 应用<sup>[[1]](#ref1)</sup>
 - **Claude Agent SDK**：基于 Claude Code 的编程接口，提供与 Claude Code 相同的工具和上下文管理能力<sup>[[2]](#ref2)</sup>

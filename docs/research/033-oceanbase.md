@@ -1,13 +1,13 @@
 ---
 id: oceanbase
-sidebar_position: 5.1
+sidebar_position: 3.3
 title: OceanBase 三位一体数据库调研
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-23
-  updated_at: 2025-12-23
+  updated_at: 2026-01-04
   version: 1.0
-  status: Pending Review
+  status: Pending Reviewed
 tags:
   - OceanBase V4.5.0
 ---

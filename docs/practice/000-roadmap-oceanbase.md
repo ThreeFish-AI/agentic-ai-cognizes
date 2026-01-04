@@ -161,3 +161,42 @@
 | Phase 4  | `docs/006-architecture-proposal.md` (架构决策白皮书)   | 🔲 待开始 |
 | Phase 5  | `src/prototype/unified_agent_backend.py`               | 🔲 待开始 |
 | Phase 5  | `src/adapters/adk-oceanbase/` (ADK 适配层)             | 🔲 待开始 |
+
+## 5. 结合 Roadmap 的课题与行动建议
+
+基于上述调研，对 `docs/000-roadmap.md` 的主要课题进行细化：
+
+### 5.1 Phase 2: Memory Management (仿生 Google Memory Bank)
+
+- **Google 做法**:
+  1.  `SessionService` 管理 Session 生命周期。
+  2.  `MemoryService.add_session_to_memory()` 或 `generate_memories()` 触发异步 Extraction/Consolidation。
+  3.  Memory Bank 使用 LLM 提取 Insights，支持 TTL 和 Memory Revisions。
+- **Adoption**:
+  1.  在 OceanBase 中设计 `agent_sessions` 表存储 Events 和 State。
+  2.  设计 `agent_memories` 表存储提炼后的 Insights (包含向量列)。
+  3.  实现一个后台 Worker（或 OceanBase Trigger/Scheduled Task），定期从 `sessions` 提取数据，调用 LLM 生成 Insight，写入 `memories`。
+- **验证点**: 验证 OceanBase 的 **事务** 能否保证 "Session 更新 + Memory 更新" 的原子性，避免 "记忆分裂"。
+
+### 5.2 Phase 3: Unified Retrieval (Context Engineering)
+
+- **Google 做法**: ADK 的 `MemoryService.search_memory()` 返回相关记忆，开发者需手动拼接到 Prompt。
+- **OB 优势**: 可通过 SQL View 或 Stored Procedure 封装 `DBMS_HYBRID_SEARCH`，在单次 SQL 查询中同时检索 Session Context + Long-term Memory。
+- **行动**: 在 `OceanBaseMemoryService.search_memory()` 的实现中，直接返回一个包含 Session State 和 Long-term Insights 的 **Fused Context**。
+
+### 5.3 Phase 4: Framework Integration (ADK Adapter)
+
+- **现状**: Google ADK 的 `VertexAiSessionService` 和 `VertexAiMemoryBankService` 强绑定 Vertex AI API。
+- **机会**: 社区缺乏 "On-Premises / Private Cloud" 的 ADK Service 实现。
+- **行动**:
+  1.  开发 `adk-oceanbase` Python 包，提供 `OceanBaseSessionService` 和 `OceanBaseMemoryService`。
+  2.  让开发者使用 Google 的 ADK 框架代码（Agent 定义、Tool 定义），仅通过配置切换底层 Storage 到 OceanBase。
+  3.  **战略价值**: **"Google's Framework, Your Data"**。
+
+## 7. 结论
+
+1.  **架构可行性**: 尝试使用 PG 的物理架构承载 Google Agent Builder 的逻辑架构（Session + State + Memory 三层抽象，以及 `SessionService` / `MemoryService` 接口）。
+2.  **核心差异**: 最大的 gap 在于 **"Async Memory Consolidation"** 的实现。Google 有现成的托管服务 (Memory Bank)，而利用 PG 需要我们在应用层（Python Worker）或数据库层（Scheduled Task）构建这套异步提炼机制。
+3.  **下一步行动**:
+    - **Phase 2**: 设计 `agent_sessions` 和 `agent_memories` 表，实现 Memory Consolidation Worker。
+    - **Phase 4**: 开发 `adk-pg` Python 包，将 ADK 的 `SessionService` 和 `MemoryService` 接口适配到 PG。

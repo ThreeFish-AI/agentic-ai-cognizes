@@ -1,6 +1,6 @@
 ---
 id: vector-databases
-sidebar_position: 5
+sidebar_position: 3.2
 title: 向量数据库深度调研
 last_update:
   author: Aurelius Huang
