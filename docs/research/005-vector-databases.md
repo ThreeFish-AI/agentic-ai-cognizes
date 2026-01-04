@@ -15,14 +15,14 @@ tags:
   - Milvus
   - Weaviate
   - Pinecone
-  - Qdrant
+  - Spanner
 ---
 
 > [!IMPORTANT]
 >
 > 在前置调研中，我们已经对主流 **ANN 向量索引算法**（HNSW / IVF / PQ / DiskANN 等）建立了比较完整的认识，并对市场上主流向量数据库做过一次“从全景到分层”的宏观梳理。接下来需要回答的问题，会从“向量检索为什么能跑、怎么跑得快”，收束到“在我的真实业务里，选哪一个能长期跑得稳、迭代成本最低”。
 >
-> 因此，本文会把调研范围进一步聚焦到 5 个最具代表性的候选：**Milvus、Weaviate、Pinecone、PGVector、VectorChord**，并从架构形态、能力边界、工程落地和 TCO 控制四个维度做更深入的对比。
+> 因此，本文会把调研范围进一步聚焦到 6 个最具代表性的候选：**Milvus、Weaviate、Pinecone、PGVector、VectorChord、Google Cloud Spanner**，并从架构形态、能力边界、工程落地和 TCO 控制四个维度做更深入的对比。
 >
 > | 类型                            | 产品        | 核心特点                             |
 > | ------------------------------- | ----------- | ------------------------------------ |
@@ -31,6 +31,7 @@ tags:
 > | **Specialized Vector DataBase** | Milvus      | 开源分布式，支持百亿级向量           |
 > |                                 | Weaviate    | AI-Native，内置向量化模块            |
 > |                                 | Pinecone    | 全托管 SaaS，零运维                  |
+> | **Multi-Model Cloud Database**  | Spanner     | 全球分布式 + ACID + 向量 + Graph     |
 
 ---
 
@@ -1015,22 +1016,372 @@ ranked_results = index.search(
 
 ---
 
-## 6. 系统性对比分析
+## 6. Google Cloud Spanner
 
-### 6.1 核心能力对比矩阵
+### 6.1 产品概述
 
-| 维度          | PGVector     | VectorChord | Milvus           | Weaviate     | Pinecone    |
-| ------------- | ------------ | ----------- | ---------------- | ------------ | ----------- |
-| **开源协议**  | PostgreSQL   | AGPLv3/ELv2 | Apache 2.0       | BSD-3        | 商业        |
-| **部署模式**  | 单机/集群    | 单机/集群   | 分布式/托管      | 分布式/托管  | 仅托管      |
-| **最大维度**  | 2,000 (HNSW) | 60,000      | 32,768           | 无限制       | 20,000      |
-| **向量索引**  | HNSW/IVF     | RaBitQ/HNSW | IVF/HNSW/DiskANN | HNSW/Flat    | 专有算法    |
-| **ACID 事务** | ✅ 完整      | ✅ 完整     | ❌ 不支持        | ❌ 不支持    | ❌ 不支持   |
-| **混合搜索**  | ✅ 全文检索  | ✅ 全文检索 | ✅ BM25          | ✅ BM25+向量 | ⚠️ 需双索引 |
-| **内置嵌入**  | ❌           | ❌          | ⚠️ pymilvus      | ✅ 多模块    | ✅ 集成     |
-| **GPU 加速**  | ❌           | ❌          | ✅ CAGRA         | ❌           | ❌          |
+**核心定位**：**全球分布式关系型数据库 + AI 原生向量检索能力的"重型航母"方案，专为需要 ACID 事务、全球一致性与向量语义搜索三位一体的企业级 AI 应用而生。**
 
-### 6.2 性能对比
+Google Cloud Spanner 是 Google 自研的全球分布式关系型数据库，以其独创的 **TrueTime** 技术实现跨洲际的强一致性而闻名<sup>[[29]](#ref29)</sup>。自 2024 年起，Spanner 全面拥抱 AI 时代，将向量检索能力、Graph 查询（ISO GQL）、以及与 Vertex AI 的深度集成纳入核心能力矩阵，成为业界首个将**关系型、图数据库、向量搜索、AI/ML 预测**融为一体的 **Multi-Model** 数据库<sup>[[30]](#ref30)</sup>。
+
+如果将其他向量数据库比作**专项赛艇**（专精某一领域），那么 Spanner 就像一艘**核动力航空母舰**：
+
+- **赛艇（Milvus/Weaviate 等）**：轻快敏捷，专为向量检索这条赛道而生，冲刺极快。
+- **航空母舰（Spanner）**：体型庞大、造价昂贵，但能同时起降战斗机（向量搜索）、直升机（Graph 查询）、预警机（ML 预测），并在全球任意海域（跨区域）保持舰队协同（强一致性）。它不追求单一维度的极致，而是追求**全栈能力的统一与可靠**。
+
+```mermaid
+graph LR
+    subgraph "Spanner：Multi-Model 航空母舰"
+        direction LR
+        Core[Spanner Core<br/>全球分布式<br/>强一致性 ACID]:::core
+        Core --> Vec[向量检索<br/>ANN/KNN]:::ai
+        Core --> Graph[Spanner Graph<br/>ISO GQL]:::ai
+        Core --> ML[Vertex AI 集成<br/>ML.PREDICT]:::ai
+        Core --> FTS[全文检索<br/>Full-Text Search]:::ai
+
+        Vec & Graph & ML & FTS --> RAG[统一 RAG/GraphRAG<br/>工作流]:::rag
+    end
+
+    classDef core fill:#4285f4,color:#fff,stroke:none
+    classDef ai fill:#34a853,color:#fff,stroke:none
+    classDef rag fill:#ea4335,color:#fff,stroke:none
+```
+
+### 6.2 核心特性
+
+| 特性               | 描述                   | 技术规格                                                   |
+| ------------------ | ---------------------- | ---------------------------------------------------------- |
+| **向量数据类型**   | 原生支持向量嵌入存储   | `ARRAY<FLOAT32>` / `ARRAY<FLOAT64>` + `vector_length` 注解 |
+| **最大维度**       | 取决于存储配置         | 未明确限制，支持常见嵌入模型维度（768/1536 等）            |
+| **距离函数**       | 3 种核心度量方式       | COSINE、EUCLIDEAN、DOT_PRODUCT                             |
+| **索引类型**       | 基于树的近似最近邻索引 | Tree-based Vector Index（2 层/3 层配置）                   |
+| **ACID 事务**      | 完整分布式事务保证     | ✅ 全局强一致性（TrueTime + Paxos）                        |
+| **Graph 支持**     | 原生图数据库能力       | Spanner Graph + ISO GQL 标准                               |
+| **ML 集成**        | 内置 AI 模型调用       | `ML.PREDICT` + Vertex AI 模型直连                          |
+| **LangChain 集成** | 官方 Python 库支持     | SpannerVectorStore / SpannerGraphStore 等                  |
+
+### 6.3 向量索引算法
+
+Spanner 采用 **Tree-based Vector Index**（基于树的向量索引）作为其 ANN 搜索的核心算法<sup>[[31]](#ref31)</sup>。可以将其理解为一种**多级分区策略**：
+
+- **tree_depth（树深度）**：决定索引的"层级数"。就像**行政区划**——层级越多，划分越细。
+  - `tree_depth = 2`：适用于 < 1000 万行的数据集（省 → 市）
+  - `tree_depth = 3`：适用于 ~ 100 亿行的数据集（省 → 市 → 区）
+- **num_leaves（叶节点数）**：最底层的"分区数量"。推荐设置为 `sqrt(row_count)`。
+- **num_leaves_to_search（搜索叶数）**：查询时扫描的分区数量。推荐设置为 `num_leaves` 的 1%，带过滤条件时应适当增大。
+
+```sql
+-- 创建向量列（必须指定 vector_length）
+CREATE TABLE Documents (
+    DocId INT64 NOT NULL,
+    DocContents BYTES(MAX),
+    DocEmbedding ARRAY<FLOAT32>(vector_length=>768) NOT NULL,
+) PRIMARY KEY (DocId);
+
+-- 创建 2 层向量索引（适用于 < 1000万行）
+CREATE VECTOR INDEX DocEmbeddingIndex
+ON Documents(DocEmbedding)
+STORING (DocContents)
+OPTIONS (
+    distance_type = 'COSINE',
+    tree_depth = 2,
+    num_leaves = 1000
+);
+
+-- 创建 3 层向量索引（适用于大规模数据）
+CREATE VECTOR INDEX DocEmbeddingIndexLarge
+ON Documents(DocEmbedding)
+OPTIONS (
+    distance_type = 'COSINE',
+    tree_depth = 3,
+    num_branches = 1000,
+    num_leaves = 1000000
+);
+```
+
+**向量索引参数调优指南**：
+
+| 数据规模         | tree_depth | num_leaves        | num_leaves_to_search |
+| :--------------- | :--------- | :---------------- | :------------------- |
+| **< 10M (小型)** | 2          | `sqrt(row_count)` | 1% of num_leaves     |
+| **10M+ (大型)**  | 3          | `sqrt(row_count)` | 1% of num_leaves     |
+| **带过滤查询**   | -          | -                 | 适当增大以保证召回   |
+
+> [!TIP]
+>
+> **最佳实践**<sup>[[32]](#ref32)</sup>：
+>
+> 1. **先插入数据，后建索引**：向量索引的树结构在创建时基于现有数据优化，后续大量插入可能导致结构次优。
+> 2. **使用 STORING 子句**：将过滤条件列存储在索引中，可在叶节点层面直接过滤，显著提升性能。
+> 3. **定期重建索引**：当数据分布发生显著变化时，重建索引可恢复最佳召回率。
+
+### 6.4 搜索能力
+
+Spanner 同时支持 **ANN（近似最近邻）** 和 **KNN（精确最近邻）** 两种向量搜索模式<sup>[[33]](#ref33)</sup>：
+
+| 搜索类型 | 函数                                                                              | 适用场景      | 特点                         |
+| :------- | :-------------------------------------------------------------------------------- | :------------ | :--------------------------- |
+| **ANN**  | `APPROX_COSINE_DISTANCE`<br/>`APPROX_EUCLIDEAN_DISTANCE`<br/>`APPROX_DOT_PRODUCT` | 大规模数据    | 利用向量索引加速，毫秒级响应 |
+| **KNN**  | `COSINE_DISTANCE`<br/>`EUCLIDEAN_DISTANCE`<br/>`DOT_PRODUCT`                      | 小规模/高精度 | 暴力搜索，100% 召回          |
+
+```sql
+-- ANN 搜索（使用向量索引加速）
+SELECT DocId, DocContents
+FROM Documents
+WHERE DocEmbedding IS NOT NULL
+ORDER BY APPROX_COSINE_DISTANCE(
+    ARRAY<FLOAT32>[0.1, 0.2, ...],  -- 查询向量
+    DocEmbedding,
+    options => JSON '{"num_leaves_to_search": 10}'  -- 搜索参数
+)
+LIMIT 10;
+
+-- KNN 搜索（精确搜索，适用于小数据集）
+SELECT DocId, DocContents
+FROM Documents
+ORDER BY COSINE_DISTANCE(
+    ARRAY<FLOAT32>[0.1, 0.2, ...],
+    DocEmbedding
+)
+LIMIT 10;
+
+-- 带过滤条件的 ANN 搜索
+SELECT DocId, DocContents
+FROM Documents
+WHERE DocEmbedding IS NOT NULL
+  AND Category = 'Technology'  -- 标量过滤
+ORDER BY APPROX_EUCLIDEAN_DISTANCE(
+    ARRAY<FLOAT32>[0.1, 0.2, ...],
+    DocEmbedding,
+    options => JSON '{"num_leaves_to_search": 20}'  -- 带过滤时增大搜索范围
+)
+LIMIT 10;
+```
+
+**距离函数选择指南**<sup>[[34]](#ref34)</sup>：
+
+| 数据特征           | 推荐函数             | 说明                              |
+| :----------------- | :------------------- | :-------------------------------- |
+| **归一化向量**     | `DOT_PRODUCT`        | 计算效率最高                      |
+| **非归一化向量**   | `COSINE_DISTANCE`    | 自带归一化，适用于大多数文本嵌入  |
+| **未知是否归一化** | `COSINE_DISTANCE`    | 最安全的选择                      |
+| **物理距离场景**   | `EUCLIDEAN_DISTANCE` | 衡量绝对距离，适用于图像/音频特征 |
+
+### 6.5 集群架构
+
+Spanner 的分布式架构建立在 Google 自研的 **TrueTime** 和 **Paxos** 协议之上<sup>[[35]](#ref35)</sup>。可以将其理解为一个**全球协同的时钟同步网络**：
+
+- **TrueTime**：Google 独有的全球原子钟 + GPS 授时系统。让分布在全球各个数据中心的服务器对"现在是几点"达成共识，误差控制在微秒级。这是实现跨区域强一致性的基石。
+- **Paxos 复制**：每个数据分片（Split）都通过 Paxos 协议在多个副本之间同步。写入操作需要多数派（Quorum）确认才能提交。
+- **副本类型**：
+  - **Read-Write 副本**：参与投票和写入，可服务读写请求
+  - **Read-Only 副本**：仅服务读请求，降低读延迟，不参与写入投票
+  - **Witness 副本**：仅参与投票，不存储完整数据，用于跨区域仲裁
+
+```mermaid
+graph TB
+    subgraph "Spanner 全球分布式架构"
+        direction TB
+
+        subgraph "Region A (美国)"
+            RW1[Read-Write<br/>副本 1]:::rw
+            RW2[Read-Write<br/>副本 2]:::rw
+        end
+
+        subgraph "Region B (欧洲)"
+            RW3[Read-Write<br/>副本 3]:::rw
+            RO1[Read-Only<br/>副本]:::ro
+        end
+
+        subgraph "Region C (亚洲)"
+            W1[Witness<br/>副本]:::witness
+            RO2[Read-Only<br/>副本]:::ro
+        end
+
+        TrueTime[🕐 TrueTime<br/>全球原子钟同步]:::truetime
+
+        RW1 <--> |Paxos| RW2
+        RW2 <--> |Paxos| RW3
+        RW3 <--> |Paxos| RW1
+        RW3 --> |复制| RO1
+        RW1 --> |复制| RO2
+        RW1 <--> |投票| W1
+
+        TrueTime -.-> RW1 & RW2 & RW3
+    end
+
+    classDef rw fill:#4285f4,color:#fff,stroke:none
+    classDef ro fill:#34a853,color:#fff,stroke:none
+    classDef witness fill:#fbbc04,color:#000,stroke:none
+    classDef truetime fill:#ea4335,color:#fff,stroke:none
+```
+
+**副本类型对比**：
+
+| 副本类型       | 存储数据 | 参与投票 | 服务读请求 | 服务写请求 | 典型用途                 |
+| :------------- | :------- | :------- | :--------- | :--------- | :----------------------- |
+| **Read-Write** | ✅       | ✅       | ✅         | ✅         | 主力副本，完整能力       |
+| **Read-Only**  | ✅       | ❌       | ✅         | ❌         | 降低读延迟，就近服务     |
+| **Witness**    | ❌       | ✅       | ❌         | ❌         | 跨区域仲裁，降低存储成本 |
+
+### 6.6 Vertex AI 与 ML 集成
+
+Spanner 提供 `ML.PREDICT` 函数，可直接在 SQL 查询中调用 Vertex AI 模型生成嵌入向量<sup>[[36]](#ref36)</sup>，实现**数据不动、模型来算**的架构范式：
+
+```sql
+-- 1. 注册 Vertex AI 嵌入模型
+CREATE MODEL TextEmbeddingModel
+INPUT(content STRING(MAX))
+OUTPUT(
+    embeddings STRUCT<
+        statistics STRUCT<truncated BOOL, token_count FLOAT64>,
+        values ARRAY<FLOAT64>
+    >
+)
+REMOTE OPTIONS (
+    endpoint = '//aiplatform.googleapis.com/projects/my-project/locations/us-central1/publishers/google/models/text-embedding-004'
+);
+
+-- 2. 使用 ML.PREDICT 生成嵌入并存储
+INSERT INTO Documents (DocId, Content, Embedding)
+SELECT
+    @DocId,
+    @Content,
+    ARRAY<FLOAT32>(embeddings.values)  -- 类型转换
+FROM ML.PREDICT(
+    MODEL TextEmbeddingModel,
+    (SELECT @Content AS content)
+);
+
+-- 3. 查询时动态生成查询向量
+SELECT DocId, Content
+FROM Documents
+WHERE Embedding IS NOT NULL
+ORDER BY APPROX_COSINE_DISTANCE(
+    (SELECT ARRAY<FLOAT32>(embeddings.values)
+     FROM ML.PREDICT(MODEL TextEmbeddingModel, (SELECT @Query AS content))),
+    Embedding
+)
+LIMIT 10;
+```
+
+### 6.7 Spanner Graph 与 GraphRAG
+
+Spanner Graph 是 Spanner 的原生图数据库能力，采用 **ISO GQL** 标准查询语言<sup>[[37]](#ref37)</sup>。结合向量搜索，可构建强大的 **GraphRAG** 工作流：
+
+- **传统 RAG**：仅依赖向量语义相似度检索上下文
+- **GraphRAG**：向量搜索 + 图遍历，捕获数据中的隐式关系，生成更精准的答案
+
+```mermaid
+graph LR
+    subgraph "GraphRAG 工作流"
+        direction LR
+        Query[用户查询] --> Vec[向量搜索<br/>语义相似]
+        Query --> Graph[图遍历<br/>关系推理]
+        Vec --> Fusion[结果融合]
+        Graph --> Fusion
+        Fusion --> LLM[LLM 生成答案]
+    end
+
+    style Vec fill:#4285f4,color:#fff
+    style Graph fill:#34a853,color:#fff
+    style Fusion fill:#ea4335,color:#fff
+```
+
+### 6.8 LangChain 集成
+
+Spanner 提供完整的 LangChain 官方集成<sup>[[38]](#ref38)</sup>，包括：
+
+| 组件                          | 功能                  | 典型用途                     |
+| :---------------------------- | :-------------------- | :--------------------------- |
+| **SpannerVectorStore**        | 向量存储与语义搜索    | RAG 应用的向量检索层         |
+| **SpannerGraphStore**         | 图数据存储与 GQL 查询 | 知识图谱、GraphRAG           |
+| **SpannerLoader**             | 数据加载与预处理      | 将 Spanner 数据加载到 LLM 链 |
+| **SpannerChatMessageHistory** | 对话历史持久化        | 多轮对话 AI 应用             |
+
+```python
+from langchain_google_spanner import SpannerVectorStore
+from langchain_google_vertexai import VertexAIEmbeddings
+
+# 初始化嵌入模型
+embeddings = VertexAIEmbeddings(model_name="text-embedding-004")
+
+# 连接 Spanner Vector Store
+vector_store = SpannerVectorStore(
+    instance_id="my-instance",
+    database_id="my-database",
+    table_name="documents",
+    embedding_service=embeddings,
+)
+
+# 语义搜索
+results = vector_store.similarity_search(
+    query="什么是 Agentic AI？",
+    k=5
+)
+
+# 与 LLM 链集成
+from langchain.chains import RetrievalQA
+from langchain_google_vertexai import ChatVertexAI
+
+llm = ChatVertexAI(model_name="gemini-1.5-pro")
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    retriever=vector_store.as_retriever(search_kwargs={"k": 10}),
+    chain_type="stuff"
+)
+
+answer = qa_chain.invoke({"query": "解释 GraphRAG 的工作原理"})
+```
+
+### 6.9 优劣势分析
+
+**优势**：
+
+- ✅ **全球强一致性**：TrueTime + Paxos 实现跨区域 ACID 事务
+- ✅ **Multi-Model 统一**：关系型 + 向量 + 图 + ML 一体化，无需 ETL
+- ✅ **GraphRAG 原生支持**：向量搜索与图遍历深度集成
+- ✅ **Vertex AI 无缝对接**：SQL 内直接调用 AI 模型
+- ✅ **企业级 SLA**：99.999% 可用性保障
+- ✅ **自动扩展**：无需手动分片，透明水平扩展
+
+**劣势**：
+
+- ❌ **成本高昂**：全球分布式架构的代价，适合中大型企业
+- ❌ **仅托管服务**：无法私有部署，必须使用 Google Cloud
+- ❌ **向量索引相对简单**：仅支持 Tree-based Index，不如 HNSW 灵活
+- ❌ **学习曲线**：GoogleSQL 扩展语法与标准 SQL 有差异
+- ❌ **向量检索性能**：专为分布式一致性优化，单机向量检索性能不及专用库
+
+### 6.10 适用场景
+
+| 场景                          | 适合度     | 说明                                |
+| :---------------------------- | :--------- | :---------------------------------- |
+| **全球化 AI 应用**            | ⭐⭐⭐⭐⭐ | 跨区域低延迟 + 强一致性是核心需求   |
+| **GraphRAG 知识系统**         | ⭐⭐⭐⭐⭐ | 向量 + 图一体化，无需多系统协调     |
+| **金融/医疗等强监管行业**     | ⭐⭐⭐⭐⭐ | ACID + 合规审计 + 高可用            |
+| **现有 Spanner 用户 AI 升级** | ⭐⭐⭐⭐⭐ | 零架构改造，原地 AI 化              |
+| **中小规模 AI 原型**          | ⭐⭐       | 成本过高，推荐 PGVector/Milvus Lite |
+| **极致向量检索性能**          | ⭐⭐       | 专用向量库（Milvus/Weaviate）更适合 |
+
+---
+
+## 7. 系统性对比（横向）
+
+### 7.1 核心能力对比矩阵
+
+| 维度          | PGVector     | VectorChord | Milvus           | Weaviate     | Pinecone    | Spanner           |
+| ------------- | ------------ | ----------- | ---------------- | ------------ | ----------- | ----------------- |
+| **开源协议**  | PostgreSQL   | AGPLv3/ELv2 | Apache 2.0       | BSD-3        | 商业        | 商业 (仅托管)     |
+| **部署模式**  | 单机/集群    | 单机/集群   | 分布式/托管      | 分布式/托管  | 仅托管      | 全球分布式/托管   |
+| **最大维度**  | 2,000 (HNSW) | 60,000      | 32,768           | 无限制       | 20,000      | 数千维 (768/1536) |
+| **向量索引**  | HNSW/IVF     | RaBitQ/HNSW | IVF/HNSW/DiskANN | HNSW/Flat    | 专有算法    | Tree-based Index  |
+| **ACID 事务** | ✅ 完整      | ✅ 完整     | ❌ 不支持        | ❌ 不支持    | ❌ 不支持   | ✅ 全球强一致性   |
+| **混合搜索**  | ✅ 全文检索  | ✅ 全文检索 | ✅ BM25          | ✅ BM25+向量 | ⚠️ 需双索引 | ✅ 全文 + Graph   |
+| **内置嵌入**  | ❌           | ❌          | ⚠️ pymilvus      | ✅ 多模块    | ✅ 集成     | ✅ Vertex AI      |
+| **GPU 加速**  | ❌           | ❌          | ✅ CAGRA         | ❌           | ❌          | ❌                |
+
+### 7.2 性能对比
 
 ```mermaid
 graph LR
@@ -1051,7 +1402,7 @@ graph LR
 | **Weaviate**    | ~5,000      | ★★★★☆      | ★★★★☆    | ★★★★☆    |
 | **Pinecone**    | ~5,000      | ★★★★☆      | N/A      | N/A      |
 
-### 6.3 成本对比
+### 7.3 成本对比
 
 | 产品            | 100K 向量    | 1M 向量      | 10M 向量        | 100M 向量        |
 | --------------- | ------------ | ------------ | --------------- | ---------------- |
@@ -1063,7 +1414,7 @@ graph LR
 
 > ⚠️ 以上价格为估算参考，实际价格请以官方定价为准。
 
-### 6.4 运维复杂度对比
+### 7.4 运维复杂度对比
 
 ```mermaid
 graph LR
@@ -1082,22 +1433,22 @@ graph LR
     style MD fill:#ea4335,color:#fff
 ```
 
-### 6.5 生态集成对比
+### 7.5 生态集成对比
 
-| 框架/工具      | PGVector | VectorChord | Milvus   | Weaviate        | Pinecone |
-| -------------- | -------- | ----------- | -------- | --------------- | -------- |
-| **LangChain**  | ✅       | ✅          | ✅       | ✅              | ✅       |
-| **LlamaIndex** | ✅       | ✅          | ✅       | ✅              | ✅       |
-| **Haystack**   | ✅       | ⚠️          | ✅       | ✅              | ✅       |
-| **AutoGPT**    | ⚠️       | ⚠️          | ✅       | ✅              | ✅       |
-| **Cognee**     | ✅       | ⚠️          | ✅       | ✅              | ✅       |
-| **Python SDK** | psycopg2 | psycopg2    | pymilvus | weaviate-client | pinecone |
+| 框架/工具      | PGVector | VectorChord | Milvus   | Weaviate        | Pinecone | Spanner                     |
+| -------------- | -------- | ----------- | -------- | --------------- | -------- | --------------------------- |
+| **LangChain**  | ✅       | ✅          | ✅       | ✅              | ✅       | ✅ langchain-google-spanner |
+| **LlamaIndex** | ✅       | ✅          | ✅       | ✅              | ✅       | ✅                          |
+| **Haystack**   | ✅       | ⚠️          | ✅       | ✅              | ✅       | ⚠️                          |
+| **AutoGPT**    | ⚠️       | ⚠️          | ✅       | ✅              | ✅       | ⚠️                          |
+| **Cognee**     | ✅       | ⚠️          | ✅       | ✅              | ✅       | ⚠️                          |
+| **Python SDK** | psycopg2 | psycopg2    | pymilvus | weaviate-client | pinecone | google-cloud-spanner        |
 
 ---
 
-## 7. 场景推荐与选型指南
+## 8. 场景推荐与选型指南
 
-### 7.1 决策流程图
+### 8.1 决策流程图
 
 ```mermaid
 flowchart TD
@@ -1162,9 +1513,9 @@ flowchart TD
 
 ---
 
-## 9. 本项目集成方案
+## 10. 本项目集成方案
 
-### 9.1 技术架构概览
+### 10.1 技术架构概览
 
 ```mermaid
 graph TB
@@ -1195,9 +1546,9 @@ graph TB
     style Neo4j fill:#018bff,color:#fff
 ```
 
-### 9.2 Milvus 向量检索实现
+### 10.2 Milvus 向量检索实现
 
-#### 9.2.1 Collection 设计
+#### 10.2.1 Collection 设计
 
 ```python
 from pymilvus import MilvusClient, DataType, FieldSchema, CollectionSchema
@@ -1226,7 +1577,7 @@ client.create_collection(
     }
 ```
 
-#### 9.2.2 向量检索与混合搜索
+#### 10.2.2 向量检索与混合搜索
 
 ```python
 from pymilvus import MilvusClient
@@ -1293,7 +1644,7 @@ def hybrid_search(query: str, top_k: int = 10):
     return results
 ```
 
-### 9.3 LlamaIndex 集成示例
+### 10.3 LlamaIndex 集成示例
 
 ```python
 from llama_index.core import VectorStoreIndex, Settings
@@ -1327,7 +1678,7 @@ response = query_engine.query(
 print(response)
 ```
 
-### 9.4 LangChain 集成示例
+### 10.4 LangChain 集成示例
 
 ```python
 from langchain_milvus import Milvus
@@ -1367,7 +1718,7 @@ result = qa_chain.invoke({"query": "什么是 Agentic RAG？"})
 print(result["result"])
 ```
 
-### 9.5 Milvus 备选方案（开发测试）
+### 10.5 Milvus 备选方案（开发测试）
 
 ```python
 from pymilvus import MilvusClient
@@ -1409,7 +1760,7 @@ results = client.search(
 )
 ```
 
-### 9.6 性能监控与调优
+### 10.6 性能监控与调优
 
 ```sql
 -- 查看索引使用情况
@@ -1487,3 +1838,23 @@ VACUUM ANALYZE source_embeddings;
 <a id="ref27"></a>[27] Pinecone, "Hybrid Search," 2024. [Online]. Available: https://docs.pinecone.io/guides/search/hybrid-search
 
 <a id="ref28"></a>[28] Pinecone, "Rerank Results," 2024. [Online]. Available: https://docs.pinecone.io/guides/search/rerank-results
+
+<a id="ref29"></a>[29] J. C. Corbett, J. Dean, M. Epstein, et al., "Spanner: Google's Globally-Distributed Database," _Proc. 10th USENIX Symp. Oper. Syst. Des. Implement. (OSDI)_, pp. 251–264, 2012.
+
+<a id="ref30"></a>[30] Google Cloud, "Spanner AI overview," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/spanner-ai-overview
+
+<a id="ref31"></a>[31] Google Cloud, "Create and manage vector indexes," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/vector-indexes
+
+<a id="ref32"></a>[32] Google Cloud, "Vector indexing best practices," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/vector-index-best-practices
+
+<a id="ref33"></a>[33] Google Cloud, "Find approximate nearest neighbors (ANN)," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/find-approximate-nearest-neighbors
+
+<a id="ref34"></a>[34] Google Cloud, "Choose a vector distance function," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/choose-vector-distance-function
+
+<a id="ref35"></a>[35] Google Cloud, "Replication in Spanner," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/replication
+
+<a id="ref36"></a>[36] Google Cloud, "Get Vertex AI text embeddings," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/ml-tutorial-embeddings
+
+<a id="ref37"></a>[37] Google Cloud, "Spanner Graph overview," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/graph/overview
+
+<a id="ref38"></a>[38] Google Cloud, "Build LLM-powered applications using LangChain," 2024. [Online]. Available: https://cloud.google.com/spanner/docs/langchain
