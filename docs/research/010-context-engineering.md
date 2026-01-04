@@ -122,6 +122,8 @@ SII-GAIR 论文《Context Engineering 2.0: The Context of Context Engineering》
 
 ### 1.3 发展阶段
 
+可以把 Context Engineering 看作是 Agent 与人类沟通的艺术，这门艺术正经历着从笨拙的指令沟通到心有灵犀的进化。
+
 论文 [[1]](#ref1) 将 Context Engineering 划分为四个时代：
 
 ```mermaid
@@ -138,65 +140,69 @@ gantt
     Superhuman 智能 (人机角色反转) :2040, 2050
 ```
 
-| 时代        | 时间范围   | 智能水平      | Context Engineering 特征                 |
-| :---------- | :--------- | :------------ | :--------------------------------------- |
-| **Era 1.0** | 1990s-2020 | 原始计算      | 刚性、预定义格式（菜单选择、传感器输入） |
-| **Era 2.0** | 2020-至今  | Agent-Centric | 自然语言理解、推断隐含意图、动态上下文   |
-| Era 3.0     | 未来       | Human-Level   | 深度意图理解、最小显式上下文需求         |
-| Era 4.0     | 遥远未来   | Superhuman    | 机器引导人类、人机角色反转               |
+| 时代        | 时间范围   | 智能水平      | Context Engineering 特征                 | 管家的进化                                                                   |
+| :---------- | :--------- | :------------ | :--------------------------------------- | :--------------------------------------------------------------------------- |
+| **Era 1.0** | 1990s-2020 | 原始计算      | 刚性、预定义格式（菜单选择、传感器输入） | **呆板机器人**：只能听懂特定指令（"开灯"），说"太黑了"它会报错。             |
+| **Era 2.0** | 2020-至今  | Agent-Centric | 自然语言理解、推断隐含意图、动态上下文   | **聪明实习生**：能听懂"太黑了"是指要开灯，但记性不好，需要反复提醒背景信息。 |
+| Era 3.0     | 未来       | Human-Level   | 深度意图理解、最小显式上下文需求         | **默契老管家**：深度意图理解。不用你开口，看你眉头一皱就知道该倒茶了。       |
+| Era 4.0     | 遥远未来   | Superhuman    | 机器引导人类、人机角色反转               | **人生导师**：比你更懂你自己。在你意识到之前，就主动为你规划最优路径。       |
 
 > [!TIP]
 >
-> **当前阶段**：Era 2.0
->
-> 我们当前处于 **Era 2.0**，核心挑战是让 Agent 能够：
+> **当前挑战 (Era 2.0)**：
 >
 > - 理解自然语言输入
 > - 推断隐含意图
 > - 处理不完整信息
 > - 在有限的 Context Window 中做出最优选择
+>
+> 核心任务是培养这位"聪明实习生"，让他**记性更好（Memory）、反应更准（Intent Inference）、干活更利索（Token Efficiency）**。
 
 > [!TIP]
 >
-> **未来挑战**：Era 3.0
->
-> 根据论文 [[1]](#ref1) 预测，未来的 Context Engineering 将面临：
+> **未来挑战 (Era 3.0)**：
 >
 > - **终身上下文保存**：如何可靠存储用户一生的交互上下文？
 > - **语义一致性**：随着数据规模膨胀，如何保持语义的准确性？
 > - **动态更新**：如何处理过时信息和知识冲突？
 > - **隐私与安全**：如何在保护用户隐私的同时提供个性化服务？
+>
+> 如何保存用户**一生的上下文**？当数据量爆炸时，如何保证"管家"不产生幻觉？以及最关键的——如何确保它永远忠诚（隐私与安全）？
 
 ## 2. Context Engineering 的三大核心维度
 
-根据论文 [[1]](#ref1) 和主流框架实践，Context Engineering 可分解为三大核心维度：
+要打造具备"默契老管家"特质的 Agent，我们不能只关注 Prompt 编写（Era 1.0 的思维），而必须构建完整的上下文生命周期。基于论文 [[1]](#ref1) 的定义与主流框架的最佳实践，Context Engineering 被系统性地解构为以下三大核心维度：
 
 ```mermaid
-graph TD
+graph LR
     subgraph CE["🧠 Context Engineering"]
-        CC["📥 Collection<br>上下文收集 - 环境感知"]
-        CM["📦 Management<br>上下文管理"]
-        CU["🔍 Usage<br>上下文使用"]
+        subgraph Context Usage[上下文使用]
+            CU["🔍 Usage<br>上下文使用"]
+            CU --> CU1["语义检索"]
+            CU --> CU2["意图推断"]
+            CU --> CU3["动态组装"]
+        end
+
+        subgraph Context Management[上下文管理]
+            CM["📦 Management<br>上下文管理"]
+            CM --> CM1["分层记忆架构"]
+            CM --> CM2["上下文压缩"]
+            CM --> CM3["上下文隔离"]
+            CM --> CM4["持久化存储"]
+            CM --> CM5[多模态处理]
+        end
+
+        subgraph Context Collection[上下文收集]
+            CC["📥 Collection<br>上下文收集 - 环境感知"]
+            CC --> CC1["用户输入"]
+            CC --> CC2["系统指令"]
+            CC --> CC3["对话历史"]
+            CC --> CC4["外部数据/RAG"]
+            CC --> CC5["工具定义"]
+            CC --> CC6[跨模态信息]
+        end
     end
 
-    CC --> CC1["用户输入"]
-    CC --> CC2["系统指令"]
-    CC --> CC3["对话历史"]
-    CC --> CC4["外部数据/RAG"]
-    CC --> CC5["工具定义"]
-    CC --> CC6[跨模态信息]
-
-    CM --> CM1["分层记忆架构"]
-    CM --> CM2["上下文压缩"]
-    CM --> CM3["上下文隔离"]
-    CM --> CM4["持久化存储"]
-    CM --> CM5[多模态处理]
-
-    CU --> CU1["语义检索"]
-    CU --> CU2["意图推断"]
-    CU --> CU3["动态组装"]
-
-    style CE fill:#1e3a5f,stroke:#60a5fa,color:#fff
     style CC fill:#065f46,stroke:#34d399,color:#fff
     style CM fill:#7c2d12,stroke:#fb923c,color:#fff
     style CU fill:#581c87,stroke:#c084fc,color:#fff
@@ -204,17 +210,15 @@ graph TD
 
 ### 2.1 Context Collection（上下文收集）
 
-论文 [[1]](#ref1) 指出：
+作为上下文流转的第一站，**Context Collection** 负责构建 Agent 的"感知世界"，解决"数据从何而来"的问题。
 
 > [!TIP]
 >
-> "Context engineering aims to **collect** relevant context information through sensors or other channels."
+> **Context Collection：大厨备菜**
 >
-> ---
->
-> 上下文工程旨在通过传感器或其它渠道**收集**相关的上下文信息。
+> 想象现在 Agent 是一位**大厨**，Context Collection 就是**在开火（推理）前汇集所有素材的过程**：既要听清客人的点单（**User Input**），又要遵循餐厅的烹饪 SOP（**System Instructions**），还得从储藏室取回陈年秘制酱料（**Memory**）和时令鲜蔬（**RAG**）。
 
-上下文收集是指从各种来源获取 Agent 运行所需的信息，比如：
+这些"素材"主要来源于：
 
 | 来源               | 描述                           | 框架实现示例                                                |
 | :----------------- | :----------------------------- | :---------------------------------------------------------- |
@@ -228,20 +232,22 @@ graph TD
 
 ### 2.2 Context Management（上下文管理）
 
+收集好"素材"（Context Collection）只是第一步。如果厨房乱作一团，大厨也没法干活。**Context Management** 的核心就是**高效的厨房收纳术**：确保案板上（短期）只放当下的菜，冷库里（长期）囤着常用的料，并且不同工种（隔离）互不干扰。
+
 #### 2.2.1 Layered Memory Architecture（分层记忆架构）
 
-上下文管理关注的是如何组织、压缩和存储上下文。论文 [[1]](#ref1) 提出了关键的**分层记忆架构（Layered Memory Architecture）**，Google ADK<sup>[[5]](#ref5)</sup> 等框架的设计与此架构高度一致：
+论文 [[1]](#ref1) 提出的**分层记忆架构**，本质上就是厨房的二级收纳体系：
 
 > [!NOTE]
 >
-> 定义 1：**短期记忆 (Short-term Memory)**
+> 定义 1：**短期记忆 (Short-term Memory) —— 案板区/操作台**
 >
 > $$
 >   M_s = f_{short}(c \in C : w_{temporal}(c) > \theta_s)
 > $$
 >
-> - 高时间相关性
-> - 快速检索，但可能快速变得不相关
+> - **特点**：高时间相关性（手边急需）。
+> - **缺点**：空间有限，做完这道菜就会被清理。
 
 > [!IMPORTANT]
 >
@@ -249,14 +255,14 @@ graph TD
 
 > [!NOTE]
 >
-> 定义 2：**长期记忆 (Long-term Memory)**
+> 定义 2：**长期记忆 (Long-term Memory) —— 冷库/储藏室**
 >
 > $$
 >   M_l = f_{long}(c \in C : w_{importance}(c) > \theta_l \land w_{temporal}(c) \leq \theta_s)
 > $$
 >
-> - 高重要性
-> - 经过抽象和压缩处理
+> - **特点**：高重要性，经过筛选和打包（压缩/抽象）。
+> - **作用**：存放 VIP 客人喜好、季节性经典菜谱等需要持久保存的信息。
 
 > [!IMPORTANT]
 >
@@ -264,20 +270,20 @@ graph TD
 
 > [!NOTE]
 >
-> 定义 3：**记忆迁移 (Memory Transfer)**
+> 定义 3：**记忆迁移 (Memory Transfer) —— 备菜入库**
 >
 > $$
 >   f_{transfer}: M_s \rightarrow M_l
 > $$
 >
-> - 巩固过程：高频访问或高重要性的短期记忆经处理后成为长期记忆
-> - 受重复频率、情感意义、与现有知识结构的相关性等因素影响
+> - **巩固过程**：把案板上切好但没用完的优质食材，或者研发出的新酱料，打包放入冷库（高频访问或高重要性的短期记忆经处理后成为长期记忆）。
+> - **触发条件**：高频使用、如果不记下来下次还得重新做（情感意义、与现有知识结构的相关性等因素）。
 
 > [!IMPORTANT]
 >
 > 解读：对应 Google Memory Bank 中 **"Session → Insight" 的异步记忆提炼（巩固）过程**。
 
-#### 2.2.2 Context Compression Strategies（上下文压缩策略）
+#### 2.2.2 Context Compression（上下文压缩）
 
 | 策略                              | 描述                               | 优缺点                             | 框架支持             |
 | :-------------------------------- | :--------------------------------- | :--------------------------------- | :------------------- |
@@ -291,13 +297,15 @@ graph TD
 
 #### 2.2.3 Context Isolation（上下文隔离）
 
-论文 [[1]](#ref1) 提出通过 **Sub-Agent 架构** 隔离上下文，减少单一 Agent 的上下文负载：
+随着宴席（任务）规模扩大，一位主厨无法搞定所有菜品。**Context Isolation** 就是引入**后厨流水线分工**：
 
 > [!TIP]
 >
 > **Sub-Agent 架构**
 >
-> "Each sub-agent has its own focused context window, and the main agent coordinates through efficient communication."
+> 就像**甜点师（Sub-Agent A）**只关注面粉和糖，不需要知道**烤肉师（Sub-Agent B）**把牛排煎到了几分熟。
+>
+> 论文定义："Each sub-agent has its own focused context window, and the main agent coordinates through efficient communication."
 >
 > ---
 >
@@ -305,13 +313,15 @@ graph TD
 
 > [!IMPORTANT]
 >
-> 解读：对应 Google 的 Agent-to-Agent Protocol，以及 ADK 的 Multi-Agent、LangGraph 的 Subgraph 等设计。
+> 解读：对应 Google 的 **Agent-to-Agent Protocol**，以及 ADK 的 **Multi-Agent**、LangGraph 的 **Subgraph** 等设计。
 
 ### 2.3 Context Usage（上下文使用）
 
+素材备齐（Collection），收纳有序（Management），最后一步就是**Context Usage——大厨的正式烹饪**。这是 Agent 展现"智能"的关键环节：如何从海量库存中精准抓取信息，并在有限的餐盘（Context Window）中呈现出最完美的料理（Prompt）。
+
 #### 2.3.1 Retrieval and Selection（记忆检索与选择）
 
-上下文使用关注如何在推理时**选择**和**应用**上下文。论文 [[1]](#ref1) 强调多维度的检索依据：
+大厨炒菜不会把冷库里所有东西都倒进锅里。**Retrieval and Selection** 就是**根据当前菜单（Query）精准抓取食材**的过程。论文 [[1]](#ref1) 强调多维度的检索依据：
 
 | 检索依据                 | 描述                       | 实现方式       |
 | :----------------------- | :------------------------- | :------------- |
@@ -325,17 +335,19 @@ graph TD
 
 #### 2.3.2 Proactive Intent Inference（主动意图推断）
 
-论文 [[1]](#ref1) 强调 Context Engineering 应使 Agent 能够**主动推断**用户未明确表达的需求。
+顶级管家不需要主人开口。论文 [[1]](#ref1) 指出，Context Engineering 必须具备**主动性** —— 就像老练的服务员听到客人咳嗽，不仅递上水，还会默默关小冷气。
 
 > [!TIP]
 >
-> Proactive User Need Inference（主动用户需求推断）
+> **Proactive User Need Inference（主动用户需求推断）**
 >
 > - **学习用户偏好**：分析对话历史和个人数据，识别沟通风格、兴趣和决策模式
 > - **从相关问题推断隐藏目标**：分析查询序列，预测更广泛的目标
 > - **主动提供帮助**：检测用户困境（犹豫、多次尝试），主动提供工具或建议
 
 #### 2.3.3 Dynamic Context Assembly（动态上下文组装）
+
+所有的素材筛选完毕后，需要通过 **Context Assembler** 进行**最终摆盘**，将其组装成 LLM 最易消化的格式（Formatted Prompt）。
 
 ```mermaid
 graph LR
