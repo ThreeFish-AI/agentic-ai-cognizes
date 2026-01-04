@@ -7,7 +7,7 @@ last_update:
   created_at: 2025-12-23
   updated_at: 2026-01-01
   version: 1.2
-  status: Pending Review
+  status: Reviewed
 tags:
   - Vector Databases
   - PGVector
@@ -236,6 +236,23 @@ LIMIT 10;
 | **并行构建** | **多请几个工人** | 增加并行进程数，充分利用多核 CPU           | `SET max_parallel_maintenance_workers = 7`   |
 | **查询优化** | **搜得更仔细**   | 增大搜索广度，用时间换召回率               | `SET hnsw.ef_search = 100`                   |
 | **极致性能** | **抄近道**       | 归一化向量改用内积（投影）计算             | 替换 `<=>` 为 `<#>`                          |
+
+```sql
+-- 查看索引使用情况
+EXPLAIN (ANALYZE, BUFFERS)
+SELECT * FROM source_embeddings
+ORDER BY embedding <=> '[0.1, 0.2, ...]'::vector
+LIMIT 10;
+
+-- 调整 HNSW 搜索参数
+SET hnsw.ef_search = 100;  -- 提升召回率
+
+-- 批量数据导入后重建索引
+REINDEX INDEX CONCURRENTLY idx_source_embedding_hnsw;
+
+-- 清理碎片
+VACUUM ANALYZE source_embeddings;
+```
 
 ---
 
@@ -506,44 +523,49 @@ mindmap
 | **DiskANN**   | **中心仓**   | 磁盘图索引      | **成本杀手**。使用 SSD 存储超大规模数据        | 💾 依赖 SSD |
 | **GPU Index** | **自动化**   | GPU 优化图      | **暴力吞吐**。GPU 加速，适合超高并发场景       | 🎮 显存     |
 
-### 3.4 搜索能力
+### 3.4 向量检索实践
+
+#### 3.4.1 pymilvus 开发模式
 
 Milvus 的 `pymilvus` SDK 就是**智能仓储系统的“手持终端”**，简单几行指令就能调度底层的庞大算力。
 
 ```python
 from pymilvus import MilvusClient
 
-# 1. 登录终端 (连接 Lite 版或集群)
-client = MilvusClient("demo.db")
+# 使用 Milvus Lite 进行本地开发
+client = MilvusClient("./milvus_demo.db")
 
-# 2. 划分库区 (创建集合)
+# 创建 Collection
 client.create_collection(
-    collection_name="demo_collection",
-    dimension=768  # 货架规格
+    collection_name="papers",
+    dimension=1536,
+    metric_type="COSINE"
 )
 
-# 3. 商品入库 (插入数据)
+# 插入数据
 client.insert(
-    collection_name="demo_collection",
-    data=[{"id": 1, "vector": [...], "subject": "history"}]
+    collection_name="papers",
+    data=[
+        {"id": 1, "vector": embedding, "title": "ReAct Paper", "abstract": "..."},
+        # ...
+    ]
 )
 
-# 4. 模糊找货 (ANN 搜索)
-# "帮我找几个跟这个样品最像的货"
+# 创建索引
+client.create_index(
+    collection_name="papers",
+    field_name="vector",
+    index_type="HNSW",
+    metric_type="COSINE",
+    params={"M": 16, "efConstruction": 128}
+)
+
+# 搜索
 results = client.search(
-    collection_name="demo_collection",
-    data=[query_vector],
+    collection_name="papers",
+    data=[query_embedding],
     limit=10,
-    output_fields=["subject"]
-)
-
-# 5. 精确筛选 (带过滤搜索)
-# "在'历史区'帮我找跟这个样品最像的货"
-results = client.search(
-    collection_name="demo_collection",
-    data=[query_vector],
-    filter='subject == "history"',  # 先去历史区
-    limit=10
+    output_fields=["title", "abstract"]
 )
 ```
 
@@ -557,7 +579,179 @@ results = client.search(
 | **范围搜索**   | Radius Search | **画圈圈地**。只找特定相似度范围内的结果。                  |
 | **重排序**     | Rerank        | **精修整备**。引入高精度模型对粗排结果进行二次精选。        |
 
-### 3.5 性能基准
+#### 3.4.2 Collection 设计
+
+```python
+from pymilvus import MilvusClient, DataType, FieldSchema, CollectionSchema
+
+# 使用 Milvus Lite（本地开发）或连接远程服务
+client = MilvusClient("./agentic_ai.db")  # Lite 模式
+
+# 定义 Schema
+fields = [
+    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+    FieldSchema(name="source_id", dtype=DataType.INT64),
+    FieldSchema(name="source_type", dtype=DataType.VARCHAR, max_length=50),
+    FieldSchema(name="title", dtype=DataType.VARCHAR, max_length=500),
+    FieldSchema(name="chunk_text", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=1536),
+]
+
+# 创建 Collection
+client.create_collection(
+    collection_name="source_embeddings",
+    schema=CollectionSchema(fields, description="学术资源向量嵌入"),
+    index_params={
+        "index_type": "HNSW",
+        "metric_type": "COSINE",
+        "params": {"M": 16, "efConstruction": 128}
+    }
+```
+
+#### 3.4.3 向量检索与混合搜索
+
+```python
+from pymilvus import MilvusClient
+from openai import OpenAI
+
+client = MilvusClient("./agentic_ai.db")
+openai_client = OpenAI()
+
+def get_embedding(text: str) -> list:
+    """生成文本嵌入向量"""
+    response = openai_client.embeddings.create(
+        model="text-embedding-3-small",
+        input=text
+    )
+    return response.data[0].embedding
+
+def semantic_search(query: str, source_type: str = None, top_k: int = 10):
+    """语义相似度搜索"""
+    query_embedding = get_embedding(query)
+
+    # 构建过滤条件
+    filter_expr = f'source_type == "{source_type}"' if source_type else ""
+
+    results = client.search(
+        collection_name="source_embeddings",
+        data=[query_embedding],
+        limit=top_k,
+        filter=filter_expr,
+        output_fields=["title", "chunk_text", "source_type"]
+    )
+    return results
+
+def hybrid_search(query: str, top_k: int = 10):
+    """混合搜索（向量 + BM25 全文）"""
+    # Milvus 2.4+ 支持 BM25 全文搜索
+    from pymilvus import AnnSearchRequest, RRFRanker
+
+    query_embedding = get_embedding(query)
+
+    # 向量搜索请求
+    vector_req = AnnSearchRequest(
+        data=[query_embedding],
+        anns_field="embedding",
+        param={"metric_type": "COSINE", "params": {"ef": 100}},
+        limit=top_k * 2
+    )
+
+    # BM25 全文搜索请求（需要在 Collection 中启用 BM25）
+    bm25_req = AnnSearchRequest(
+        data=[query],
+        anns_field="chunk_text",
+        param={"metric_type": "BM25"},
+        limit=top_k * 2
+    )
+
+    # 使用 RRF 融合结果
+    results = client.hybrid_search(
+        collection_name="source_embeddings",
+        reqs=[vector_req, bm25_req],
+        ranker=RRFRanker(k=60),
+        limit=top_k,
+        output_fields=["title", "chunk_text"]
+    )
+    return results
+```
+
+### 3.5 Agent Framework 集成
+
+#### 3.5.1 LlamaIndex 集成示例
+
+```python
+from llama_index.core import VectorStoreIndex, Settings
+from llama_index.vector_stores.milvus import MilvusVectorStore
+from llama_index.embeddings.openai import OpenAIEmbedding
+
+# 配置嵌入模型
+Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
+
+# 连接 Milvus（支持 Lite / Standalone / Distributed）
+vector_store = MilvusVectorStore(
+    uri="./agentic_ai.db",  # Milvus Lite
+    # uri="http://localhost:19530",  # Milvus Standalone
+    collection_name="source_embeddings",
+    dim=1536,
+    overwrite=False
+)
+
+# 创建索引
+index = VectorStoreIndex.from_vector_store(vector_store)
+
+# RAG 查询
+query_engine = index.as_query_engine(
+    similarity_top_k=10,
+    response_mode="tree_summarize"
+)
+
+response = query_engine.query(
+    "ReAct 和 Chain-of-Thought 有什么区别？"
+)
+print(response)
+```
+
+#### 3.5.2 LangChain 集成示例
+
+```python
+from langchain_milvus import Milvus
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.chains import RetrievalQA
+
+# 初始化嵌入模型
+embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+
+# 连接 Milvus 向量存储
+vector_store = Milvus(
+    embedding_function=embeddings,
+    collection_name="source_embeddings",
+    connection_args={
+        "uri": "./agentic_ai.db"  # Milvus Lite
+        # "uri": "http://localhost:19530"  # Milvus Standalone
+    }
+)
+
+# 创建检索器
+retriever = vector_store.as_retriever(
+    search_type="similarity",
+    search_kwargs={"k": 10}
+)
+
+# 构建 RAG 链
+llm = ChatOpenAI(model="gpt-4o", temperature=0)
+qa_chain = RetrievalQA.from_chain_type(
+    llm=llm,
+    chain_type="stuff",
+    retriever=retriever,
+    return_source_documents=True
+)
+
+# 执行查询
+result = qa_chain.invoke({"query": "什么是 Agentic RAG？"})
+print(result["result"])
+```
+
+### 3.6 性能基准
 
 基于 Milvus 2.2 官方基准测试<sup>[[12]](#ref12)</sup>，单 QueryNode（8 核 CPU、8GB 内存、1M 128D Dataset）性能表现：
 
@@ -568,7 +762,7 @@ results = client.search(
 | **扩展性**  | 线性扩展（CPU）                 |
 | **vs 其他** | 2.5x Latency、4.5x QPS 性能优势 |
 
-### 3.6 部署模式对比
+### 3.7 部署模式
 
 | 模式             | 适用场景          | 数据规模 | 运维复杂度 |
 | ---------------- | ----------------- | -------- | ---------- |
@@ -1455,264 +1649,6 @@ graph LR
 | **企业合规要求**         | Milvus/Weaviate | VectorChord    | 私有部署，数据主权     |
 | **快速原型开发**         | Pinecone        | Weaviate Cloud | 零运维，快速上手       |
 | **多租户 SaaS**          | Pinecone        | Weaviate Cloud | 命名空间隔离           |
-
----
-
-## 10. 本项目集成方案
-
-### 10.1 技术架构概览
-
-```mermaid
-graph TB
-    subgraph "检索层"
-        VEC[向量检索<br/>HNSW/IVF]
-        FTS[全文检索<br/>BM25]
-        GRAPH[图谱检索<br/>Neo4j Cypher]
-    end
-
-    subgraph "融合层"
-        RRF[RRF 重排序]
-        LLM[LLM 精排]
-    end
-
-    Query[用户查询] --> VEC & FTS & GRAPH
-    VEC & FTS & GRAPH --> RRF
-    RRF --> LLM
-    LLM --> Result[检索结果]
-```
-
-### 10.2 Milvus 向量检索实现
-
-#### 10.2.1 Collection 设计
-
-```python
-from pymilvus import MilvusClient, DataType, FieldSchema, CollectionSchema
-
-# 使用 Milvus Lite（本地开发）或连接远程服务
-client = MilvusClient("./agentic_ai.db")  # Lite 模式
-
-# 定义 Schema
-fields = [
-    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
-    FieldSchema(name="source_id", dtype=DataType.INT64),
-    FieldSchema(name="source_type", dtype=DataType.VARCHAR, max_length=50),
-    FieldSchema(name="title", dtype=DataType.VARCHAR, max_length=500),
-    FieldSchema(name="chunk_text", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=1536),
-]
-
-# 创建 Collection
-client.create_collection(
-    collection_name="source_embeddings",
-    schema=CollectionSchema(fields, description="学术资源向量嵌入"),
-    index_params={
-        "index_type": "HNSW",
-        "metric_type": "COSINE",
-        "params": {"M": 16, "efConstruction": 128}
-    }
-```
-
-#### 10.2.2 向量检索与混合搜索
-
-```python
-from pymilvus import MilvusClient
-from openai import OpenAI
-
-client = MilvusClient("./agentic_ai.db")
-openai_client = OpenAI()
-
-def get_embedding(text: str) -> list:
-    """生成文本嵌入向量"""
-    response = openai_client.embeddings.create(
-        model="text-embedding-3-small",
-        input=text
-    )
-    return response.data[0].embedding
-
-def semantic_search(query: str, source_type: str = None, top_k: int = 10):
-    """语义相似度搜索"""
-    query_embedding = get_embedding(query)
-
-    # 构建过滤条件
-    filter_expr = f'source_type == "{source_type}"' if source_type else ""
-
-    results = client.search(
-        collection_name="source_embeddings",
-        data=[query_embedding],
-        limit=top_k,
-        filter=filter_expr,
-        output_fields=["title", "chunk_text", "source_type"]
-    )
-    return results
-
-def hybrid_search(query: str, top_k: int = 10):
-    """混合搜索（向量 + BM25 全文）"""
-    # Milvus 2.4+ 支持 BM25 全文搜索
-    from pymilvus import AnnSearchRequest, RRFRanker
-
-    query_embedding = get_embedding(query)
-
-    # 向量搜索请求
-    vector_req = AnnSearchRequest(
-        data=[query_embedding],
-        anns_field="embedding",
-        param={"metric_type": "COSINE", "params": {"ef": 100}},
-        limit=top_k * 2
-    )
-
-    # BM25 全文搜索请求（需要在 Collection 中启用 BM25）
-    bm25_req = AnnSearchRequest(
-        data=[query],
-        anns_field="chunk_text",
-        param={"metric_type": "BM25"},
-        limit=top_k * 2
-    )
-
-    # 使用 RRF 融合结果
-    results = client.hybrid_search(
-        collection_name="source_embeddings",
-        reqs=[vector_req, bm25_req],
-        ranker=RRFRanker(k=60),
-        limit=top_k,
-        output_fields=["title", "chunk_text"]
-    )
-    return results
-```
-
-### 10.3 LlamaIndex 集成示例
-
-```python
-from llama_index.core import VectorStoreIndex, Settings
-from llama_index.vector_stores.milvus import MilvusVectorStore
-from llama_index.embeddings.openai import OpenAIEmbedding
-
-# 配置嵌入模型
-Settings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")
-
-# 连接 Milvus（支持 Lite / Standalone / Distributed）
-vector_store = MilvusVectorStore(
-    uri="./agentic_ai.db",  # Milvus Lite
-    # uri="http://localhost:19530",  # Milvus Standalone
-    collection_name="source_embeddings",
-    dim=1536,
-    overwrite=False
-)
-
-# 创建索引
-index = VectorStoreIndex.from_vector_store(vector_store)
-
-# RAG 查询
-query_engine = index.as_query_engine(
-    similarity_top_k=10,
-    response_mode="tree_summarize"
-)
-
-response = query_engine.query(
-    "ReAct 和 Chain-of-Thought 有什么区别？"
-)
-print(response)
-```
-
-### 10.4 LangChain 集成示例
-
-```python
-from langchain_milvus import Milvus
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.chains import RetrievalQA
-
-# 初始化嵌入模型
-embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-
-# 连接 Milvus 向量存储
-vector_store = Milvus(
-    embedding_function=embeddings,
-    collection_name="source_embeddings",
-    connection_args={
-        "uri": "./agentic_ai.db"  # Milvus Lite
-        # "uri": "http://localhost:19530"  # Milvus Standalone
-    }
-)
-
-# 创建检索器
-retriever = vector_store.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 10}
-)
-
-# 构建 RAG 链
-llm = ChatOpenAI(model="gpt-4o", temperature=0)
-qa_chain = RetrievalQA.from_chain_type(
-    llm=llm,
-    chain_type="stuff",
-    retriever=retriever,
-    return_source_documents=True
-)
-
-# 执行查询
-result = qa_chain.invoke({"query": "什么是 Agentic RAG？"})
-print(result["result"])
-```
-
-### 10.5 Milvus 备选方案（开发测试）
-
-```python
-from pymilvus import MilvusClient
-
-# 使用 Milvus Lite 进行本地开发
-client = MilvusClient("./milvus_demo.db")
-
-# 创建 Collection
-client.create_collection(
-    collection_name="papers",
-    dimension=1536,
-    metric_type="COSINE"
-)
-
-# 插入数据
-client.insert(
-    collection_name="papers",
-    data=[
-        {"id": 1, "vector": embedding, "title": "ReAct Paper", "abstract": "..."},
-        # ...
-    ]
-)
-
-# 创建索引
-client.create_index(
-    collection_name="papers",
-    field_name="vector",
-    index_type="HNSW",
-    metric_type="COSINE",
-    params={"M": 16, "efConstruction": 128}
-)
-
-# 搜索
-results = client.search(
-    collection_name="papers",
-    data=[query_embedding],
-    limit=10,
-    output_fields=["title", "abstract"]
-)
-```
-
-### 10.6 性能监控与调优
-
-```sql
--- 查看索引使用情况
-EXPLAIN (ANALYZE, BUFFERS)
-SELECT * FROM source_embeddings
-ORDER BY embedding <=> '[0.1, 0.2, ...]'::vector
-LIMIT 10;
-
--- 调整 HNSW 搜索参数
-SET hnsw.ef_search = 100;  -- 提升召回率
-
--- 批量数据导入后重建索引
-REINDEX INDEX CONCURRENTLY idx_source_embedding_hnsw;
-
--- 清理碎片
-VACUUM ANALYZE source_embeddings;
-```
 
 ---
 
