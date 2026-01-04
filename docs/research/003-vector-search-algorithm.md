@@ -1,7 +1,7 @@
 ---
 id: vector-search-algorithm
 sidebar_position: 3
-title: 向量索引算法俗解
+title: 向量索引算法通俗全解
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-24
@@ -20,7 +20,7 @@ tags:
 
 > [!IMPORTANT]
 >
-> **解读范围**：从 LLM 的缺陷出发，引出向量数据库的需求，然后深入解析向量数据库的数学模型、算法原理、技术细节、性能对比、应用场景与选型推荐。
+> **解读范围**：从 LLM 的缺陷出发，引出向量数据库的需求，然后以通俗的方式解读向量数据库的数学模型、算法原理、技术细节、性能对比、应用场景与选型推荐。
 
 ---
 
