@@ -6,8 +6,8 @@ last_update:
   author: Aurelius Huang
   created_at: 2025-12-19
   updated_at: 2026-01-05
-  version: 1.2
-  status: Pending Review
+  version: 1.3
+  status: Reviewed
 tags:
   - Agent Framework
   - Agent Runtime
