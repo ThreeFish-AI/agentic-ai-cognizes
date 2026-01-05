@@ -291,96 +291,105 @@ class ComplianceAgent(BaseAgent):
         return [w for w in ["机密", "Top Secret"] if w in text]
 ```
 
-### 2.3 Tools 生态
+### 2.3 Tools Ecosystem：从感知到行动的触手
 
-ADK 提供丰富的工具生态系统，支持多种工具类型<sup>[[7]](#ref7)</sup>：
+如果说 LLM 是大脑，那么 **Tools (工具)** 就是智能体的**感官与效应器 (Sensors & Effectors)**。ADK 的工具系统旨在解决大模型的 **Grounding (落地)** 问题，使其能够走出文本生成的“真空”，与真实世界的数据、API 和物理设备进行交互。
+
+ADK 建立了一个层次分明的工具金字塔：
 
 ```mermaid
-graph TB
-    subgraph "Tools 分类"
-        direction TB
-        T[Tools for Agents]
-
-        subgraph "Gemini API Tools"
-            G1[Code Execution]
-            G2[Google Search]
-            G3[Computer Use]
-        end
-
-        subgraph "Google Cloud Tools"
-            C1[BigQuery]
-            C2[Spanner]
-            C3[Vertex AI Search]
-            C4[RAG Engine]
-            C5[Bigtable]
-            C6[Application Integration]
-        end
-
-        subgraph "Third-party Tools"
-            P1[GitHub]
-            P2[GitLab]
-            P3[Atlassian]
-            P4[Notion]
-            P5[Qdrant]
-            P6[n8n]
-        end
-
-        subgraph "Custom Tools"
-            U1[Function Tools]
-            U2[MCP Tools]
-            U3[OpenAPI Tools]
-        end
+graph LR
+    subgraph G["Level 1: Native Capabilities"]
+        G1[Code Execution<br/>代码沙箱]
+        G2[Google Search<br/>联网检索]
+        G3[Computer Use<br/>文件操作]
     end
 
-    T --> G1 & G2 & G3
-    T --> C1 & C2 & C3 & C4 & C5 & C6
-    T --> P1 & P2 & P3 & P4 & P5 & P6
-    T --> U1 & U2 & U3
+    subgraph C["Level 2: GCP Integrations"]
+        C1[Knowledge Engine<br/>RAG Engine]
+        C2[Data Analyst<br/>BigQuery/Spanner]
+        C3[Application Integration<br/>Gateways/Services]
+    end
 
-    style T fill:#4285f4,color:white
-    style G1 fill:#34a853,color:white
-    style C1 fill:#fbbc04,color:black
-    style P1 fill:#ea4335,color:white
-    style U1 fill:#9c27b0,color:white
+    subgraph M["Level 3: Interoperability"]
+        M1[MCP Client<br/>通用协议适配]
+        M2[Function Tools<br/>自定义逻辑]
+        M3[OpenAPI Tools<br/>第三方 API]
+    end
+
+    subgraph P["Third-party Tools"]
+        direction LR
+        P1[GitHub]
+        P2[GitLab]
+        P3[Atlassian]
+        P4[Notion]
+        P5[Qdrant]
+        P6[n8n]
+    end
+
+    Agent((ADK Agent)) --> G
+    Agent --> C
+    Agent --> M
+    M --> P
+
+    style Agent fill:#4285f4,color:white
+    style G1 fill:#e6f4ea,stroke:#34a853,color:#000
+    style G2 fill:#e6f4ea,stroke:#34a853,color:#000
+    style C1 fill:#fef7e0,stroke:#fbbc04,color:#000
+    style C2 fill:#fef7e0,stroke:#fbbc04,color:#000
+    style M1 fill:#fce8e6,stroke:#ea4335,color:#000
+    style M2 fill:#fce8e6,stroke:#ea4335,color:#000
 ```
 
-#### 工具定义方式
+#### 2.3.1 Function-as-a-Tool (FaaT)
 
-**1. 函数工具（推荐）**：
+ADK 采用了极其优雅的 **"函数即工具"** 范式。开发者无需编写繁琐的 JSON Schema，只需遵循标准的 Python 类型提示和文档字符串规范，ADK 会自动将其编译为 LLM 可理解的工具描述。
+
+**Docstring is the Prompt**:
 
 ```python
-def search_database(query: str, limit: int = 10) -> list:
-    """在数据库中搜索记录
+from google.adk.agents import LlmAgent
+
+# ✅ 优雅定义：通过 Type Hints 和 Docstring 自动生成 Schema
+def lookup_sales_data(region: str, quarter: str = "Q1") -> dict:
+    """查询指定区域的季度销售数据。
+
+    用于在回答财务相关问题时，获取准确的业务报表数据。
 
     Args:
-        query: 搜索关键词
-        limit: 返回结果数量限制
+        region: 目标区域代码 (如 'CN-NORTH', 'US-WEST')
+        quarter: 财务季度 (如 '2025-Q1')
 
     Returns:
-        匹配的记录列表
+        包含 'revenue', 'cost', 'profit' 的字典
     """
-    # Python ADK 自动将函数包装为 FunctionTool
-    return db.search(query, limit=limit)
+    # 实际业务逻辑连接到 ERP 该系统
+    return erp_client.query(region, quarter)
 
+# ADK 自动处理转换
 agent = LlmAgent(
-    model="gemini-2.0-flash",
-    name="search_agent",
-    tools=[search_database]  # 直接传入函数
+    name="financial_assistant",
+    tools=[lookup_sales_data]  # 直接挂载函数
 )
 ```
 
-**2. MCP 工具**：
+#### 2.3.2 MCP：通用协议适配器
+
+对于标准化的外部服务，ADK 拥抱 **Model Context Protocol (MCP)** 标准，将其作为通用的 **"万能适配器"**。这意味着任何支持 MCP 的工具服务器（如 PostgreSQL, GitHub, Slack）都可以一键接入 ADK Agent，无需编写额外的胶水代码。
 
 ```python
 from google.adk.tools.mcp import MCPToolset
 
-# 连接 MCP 服务器
-mcp_tools = MCPToolset.from_server("my-mcp-server")
+# 🔌 一键接入：连接现有的 MCP Server
+git_tools = MCPToolset.from_server(
+    command="npx",
+    args=["-y", "@modelcontextprotocol/server-github"]
+)
 
-agent = LlmAgent(
+dev_agent = LlmAgent(
     model="gemini-2.0-flash",
-    name="mcp_agent",
-    tools=mcp_tools.get_tools()
+    name="git_ops_agent",
+    tools=git_tools.get_tools()  # 获得一系列 Git 操作工具
 )
 ```
 
