@@ -1210,38 +1210,62 @@ Skills 本质上是 **"可执行的知识" (Executable Knowledge)**。当你下�
 | **部署方案**    | ✅ Agent Engine/Cloud Run/GKE | 需自行实现                  |
 | **Skills 系统** | ❌ 无                         | ✅ 三层渐进加载             |
 
-### 5.2 架构设计对比
+### 5.2 Architectural Philosophy：工厂与有机体
+
+两者代表了 AI 工程化的两个极端方向：
+
+- **Google ADK (The Factory)**：**结构主义**。强调模块化、可观测性与确定性。它试图将 AI 的不可控性通过工程手段约束在流水线中。
+- **Claude Agent SDK (The Organism)**：**自然主义**。强调原生能力、潜意识与工具本能。它试图通过增强 AI 的感官与手脚，让其像人一样自然地解决问题。
 
 ```mermaid
 graph TB
-    subgraph "Google ADK 架构特点"
-        A1[模块化组件]
-        A2[多种 Agent 类型]
-        A3[完整生命周期管理]
-        A4[生产部署就绪]
+    subgraph ADK["Google ADK: The Industrial Stack"]
+        direction TB
+        L1[Infra Layer] --> L2[Runtime Layer]
+        L2 --> L3[Agent Layer]
+        L3 --> L4[Multi-Agent Grid]
     end
 
-    subgraph "Claude Agent SDK 架构特点"
-        B1[简洁 API]
-        B2[内置工具执行]
-        B3[文件系统配置]
-        B4[Skills 能力扩展]
+    subgraph Claude["Claude SDK: The Cognitive Focus"]
+        direction TB
+        C1((Core Brain)) <--> C2{Native Tools}
+        C2 <--> C3(Environment & Skills)
     end
-
-    style A1 fill:#4285f4,color:white
-    style B1 fill:#cc785c,color:white
 ```
 
-### 5.3 适用场景分析
+### 5.3 Decision Matrix：战场决策指南
 
-| 场景                  | 推荐方案         | 理由                  |
-| --------------------- | ---------------- | --------------------- |
-| **复杂多 Agent 系统** | Google ADK       | 原生 Multi-Agent 支持 |
-| **代码编辑任务**      | Claude Agent SDK | 内置 Read/Edit 工具   |
-| **企业级部署**        | Google ADK       | Agent Engine 托管服务 |
-| **快速原型开发**      | Claude Agent SDK | 简洁 API，即开即用    |
-| **文档处理任务**      | Claude + Skills  | 预构建 Office Skills  |
-| **跨会话记忆需求**    | Google ADK       | Vertex AI Memory Bank |
+在选择武器之前，必须先看清战场。
+
+| 决策维度                | Google ADK (指挥官)                                                                  | Claude Agent SDK (特种兵)                                          |
+| :---------------------- | :----------------------------------------------------------------------------------- | :----------------------------------------------------------------- |
+| **核心隐喻**            | **建筑师 (Architect)**                                                               | **探险家 (Explorer)**                                              |
+| **甜蜜点 (Sweet Spot)** | **复杂系统编排**。如：需要协作的 10+ Agent、需要持久化记忆的企业级客服、数据流水线。 | **单兵能力增强**。如：自动化代码重构、深度研报生成、本地环境运维。 |
+| **控制力 (Control)**    | ⭐⭐⭐⭐⭐ (极高) <br> 提供精细的状态机、路由控制和安全围栏。                        | ⭐⭐⭐ (中等) <br> 更多依赖模型本身的能力，虽有权限控制但更灵活。  |
+| **上手门槛**            | **陡峭**。需要理解 Runtime, State, Context 等一系列概念。                            | **平滑**。会写 Python/JS 就能用，API 极其直观。                    |
+
+### 5.4 Evolutionary Path：演进路线图
+
+对于本项目（AI Agent 研究库），我们不必进行"非此即彼"的选择，而应采用 **Hybrid Architecture (混合架构)** 的演进策略：
+
+1.  **Phase 1: Cognitive Bootstrapping (认知启动期)**
+
+    - **核心动作**：利用 **Claude Agent SDK** 快速构建具备 Coding 和 Web Browsing 能力的 "Research Associate"。
+    - **优势**：利用其 Native Tools 立刻获得对代码库的读写能力，无需造轮子。
+
+2.  **Phase 2: Industrial Orchestration (工业编排期)**
+
+    - **核心动作**：引入 **Google ADK** 作为骨架。
+    - **集成点**：将 Phase 1 开发的 Claude Agent 包装为 ADK 的 `CustomAgent`。利用 ADK 的 `VertexAiMemoryBank` 实现跨越多次研究任务的长期记忆。
+
+3.  **Phase 3: The Symbiosis (人机共生期)**
+    - **核心动作**：部署到 **Vertex Agent Engine**。
+    - **形态**：一个由 ADK 编排的、拥有 Claude 大脑的、7x24 小时运行的"研究团队"。
+
+### 5.5 Future Outlook：殊途同归
+
+1.  **Protocol Convergence**：**MCP** 将成为事实标准。ADK 和 Claude SDK 都将完全基于 MCP 扩展能力，工具生态将彻底打通。
+2.  **Skill Commoditization**：**Skills** 将像 Docker 镜像一样在 Hub 上分发。企业将购买 "HR Skills" 或 "Auditor Skills" 直接注入 Agent。
 
 ---
 
@@ -1528,36 +1552,7 @@ graph TB
 
 ---
 
-## 7. 结论与建议
-
-### 7.1 框架选择建议
-
-| 需求场景                    | 推荐方案                               |
-| --------------------------- | -------------------------------------- |
-| 需要复杂的 Multi-Agent 协作 | **Google ADK**                         |
-| 以代码编辑为主的任务        | **Claude Agent SDK**                   |
-| 需要 Office 文档处理        | **Claude + Agent Skills**              |
-| 需要企业级部署和监控        | **Google ADK + Agent Engine**          |
-| 快速构建原型                | **Claude Agent SDK**                   |
-| 需要跨会话记忆              | **Google ADK + Vertex AI Memory Bank** |
-
-### 7.2 本项目集成建议
-
-基于本项目（AI Agent 研究库）的特点，建议：
-
-1. **短期**：使用 Claude Agent SDK 实现代码分析和文档处理功能
-2. **中期**：引入 Google ADK 构建多 Agent 研究工作流
-3. **长期**：采用混合架构，发挥两者优势
-
-### 7.3 未来发展趋势
-
-1. **标准化**：MCP 和 A2A 等协议将促进跨框架互操作
-2. **专业化**：Skills 类模块化能力扩展将成为主流
-3. **托管化**：云端托管 Agent 服务将降低运维门槛
-
----
-
-## 8. References
+## 7. References
 
 <a id="ref1"></a>[1] Google, "Agent Development Kit (ADK) Documentation," 2024. [Online]. Available: https://google.github.io/adk-docs/
 
