@@ -162,6 +162,75 @@
 | Phase 5  | `src/prototype/unified_agent_backend.py`               | 🔲 待开始 |
 | Phase 5  | `src/adapters/adk-oceanbase/` (ADK 适配层)             | 🔲 待开始 |
 
+## 5. 工程验证 Roadmap
+
+### 5.1 Phase 2: Memory Management
+
+**论文指导**：记忆分层架构 + 记忆迁移机制
+
+**行动建议**：
+
+1. **短期记忆 (Session Log)**
+
+   - 使用 PG 表存储 `session_events`（append-only）
+   - 利用 PG 事务保证 `state_delta` 的原子应用
+
+2. **长期记忆 (Insights)**
+
+   - 设计 `agent_memories` 表，包含向量列
+   - 实现 Memory Transfer 函数：
+     ```python
+     def consolidate_memory(session: Session) -> List[Memory]:
+         # 1. 提取 session.events 中的关键信息
+         # 2. 使用 LLM 生成 Insight
+         # 3. 向量化 Insight
+         # 4. 原子写入 agent_memories 表
+     ```
+
+3. **记忆选择策略**
+   - 实现基于 Recency + Frequency + Semantic Similarity 的混合检索
+   - 利用 `DBMS_HYBRID_SEARCH` 实现 SQL 层面的混合检索
+
+### 5.2 Phase 3: Context Engineering (RAG & Assembler)
+
+**论文指导**：Context Compression + Context Isolation + Proactive Inference
+
+**行动建议**：
+
+1. **统一检索链路**
+
+   - 在单次 SQL 查询中同时检索 Session Context + Long-term Memory
+   - 实现 `PGMemoryService.search_memory()` 返回 Fused Context
+
+2. **上下文压缩**
+
+   - 参考 ADK 的 EventsCompactionConfig 设计
+   - 在 PG 中可通过 Stored Procedure 或应用层实现滑动窗口摘要
+
+3. **动态上下文组装 (Context Budgeting)**
+   - 在数据库层估算 Token 大小
+   - 实现 Top-K 截断，确保不超过 Context Window
+
+### 5.3 Phase 4: Framework Integration
+
+**论文指导**：上下文共享 + 跨 Agent 通信
+
+**行动建议**：
+
+1. **ADK Adapter 优先**
+
+   - 实现 `PGSessionService` 和 `PGMemoryService`
+   - 遵循 ADK 的 Service 抽象，确保与 Google 生态的兼容性
+
+2. **多框架支持**
+
+   - 为 LangGraph 实现 `Checkpointer` + `VectorStore` 双角色
+   - 为 Agno 实现 `Database` 接口
+
+3. **A2A Protocol 预研**
+   - 关注 Google 的 Agent-to-Agent 开放协议
+   - 考虑 PG 作为 Agent 间上下文共享的中央存储
+
 ## 5. 结合 Roadmap 的课题与行动建议
 
 基于上述调研，对 `docs/000-roadmap.md` 的主要课题进行细化：
