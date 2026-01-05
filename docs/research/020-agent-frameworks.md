@@ -393,73 +393,69 @@ dev_agent = LlmAgent(
 )
 ```
 
-### 2.4 Session、State 与 Memory
+### 2.4 ADK Context Engineering：从瞬时状态到长期记忆
 
-ADK 提供完整的上下文管理体系，包含三个层次<sup>[[8]](#ref8)</sup>：
+ADK 的上下文工程（Context Engineering）体系不仅是数据存储，更是模拟人类认知过程的精准实现。它将智能体的"记忆"划分为三个具有明确生命周期的层级，解决了传统 RAG 系统中"上下文窗口爆炸"与"信息检索迷失"的难题<sup>[[8]](#ref8)</sup>。
 
-#### 2.4.1 概念层次
+这种分层设计使得 Agent 既能保持对话的连贯性（Short-term），又能沉淀长期知识（Long-term）。
 
 ```mermaid
 graph TB
-    subgraph "上下文管理体系"
-        direction TB
-
-        subgraph "Session 会话"
-            S1[会话事件历史]
-            S2[实时消息流]
-        end
-
-        subgraph "State 状态"
-            ST1[session.state]
-            ST2[当前会话数据]
-        end
-
-        subgraph "Memory 记忆"
-            M1[跨会话知识]
-            M2[长期记忆检索]
-        end
+    subgraph "L1: Session(Stream of Consciousness)"
+        S1[User Message] --> S2[Agent Thought]
+        S2 --> S3[Tool Output]
     end
 
-    S1 --> ST1
-    ST1 --> M1
+    subgraph "L2: State (The Workbench)"
+        ST1[Shopping Cart]
+        ST2[User Preferences]
+        ST3[Task Progress]
+    end
 
-    style S1 fill:#4285f4,color:white
-    style ST1 fill:#34a853,color:white
-    style M1 fill:#fbbc04,color:black
+    subgraph "L3: Memory (The Archive)"
+        M1[Vector Database]
+        M2[Knowledge Graph]
+    end
+
+    S1 -.->|Extract| ST1
+    S3 -.->|Consolidate| M1
+    M1 -.->|Recall| S2
+
+    style S1 fill:#e8f0fe,stroke:#4285f4,color:#000
+    style ST1 fill:#e6f4ea,stroke:#34a853,color:#000
+    style M1 fill:#fef7e0,stroke:#fbbc04,color:#000
 ```
 
-| 层次        | 作用域   | 生命周期 | 典型用途             |
-| ----------- | -------- | -------- | -------------------- |
-| **Session** | 单次对话 | 会话期间 | 消息历史、事件序列   |
-| **State**   | 当前会话 | 会话期间 | 购物车、用户偏好     |
-| **Memory**  | 跨会话   | 持久化   | 知识库检索、历史记忆 |
+#### 2.4.1 认知三层级 (Cognitive Hierarchy)
 
-#### 2.4.2 Memory Service 实现
+| 记忆层级    | 认知隐喻               | 生命周期                | 核心职责                                                                                                         |
+| :---------- | :--------------------- | :---------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| **Session** | **意识流 (Stream)**    | 瞬时 (Ephemeral)        | 记录完整的交互轨迹（Turns），作为 LLM 推理的直接上下文窗口。包含用户输入、思考过程、工具调用结果。               |
+| **State**   | **工作台 (Workbench)** | 会话级 (Session-scoped) | 存储结构化的、易变的上下文变量。如同工作台上的草稿纸，用于由不同 Agent 共享关键参数（如 `order_id`）。           |
+| **Memory**  | **图书馆 (Library)**   | 持久化 (Persistent)     | 跨越会话周期的长期记忆。通过向量化（Embedding）存储，仅在需要时通过语义检索（Retrieval）提取相关片段注入上下文。 |
 
-ADK 支持多种 Memory Service 实现<sup>[[9]](#ref9)</sup>：
+#### 2.4.2 Vertex AI Memory Bank：云端海马体
 
-| 服务类型                    | 适用场景  | 特点                 |
-| --------------------------- | --------- | -------------------- |
-| `InMemoryMemoryService`     | 开发/测试 | 简单、无持久化       |
-| `VertexAiMemoryBankService` | 生产环境  | 托管服务、自动向量化 |
-| 自定义实现                  | 特殊需求  | 灵活集成             |
+在生产环境中，ADK 推荐使用 `VertexAiMemoryBankService`。它充当了 Agent 的 **"外挂海马体"**，自动处理记忆的存储、索引和遗忘。
 
-**Vertex AI Memory Bank 集成**：
+相比于手动维护向量数据库，ADK 的 Memory Service 提供了开箱即用的**自动向量化**和**混合检索**能力。
 
 ```python
 from google.adk.memory import VertexAiMemoryBankService
 
-# 配置 Memory Bank
-memory_service = VertexAiMemoryBankService(
-    project_id="my-gcp-project",
-    location="us-central1"
+# 🧠 接驳云端海马体
+hippocampus = VertexAiMemoryBankService(
+    project_id="aurelius-agent-platform",
+    location="us-central1",
+    corpus_display_name="corporate_knowledge_base"
 )
 
-# 在 Agent 中使用
-agent = LlmAgent(
+# 注入具备长期记忆的 Agent
+consultant = LlmAgent(
     model="gemini-2.0-flash",
-    name="memory_agent",
-    memory_service=memory_service
+    name="senior_consultant",
+    memory_service=hippocampus,  # 自动具备 RAG 能力
+    instruction="在回答问题前，先从记忆库中回忆相关的历史案例..."
 )
 ```
 
