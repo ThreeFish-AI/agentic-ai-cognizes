@@ -23,7 +23,7 @@ tags:
 - **Claude Agent SDK**：**认知的自然延伸**。基于 Claude Code 强大的编程接口，它将日常的工具使用与上下文管理无缝融合，让开发者在实践中以最符合直觉的方式构建具备自主能力的智能体，极大地加速了创新的验证过程<sup>[[2]](#ref2)</sup>
 - **Agent Skills**：**能力的原子化封装**。作为 Claude 生态的点睛之笔，它通过创新的文件系统架构实现了「渐进式认知加载」，重新定义了智能体能力的扩展与复用方式<sup>[[3]](#ref3)</sup>
 
-### 1.2 研究愿景
+### 1.1 研究愿景
 
 本调研旨在穿越技术细节的迷雾，还原框架设计的本质，为团队提供从认知到落地的全链路指引：
 
@@ -32,7 +32,7 @@ tags:
 3. **场景映射 (Mapping)**：明确「工业级生产」与「敏捷验证」的最佳适用领地，构建技术选型决策树。
 4. **实战指引 (Practice)**：提炼从环境搭建、Skill 开发到生产部署的最佳实践路径。
 
-### 1.3 核心特性图谱
+### 1.2 核心特性图谱
 
 通过深度解构，我们将两大框架的核心特性映射为以下双极能力图谱：
 
@@ -542,218 +542,297 @@ graph TB
     style W3 fill:#fbbc04,color:black
 ```
 
-#### 2.5.1 System of Agents (SoA)
-
 ADK 通过标准化的接口，将异构的智能体（LLM Agent, Workflow Agent, Custom Agent）编织成一个 **"有机整体"**。这种架构带来了两个核心优势：
 
 1. **Complexity Encapsulation (复杂度封装)**：上层 Agent 无需知道下层的实现细节，只需关注接口契约。
 2. **Cognitive Specialization (认知专业化)**：每个 Agent 可以使用不同的 Prompt、Tools 甚至不同的 LLM 模型（如 Researcher 用 Flash 模型，Writer 用 Pro 模型）。
 
-#### 2.5.2 Agent 委托模式
+#### 2.5.1 Collaboration Patterns：构建虚拟专案组
+
+在 ADK 中，通过组合简单的原子智能体，我们可以构建出能够解决复杂问题的 **"虚拟专案组" (Virtual Task Force)**。这种模式将单体智能体的"全能压力"分散到了多个专用角色上，实现了 **Model-Task Fit (模型-任务匹配)**。
+
+**实战案例：深度研究流水线 (Deep Research Pipeline)**
+
+在这个案例中，我们组建了一个由三名专家组成的流水线。注意我们是如何为不同角色分配不同能力的模型（Flash vs Pro）以平衡成本与效果的。
 
 ```python
 from google.adk.agents import LlmAgent, SequentialAgent
 
-# 定义专家 Agent
+# 1. 组建专家团队 (The Specialists)
+# 每一位专家都拥有独特的"人设"和"技能树"
+
+# 🕵️ 研究员：追求速度与广度，使用 Flash 模型
 researcher = LlmAgent(
+    name="info_gatherer",
     model="gemini-2.0-flash",
-    name="researcher",
-    instruction="你是一个研究专家，负责收集和整理信息..."
+    instruction="你的目标是广度优先地收集信息，确保覆盖所有相关事实，不放过任何细节。",
+    tools=[google_search_tool, vector_db_query_tool]
 )
 
+# 🧠 分析师：追求逻辑与深度，使用 Pro 模型
 analyst = LlmAgent(
-    model="gemini-2.0-flash",
-    name="analyst",
-    instruction="你是一个数据分析师，负责分析研究数据..."
+    name="insight_extractor",
+    model="gemini-2.0-pro",  # 使用更强的推理模型
+    instruction="""
+    你需要基于研究员提供的事实，进行深度思考：
+    1. 识别数据背后的模式与反直觉的结论。
+    2. 剔除噪音，提炼核心洞察。
+    """,
 )
 
+# ✍️ 笔者：追求表达与风格，使用 Flash 模型
 writer = LlmAgent(
+    name="final_editor",
     model="gemini-2.0-flash",
-    name="writer",
-    instruction="你是一个技术写作专家，负责撰写报告..."
+    instruction="将枯燥的洞察转化为引人入胜的行业报告，保持客观、专业的语调。",
 )
 
-# 组合为工作流
-report_pipeline = SequentialAgent(
-    name="report_pipeline",
+# 2. 定义协作协议 (The Protocol)
+# 将专家串联为一条"深度研究流水线"
+# 💡 关键点：这个 Pipeline 本身也是一个 Agent，可以被上层架构继续集成（分形特性）
+deep_research_squad = SequentialAgent(
+    name="deep_research_pipeline",
+    description="自动执行从信息搜集到报告生成的端到端任务",
     sub_agents=[researcher, analyst, writer]
 )
 ```
 
-### 2.7 MCP 与 A2A 协议支持
+这种 **Compose-and-Forget** 的特性极其强大：上层调用者（如 Root Agent）无需关心 `deep_research_squad` 内部是由三个还是五个 Agent 组成的，只需像调用单个 Agent 一样给它下达指令即可。
 
-#### 2.7.1 Model Context Protocol (MCP)
+### 2.6 Protocols & Standards：通用语与连接器
 
-MCP 是一个开放标准，用于标准化 LLM 与外部应用、数据源和工具之间的通信<sup>[[12]](#ref12)</sup>。
+在通往通用人工智能 (AGI) 的道路上，孤岛式的 Agent 是没有未来的。ADK 通过拥抱两大开放协议，致力于构建一个互联互通的智能体互联网。
 
-**ADK 支持两种 MCP 模式**：
+#### 2.6.1 MCP：智能时代的 USB 标准
+
+**Model Context Protocol (MCP)** 正在成为 AI 领域的 USB 标准。正如 USB 统一了外设接口一样，MCP 旨在标准化 LLM 连接数据与工具的方式。
+
+ADK 对 MCP 的支持是**双向 (Bi-directional)** 的：
+
+1. **Consume (作为消费者)**：Agent 可以即插即用任意标准的 MCP Server（如连接 GitHub, Slack, PostgreSQL）。
+2. **Serve (作为生产者)**：Agent 也可以将自身的能力暴露为 MCP Server，供其他 AI 系统（如 Claude Desktop 或 Cursor）调用。
 
 ```mermaid
-graph LR
-    subgraph "MCP 客户端模式"
-        A1[ADK Agent] -->|调用| S1[External MCP Server]
+graph
+    subgraph "Serve: 能力输出"
+        direction LR
+        A2((ADK Agent)) --> C1[Claude Desktop] & C2[VS Code Extension]
     end
 
-    subgraph "MCP 服务器模式"
-        C1[External MCP Client] -->|调用| A2[ADK Agent as Server]
+    subgraph "Consume: 即插即用"
+        direction LR
+        S1[GitHub MCP] & S2[Postgres MCP] --> A1((ADK Agent))
     end
 
     style A1 fill:#4285f4,color:white
     style A2 fill:#34a853,color:white
 ```
 
-**MCP Toolbox for Databases**：
+#### 2.6.2 Agent2Agent (A2A)：智能体微服务
 
-支持的数据源包括 Cloud SQL、AlloyDB、Spanner、Bigtable、Firestore 等<sup>[[12]](#ref12)</sup>。
+如果说 MCP 解决了"人与工具"的连接，那么 **Agent2Agent (A2A)** 协议则定义了"智能体与智能体"之间的社交礼仪。它本质上是 **微服务架构 (Microservices)** 在 AI 时代的演进。
 
-#### 2.7.2 Agent2Agent (A2A) Protocol
+A2A 协议不仅传输数据，更传输 **上下文 (Context)** 和 **控制权 (Control)**。
 
-A2A 是 Agent 间安全通信的协议标准<sup>[[13]](#ref13)</sup>：
+**架构范式：Serverless Agent Mesh**
 
 ```python
-# 暴露 Agent 为 A2A 服务
+# 🌍 Server Side: 将本地 Agent 暴露为 A2A 服务
 from google.adk.a2a import A2AServer
 
-a2a_server = A2AServer(agent=my_agent)
-a2a_server.serve(port=8080)
+# 启动一个专职的"数据分析服务"
+a2a_server = A2AServer(
+    agent=analyst_agent,
+    # 🔒 开启安全门禁：仅允许持有特定 API Key 的客户端连接
+    auth={"api_key": "sk-secret-key-123"}
+)
+a2a_server.serve(host="0.0.0.0", port=8080)
 
-# 消费远程 A2A Agent
+# 🚀 Client Side: 像调用本地函数一样调用远程智能体
 from google.adk.a2a import A2AClient
 
-remote_agent = A2AClient("https://remote-agent.example.com")
-result = await remote_agent.invoke("帮我分析这份数据")
+# 连接远程专家 (自动处理握手与鉴权)
+remote_analyst = A2AClient(
+    url="https://analyst-agent.internal.corp",
+    api_key="sk-secret-key-123"  # 🔑 客户端必须提供匹配的密钥
+)
+
+# 远程调用：包含完整的上下文传递
+analysis = await remote_analyst.invoke(
+    instruction="分析这份财报的异常点",
+    context={"report_url": "s3://..."}
+)
 ```
 
-### 2.8 部署选项
+### 2.7 Deployment Topologies：从实验室到名利场
 
-ADK 提供灵活的部署选项<sup>[[14]](#ref14)</sup>：
+ADK 的部署哲学是 **"Write Once, Run Anywhere"**。由于 Agent 的逻辑（Cognition）与运行时环境（Runtime）是解耦的，你的代码可以在本地笔记本上通过 REPL 运行，也可以无缝迁移到 Google 的全球基础设施上。
 
-| 部署方式                     | 特点               | 适用场景         |
-| ---------------------------- | ------------------ | ---------------- |
-| **Agent Engine (Vertex AI)** | 托管服务、自动扩展 | 生产环境首选     |
-| **Cloud Run**                | 容器化、按需扩展   | 自定义运行时需求 |
-| **GKE**                      | Kubernetes 集成    | 复杂编排需求     |
-| **本地 / Docker**            | 快速开发测试       | 开发环境         |
+可以将 ADK 应用的部署选项划分为三个战略层级：
+
+| 战略层级            | 部署形态                | 隐喻                    | 核心优势                                                                                                           |
+| :------------------ | :---------------------- | :---------------------- | :----------------------------------------------------------------------------------------------------------------- |
+| **L1: Prototyping** | **Local / Docker**      | **实验室 (Lab)**        | **极速反馈**。改行代码就能跑，支持断点调试，完全免费。适合开发与单元测试。                                         |
+| **L2: Production**  | **Vertex Agent Engine** | **发电厂 (Plant)**      | **Serverless 托管**。Google 负责底层的资源调度、自动扩缩容和容灾。只需上传代码，不仅省心，且具备生产级的高可用性。 |
+| **L3: Custom**      | **Cloud Run / GKE**     | **定制车间 (Workshop)** | **全栈掌控**。适合需要自定义 CUDA 镜像、私有 VPC 网络或与其他微服务在同一 Kubernetes 集群中混合部署的场景。        |
+
+#### 2.7.1 部署决策路径
 
 ```mermaid
-graph TB
-    subgraph "部署决策树"
-        Q1{需要托管服务?}
-        Q1 -->|是| A1[Agent Engine]
-        Q1 -->|否| Q2{需要 K8s?}
-        Q2 -->|是| A2[GKE]
-        Q2 -->|否| Q3{需要容器化?}
-        Q3 -->|是| A3[Cloud Run]
-        Q3 -->|否| A4[本地/Docker]
-    end
+graph LR
+    Start((Start Deployment)) --> Q1{追求极致省心?}
 
-    style Q1 fill:#4285f4,color:white
-    style A1 fill:#34a853,color:white
+    Q1 -->|Yes, Just make it work| A1[✨ Vertex Agent Engine<br/>全托管解决方案]
+    Q1 -->|No, I need control| Q2{基础设施偏好?}
+
+    Q2 -->|Serverless Container| A2[🚀 Cloud Run<br/>按请求计费]
+    Q2 -->|Kubernetes Cluster| A3[☸️ GKE<br/>微服务编排]
+    Q2 -->|Bare Metal / VM| A4[💻 Local / Docker<br/>自建算力]
+
+    style Start fill:#000,color:#fff
+    style A1 fill:#34a853,color:#fff,stroke-width:2px
+    style A2 fill:#4285f4,color:#fff
+    style A3 fill:#4285f4,color:#fff
+    style A4 fill:#9aa0a6,color:#fff,color:#000
 ```
 
-### 2.9 评估与安全
+### 2.8 Evaluation & Security：智能的质检与免疫
 
-#### 2.9.1 评估框架
+在 LLM 应用中，**"It works"** 到 **"It works efficiently and safely"** 之间存在巨大的鸿沟。ADK 提供了一套完整的工具链，用于对智能体进行全方位的"体检"与"防护"。
 
-ADK 内置评估能力，支持<sup>[[15]](#ref15)</sup>：
+#### 2.8.1 GenAI Eval：智能体的 CT 扫描
 
-- **轨迹评估**：评估 Agent 的决策路径
-- **工具使用评估**：验证工具调用的正确性
-- **最终输出评估**：检验结果质量
+传统的软件测试关注 `Input -> Output` 的正确性，而 ADK 的评估框架则深入到了 `Input -> Thought -> Action -> Output` 的每一个环节。
 
-**评估运行方式**：
+- **Trajectory Inspection (轨迹透视)**：不仅看结果，更看过程。检测 Agent 是否陷入死循环，或者是否采取了最优路径。
+- **Tool Usage Audit (工具审计)**：验证 Agent 是否在正确的时机、使用了正确的工具、传递了正确的参数。
+- **Safety Check (安全验收)**：确保输出内容不包含有害信息或幻觉（Hallucinations）。
 
-- `adk web`：Web UI 可视化评估
-- `pytest`：程序化测试集成
-- `adk eval`：CLI 命令行评估
+**开发者工具箱**：
 
-#### 2.9.2 安全最佳实践
+- `adk web`：**可视化控制台**。像回放电影一样逐帧分析 Agent 的思考过程。
+- `adk eval`：**命令行工具**。支持批量运行评估集，快速获取"智能体体检报告"。
+- `pytest` 集成：**自动化流水线**。将智能体评估纳入 CI/CD，代码提交即触发回归测试。
 
-ADK 安全框架涵盖<sup>[[16]](#ref16)</sup>：
+#### 2.8.2 Defense in Depth：纵深防御体系
 
-| 安全层面       | 实践建议            |
-| -------------- | ------------------- |
-| **身份认证**   | OAuth 2.0 / API Key |
-| **Guardrails** | 输入输出内容筛查    |
-| **沙箱执行**   | 代码执行隔离        |
-| **网络控制**   | VPC-SC 边界         |
+ADK 继承了 Google Cloud 的零信任安全架构，为智能体构建了四道防线：
+
+| 防御层级             | 组件                   | 职责                                                               |
+| :------------------- | :--------------------- | :----------------------------------------------------------------- |
+| **L1: Border**       | **VPC-SC**             | **网络边界**。防止数据被偷运出企业内网。                           |
+| **L2: Identity**     | **Workforce Identity** | **身份识别**。确保只有授权的员工或服务能唤醒 Agent。               |
+| **L3: Input/Output** | **Guardrails**         | **内容过滤**。实时拦截 Prompt 注入攻击和 PII 隐私泄漏。            |
+| **L4: Execution**    | **Secure Sandbox**     | **沙箱执行**。生成的 Python 代码在隔离环境中运行，防止危害宿主机。 |
 
 ---
 
 ## 3. Claude Agent SDK
 
-### 3.1 SDK 概述
+### 3.1 Architecture Overview：认知的直接封装
 
-Claude Agent SDK（原 Claude Code SDK）是 Anthropic 提供的 Agent 开发框架，允许开发者以编程方式使用 Claude Code 的全部能力<sup>[[2]](#ref2)</sup>。
+Claude Agent SDK（原 Claude Code SDK）是 Anthropic 提供的 Agent 开发框架，允许开发者以编程方式复用 Claude Code CLI 的完整能力<sup>[[2]](#ref2)</sup>。
 
-**核心定位**：
+如果说 ADK 提供了构建工厂的组件，Claude Agent SDK 则提供了一台 **"开箱即用"的高性能引擎**。它将复杂的认知决策、工具调度和上下文窗口管理封装在极简的 API 之下。
 
-- 将 Claude Code 的能力以 SDK 形式提供
-- 支持构建自主 Agent 应用
-- 内置工具执行、上下文管理和重试机制
+**核心特性 (Core Features)**：
+
+- **Headless Capability**：不仅是 Chat，而是将 Claude Code 强大的 **编码能力** 与 **系统操作能力**（Bash, File System）无缝集成。
+- **Autonomous Loop**：内置了工业级的 **Agent Loop**，包含自动的工具执行、结果解析、以及针对工具报错的 **自我修正 (Auto-Retry)** 逻辑。
+- **Native Toolset**：预装了一组经 AI 优化的系统工具（`Bash`, `Edit`, `Glob`, `Grep`, `Read`），无需额外配置即可操作复杂项目。
 
 ```mermaid
 graph TB
-    subgraph Claude_Agent_SDK_架构
-        A[Application] --> Q["query() API"]
-        Q --> L[Agent Loop]
-        L --> T[Tool Execution]
-        L --> C[Context Management]
-        L --> R[Retry Logic]
-        T --> B[Built-in Tools]
-        T --> M[MCP Servers]
+    subgraph "User Application"
+        App[Python Script]
     end
 
-    subgraph Built_in_Tools
-        B1[Read]
-        B2[Edit]
-        B3[Bash]
-        B4[Glob]
-        B5[Grep]
+    subgraph "Claude Agent SDK (The Engine)"
+        direction TB
+        API["query(prompt)"]
+
+        subgraph "Cognitive Loop"
+            Think[Intent Reasoning]
+            Retry[Auto-Correction]
+        end
+
+        subgraph "System Capabilities"
+            T1[File Operations<br/>Edit / Read]
+            T2[Shell Execution<br/>Bash / Repl]
+            T3[Project Search<br/>Grep / Glob]
+        end
     end
 
-    B --> B1 & B2 & B3 & B4 & B5
+    subgraph "External World"
+        OS[Operating System]
+        MCP[MCP Servers]
+    end
 
-    style Q fill:#cc785c,color:white
-    style L fill:#d4a574,color:black
+    App --> API
+    API --> Think
+    Think <-->|Action/Result| T1 & T2 & T3
+    Think -.->|Failure| Retry
+    Retry -.-> Think
+
+    T1 & T2 & T3 <--> OS
+    Think <--> MCP
+
+    style API fill:#cc785c,color:white
+    style Think fill:#d4a574,color:white
+    style T1 fill:#e8dcc6,color:black,stroke:#d4a574
+    style T2 fill:#e8dcc6,color:black,stroke:#d4a574
+    style T3 fill:#e8dcc6,color:black,stroke:#d4a574
 ```
 
-### 3.2 核心 API
+### 3.2 Core Interface：认知的流式接入
 
-#### 3.2.1 query() 函数
+Claude Agent SDK 的设计极其克制，几乎所有的魔力都汇聚在一个核心函数 `query()` 之中。它不是一个简单的"请求-响应"接口，而是一个通往 Agent 思考过程的 **"意识流管道" (Thought Stream)**。
 
-`query()` 是 SDK 的核心入口，返回异步迭代器<sup>[[17]](#ref17)</sup>：
+#### 3.2.1 The Query Loop
+
+调用 `query()` 就像是启动了一个具有自主意识的子进程。通过 **异步流 (Async Stream)**，你可以实时捕获 Agent 的每一个念头、每一次工具调用和最终的决策结果。
+
+**Python: 像流水一样处理思考**
 
 ```python
 import asyncio
 from claude_agent_sdk import query, ClaudeAgentOptions
 
 async def main():
-    async for message in query(
+    # 🌊 建立连接：开启一段自主任务
+    stream = query(
         prompt="在 auth.py 中找到并修复 bug",
+        # 🎮 飞行控制：定义 Agent 的能力边界
         options=ClaudeAgentOptions(
-            allowed_tools=["Read", "Edit", "Bash"],
-            permission_mode="acceptEdits"
+            allowed_tools=["Read", "Edit", "Bash"], # 赋予系统权限
+            permission_mode="acceptEdits"           # 授予自动修改权
         )
-    ):
-        print(message)  # 实时流式输出
+    )
+
+    # 👁️ 实时观察：监听 Agent 的思考过程
+    async for event in stream:
+        # event 可能是：思考片段、工具执行日志、或者最终结果
+        print(f"[{event.type}] {event.content}")
 
 asyncio.run(main())
 ```
 
-**TypeScript 版本**：
+**TypeScript: 同构的开发体验**
 
 ```typescript
 import { query, ClaudeAgentOptions } from "@anthropic-ai/agent-sdk";
 
 async function main() {
-  for await (const message of query({
+  const stream = query({
     prompt: "Find and fix the bug in auth.py",
     options: {
       allowedTools: ["Read", "Edit", "Bash"],
       permissionMode: "acceptEdits",
     },
-  })) {
+  });
+
+  // 同样使用 for-await 语法处理流
+  for await (const message of stream) {
     console.log(message);
   }
 }
@@ -761,15 +840,17 @@ async function main() {
 main();
 ```
 
-#### 3.2.2 ClaudeAgentOptions
+#### 3.2.2 Control Knobs：飞行控制面板
 
-| 配置项            | 说明                 | 类型        |
-| ----------------- | -------------------- | ----------- |
-| `allowed_tools`   | 允许使用的工具列表   | `List[str]` |
-| `permission_mode` | 权限控制模式         | `str`       |
-| `system_prompt`   | 自定义系统提示       | `str`       |
-| `mcp_servers`     | MCP 服务器配置       | `Dict`      |
-| `setting_sources` | 配置源（如 project） | `List[str]` |
+`ClaudeAgentOptions` 是你对 Agent 进行约束的 **控制面板**。通过它，你可以精确地定义 Agent 的"能力"与"权力"<sup>[[17]](#ref17)</sup>。
+
+| 控制维度        | 配置参数          | 隐喻                            | 核心作用                                                                               |
+| :-------------- | :---------------- | :------------------------------ | :------------------------------------------------------------------------------------- |
+| **Capability**  | `allowed_tools`   | **工具箱 (Toolbelt)**           | 指定 Agent 可以使用哪些内置工具（如 `Bash`）或 MCP 工具。未授权的工具对 Agent 不可见。 |
+| **Autonomy**    | `permission_mode` | **授权书 (Mandate)**            | 决定 Agent 在执行敏感操作（如修改文件、运行命令）时是否需要人类审批。                  |
+| **Extension**   | `mcp_servers`     | **感官与手脚 (Senses & Limbs)** | 挂载外部的数据源 (Senses) 和服务 (Limbs)，不仅拓展感知，更注入操作外部世界的能力。     |
+| **Environment** | `setting_sources` | **环境配置 (Environment)**      | 指定从哪些来源（如项目根目录）加载特定的环境上下文与配置。                             |
+| **Persona**     | `system_prompt`   | **潜意识 (Subconscious)**       | 注入系统级指令，设定 Agent 的行为准则和角色性格。                                      |
 
 ### 3.3 内置工具
 
