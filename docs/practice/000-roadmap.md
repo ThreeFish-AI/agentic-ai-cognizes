@@ -1,23 +1,48 @@
-# Agentic AI Engine：记忆子系统研究路线图
+---
+id: agentic-ai-engine-validation-roadmap
+sidebar_position: 0
+title: Agentic AI Engine Validation Roadmap
+last_update:
+  author: Aurelius Huang
+  created_at: 2025-12-22
+  updated_at: 2026-01-06
+  version: 1.2
+  status: Pending Review
+tags:
+  - Agentic AI Engine
+  - Memory Bank
+  - RAG Engine
+  - Validation Roadmap
+---
 
-> **版本**: 1.1 (Fine-tuned)  
-> **更新日期**: 2025-12-22  
-> **基于调研**: [research/001-context-engineering.md](../research/001-context-engineering.md) | [research/002-google-agent-builder.md](../research/002-google-agent-builder.md)
+> [!NOTE]
+>
+> **基于调研**: [010-context-engineering.md](../research/010-context-engineering.md) | [020-agent-runtime-frameworks.md](../research/020-agent-runtime-frameworks.md)
 
-## 1. 项目目标
+## 1. 验证目标
 
-本项目的核心目标是**为「Agentic AI Engine」寻找最佳的统一基础设施基座**，对标 **Google Vertex AI Agent Engine** 架构的 **Context Engineering** 与 **Memory Management** 能力。
+核心验证目标是**在私有化/自托管环境下，重构并验证「Agentic AI Engine」的完整工程能力**。不仅要"用" Agent，更要"造" Engine。我们致力于脱离 Google Vertex AI 的全托管黑盒服务，基于开源标准技术栈，对标并复刻 **Google Vertex AI Agent Engine** 的核心架构。
 
-本阶段的目标是验证 **OceanBase (SeekDB)** 是否能以 **"Unified Architecture" (单体架构)** 的形式，解决在构建生产级 Agent 平台时面临的 **架构复杂性、运维成本 (TCO)、研发体验 (DX) 以及跨云跨区部署 (Multi-Cloud/Geo-Distribution)** 等核心痛点，并提供等同甚至超越 Google **"Composed Architecture" (组合架构)** 的核心能力。
+### 1.1 两大核心验证命题
 
-### 1.1 核心验证命题
+1. **Agent Platform Engineering (Agent 平台工程验证)**：
+   验证在脱离 Google Vertex AI Agent Engine 托管服务后，如何通过自建基础设施搭配 **Google ADK (Agent Development Kit)**，构建一套涵盖 **开发 (Dev)**、**测试 (Test)**、**评估 (Eval)** 到 **部署 (Ops)** 等的全链路 Agent 工程体系。
 
-1. **Best Core**: OceanBase (V4.5.0+) 是否是目前市场上最适合 Agentic AI 的 "All-in-One" 数据引擎？**一个 HTAP 数据库能否替代 "Redis + Vector DB + Document Store" 三件套？**
-2. **Alternatives**: 是否存在架构更优、成本更低或生态更成熟的替代方案？
-3. **Trade-offs**: 在一致性、实时性、运维简易度与部署灵活性之间，不同选型的取舍是什么？
-4. **Integration**: 是否能与主流 Agent Framework（Google ADK、Agno、LangGraph、LlamaIndex）无缝集成？
+2. **Unified Search Platform (企业级统一搜索平台验证)**：
+   验证构建一个"多模态、全能型"的 **企业级统一搜索平台 (Unified Search Platform)**。它不仅是 RAG Engine，通过 **PostgreSQL + PGVector** 的融合能力，同时实现 **语义检索 (Vector Search)**、**关键字搜索 (Keyword Search)** 与 **元数据过滤 (Metadata Filtering)** 等的统一调度。
 
-### 1.2 Context Engineering 三大支柱（基于调研）
+### 1.2 现阶段执行目标 (Current Phase)
+
+**"De-Google, but Re-Google"**，基于 **PostgreSQL + PGVector** 介质，**1:1 复刻甚至优化** Google Vertex AI Agent Engine 的关键原子能力：
+
+- **Session Management**: 会话状态的原子性管理与持久化。
+- **Memory Bank**: 长期记忆的"海马体"构建（存储、索引与提取）。
+- **RAG Engine**: 高性能的混合检索链路。
+- **Sandbox**: 安全可控的代码执行环境。
+
+最终，使用这套 **自建的 Agent Engine** 搭配 **Google ADK**，走通 Agent 搭建的**全场景闭环**。
+
+### 1.3 Context Engineering 三大支柱（基于调研）
 
 根据《Context Engineering 2.0》论文与主流框架实践，项目需覆盖 Context Engineering 的三大核心维度：
 
