@@ -140,14 +140,16 @@ gantt
     Superhuman 智能 (人机角色反转) :2040, 2050
 ```
 
-| 时代        | 时间范围   | 智能水平      | Context Engineering 特征                 | 管家的进化                                                                   |
-| :---------- | :--------- | :------------ | :--------------------------------------- | :--------------------------------------------------------------------------- |
-| **Era 1.0** | 1990s-2020 | 原始计算      | 刚性、预定义格式（菜单选择、传感器输入） | **呆板机器人**：只能听懂特定指令（"开灯"），说"太黑了"它会报错。             |
-| **Era 2.0** | 2020-至今  | Agent-Centric | 自然语言理解、推断隐含意图、动态上下文   | **聪明实习生**：能听懂"太黑了"是指要开灯，但记性不好，需要反复提醒背景信息。 |
-| Era 3.0     | 未来       | Human-Level   | 深度意图理解、最小显式上下文需求         | **默契老管家**：深度意图理解。不用你开口，看你眉头一皱就知道该倒茶了。       |
-| Era 4.0     | 遥远未来   | Superhuman    | 机器引导人类、人机角色反转               | **人生导师**：比你更懂你自己。在你意识到之前，就主动为你规划最优路径。       |
+| 时代        | 时间范围   | 智能水平                  | Context Engineering 特征                 | 角色的进化                                                                                        |
+| :---------- | :--------- | :------------------------ | :--------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| **Era 1.0** | 1990s-2020 | 原始计算，被动执行者      | 刚性、预定义格式（菜单选择、传感器输入） | 上下文作为"翻译"<br/>**呆板机器人**：只能听懂特定指令（"开灯"），说"太黑了"它会报错。             |
+| **Era 2.0** | 2020-至今  | Agent-Centric，主动智能体 | 自然语言理解、推断隐含意图、动态上下文   | 上下文作为"指令"<br/>**聪明实习生**：能听懂"太黑了"是指要开灯，但记性不好，需要反复提醒背景信息。 |
+| Era 3.0     | 未来       | Human-Level，可靠协作者   | 深度意图理解、最小显式上下文需求         | 上下文作为"场景"<br/>**默契老管家**：深度意图理解。不用你开口，看你眉头一皱就知道该倒茶了。       |
+| Era 4.0     | 推测       | Superhuman，体贴的主人    | 机器引导人类、人机角色反转               | 上下文作为"世界"<br/>**人生导师**：比你更懂你自己。在你意识到之前，就主动为你规划最优路径。       |
 
 > [!TIP]
+>
+> 智能越高 → 上下文处理能力越强 → 人机交互成本越低
 >
 > **当前挑战 (Era 2.0)**：
 >
@@ -169,7 +171,7 @@ gantt
 >
 > 如何保存用户**一生的上下文**？当数据量爆炸时，如何保证"管家"不产生幻觉？以及最关键的——如何确保它永远忠诚（隐私与安全）？
 
-## 2. Context Engineering 的三大核心维度
+## 2. Context Engineering 的理论基础
 
 要打造具备"默契老管家"特质的 Agent，我们不能只关注 Prompt 编写（Era 1.0 的思维），而必须构建完整的上下文生命周期。基于论文 [[1]](#ref1) 的定义与主流框架的最佳实践，Context Engineering 被系统性地解构为以下三大核心维度：
 
@@ -384,9 +386,9 @@ graph LR
     style Output fill:#581c87,stroke:#c084fc,color:#fff
 ```
 
-## 3. Context Engineering 的主流框架（Agent Framework）
+## 3. Context Engineering 的主流实践
 
-明白了"厨房理论"，我们就来看看**业界三大顶尖"厨具商"（Frameworks）**是如何打造他们的厨房的。
+明白了"厨房理论"，我们就来看看**业界三大顶尖"厨具商"（Agent Framework）**是如何打造他们的厨房的。
 
 ### 3.1 Google ADK (Agent Development Kit)
 
@@ -943,8 +945,8 @@ class BaseMemoryService(ABC):
         self, memory_id: str
     ) -> None: ...
 
-class OceanBaseSessionService(BaseSessionService):
-    """OceanBase 会话服务实现"""
+class PGSessionService(BaseSessionService):
+    """PG 会话服务实现"""
 
     def __init__(self, connection_pool):
         self.pool = connection_pool
@@ -965,8 +967,8 @@ class OceanBaseSessionService(BaseSessionService):
         """, [session_id, event_type, json.dumps(event_data), self._count_tokens(event_data)])
         return result[0]["event_id"]
 
-class OceanBaseMemoryService(BaseMemoryService):
-    """OceanBase 记忆服务实现"""
+class PGMemoryService(BaseMemoryService):
+    """PG 记忆服务实现"""
 
     def __init__(self, connection_pool, embedding_client):
         self.pool = connection_pool
@@ -1123,14 +1125,14 @@ class ContextManager:
 
     def __init__(
         self,
-        oceanbase_client,
+        pg_client,
         llm_client,
         compression_strategy: CompressionStrategy = CompressionStrategy.SLIDING_WINDOW,
         max_context_tokens: int = 8000,
         window_size: int = 10,
         overlap_size: int = 2
     ):
-        self.db = oceanbase_client
+        self.db = pg_client
         self.llm = llm_client
         self.strategy = compression_strategy
         self.max_tokens = max_context_tokens
@@ -1248,8 +1250,8 @@ LIMIT 10;
 class HybridRetriever:
     """混合检索器：语义 + 时间 + 频率"""
 
-    def __init__(self, oceanbase_client):
-        self.db = oceanbase_client
+    def __init__(self, pg_client):
+        self.db = pg_client
 
     async def retrieve(
         self,
@@ -1270,7 +1272,7 @@ class HybridRetriever:
             "frequency": 0.2
         }
 
-        # OceanBase 混合检索 SQL
+        # PG 混合检索 SQL
         result = await self.db.execute("""
             SELECT
                 memory_id,
@@ -1438,75 +1440,6 @@ class ContextAssembler:
             return text
         return self.encoding.decode(tokens[:max_tokens]) + "..."
 ```
-
-## 5. 工程验证 Roadmap
-
-### 5.1 Phase 2: Memory Management
-
-**论文指导**：记忆分层架构 + 记忆迁移机制
-
-**行动建议**：
-
-1. **短期记忆 (Session Log)**
-
-   - 使用 OceanBase 表存储 `session_events`（append-only）
-   - 利用 OceanBase 事务保证 `state_delta` 的原子应用
-
-2. **长期记忆 (Insights)**
-
-   - 设计 `agent_memories` 表，包含向量列
-   - 实现 Memory Transfer 函数：
-     ```python
-     def consolidate_memory(session: Session) -> List[Memory]:
-         # 1. 提取 session.events 中的关键信息
-         # 2. 使用 LLM 生成 Insight
-         # 3. 向量化 Insight
-         # 4. 原子写入 agent_memories 表
-     ```
-
-3. **记忆选择策略**
-   - 实现基于 Recency + Frequency + Semantic Similarity 的混合检索
-   - 利用 `DBMS_HYBRID_SEARCH` 实现 SQL 层面的混合检索
-
-### 5.2 Phase 3: Context Engineering (RAG & Assembler)
-
-**论文指导**：Context Compression + Context Isolation + Proactive Inference
-
-**行动建议**：
-
-1. **统一检索链路**
-
-   - 在单次 SQL 查询中同时检索 Session Context + Long-term Memory
-   - 实现 `OceanBaseMemoryService.search_memory()` 返回 Fused Context
-
-2. **上下文压缩**
-
-   - 参考 ADK 的 EventsCompactionConfig 设计
-   - 在 OceanBase 中可通过 Stored Procedure 或应用层实现滑动窗口摘要
-
-3. **动态上下文组装 (Context Budgeting)**
-   - 在数据库层估算 Token 大小
-   - 实现 Top-K 截断，确保不超过 Context Window
-
-### 5.3 Phase 4: Framework Integration
-
-**论文指导**：上下文共享 + 跨 Agent 通信
-
-**行动建议**：
-
-1. **ADK Adapter 优先**
-
-   - 实现 `OceanBaseSessionService` 和 `OceanBaseMemoryService`
-   - 遵循 ADK 的 Service 抽象，确保与 Google 生态的兼容性
-
-2. **多框架支持**
-
-   - 为 LangGraph 实现 `Checkpointer` + `VectorStore` 双角色
-   - 为 Agno 实现 `Database` 接口
-
-3. **A2A Protocol 预研**
-   - 关注 Google 的 Agent-to-Agent 开放协议
-   - 考虑 OceanBase 作为 Agent 间上下文共享的中央存储
 
 ## References
 
