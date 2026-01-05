@@ -650,7 +650,7 @@ graph TD
     I --> I2["Subgraph<br>独立房间(子图)"]
 ```
 
-#### 3.3.1 Memory 机制
+#### 3.3.1 Memory 机制（游戏存档）
 
 可以将 **Memory 机制** 形象地类比为 **游戏进度存档**。在冒险游戏中，LangGraph 提供了两套不同维度的"存档"机制（持久化机制） <sup>[[11]](#ref11)[[12]](#ref12)</sup>：
 
@@ -713,67 +713,81 @@ def my_node(state, config, *, store):
     memories = store.search(namespace, query="what do I like?")
 ```
 
-#### 3.3.2 Context Engineering
+#### 3.3.2 Context Engineering（冒险工具箱）
 
-1. LangGraph 通过 State 和 Config 收集上下文：
+有了存档机制，LangGraph 还提供了一套 **"冒险工具箱"** 来处理上下文的流转：
 
-```python
-# LangGraph 上下文收集示例
-from langgraph.graph import StateGraph, MessagesState
+1. **Context Collection（战前点验）**
 
-def my_node(state: MessagesState, config, *, store):
-    # 从 state 获取消息历史
-    messages = state["messages"]
+   在执行任务（Node）前，Agent 需要确认身上的所有装备：
 
-    # 从 config 获取用户标识
-    user_id = config["configurable"]["user_id"]
-    thread_id = config["configurable"]["thread_id"]
+   - **State (背包)**：当前的血量、道具（对话历史）。
+   - **Config (身份证)**：我是谁（User ID），我在哪个存档（Thread ID）。
+   - **Store (成就库)**：我以前学过什么技能（长期记忆）。
 
-    # 从 store 检索长期记忆
-    namespace = (user_id, "memories")
-    memories = store.search(namespace, query=messages[-1].content)
+   ```python
+   # LangGraph "战前点验" 示例
+   from langgraph.graph import StateGraph, MessagesState
 
-    return {"messages": [...]}
-```
+   def my_node(state: MessagesState, config, *, store):
+       # 1. 查背包 (State): 获取消息历史
+       messages = state["messages"]
 
-2. LangGraph 的上下文压缩
+       # 2. 查身份证 (Config): 获取用户与存档标识
+       user_id = config["configurable"]["user_id"]
+       thread_id = config["configurable"]["thread_id"]
 
-```python
-# LangGraph 消息修剪
-from langchain_core.messages import trim_messages
+       # 3. 查成就库 (Store): 检索长期记忆
+       namespace = (user_id, "memories")
+       memories = store.search(namespace, query=messages[-1].content)
 
-# 基于 token 限制修剪
-trimmer = trim_messages(
-    max_tokens=1000,
-    strategy="last",  # 保留最新消息
-    token_counter=len,
-)
+       return {"messages": [...]}
+   ```
 
-# 在节点中使用
-def agent_node(state):
-    messages = trimmer.invoke(state["messages"])
-    response = llm.invoke(messages)
-    return {"messages": [response]}
-```
+2. **Context Compression（整理背包）**
 
-3. LangGraph 通过 Subgraph 进行上下文隔离
+   冒险者的背包容量（Context Window）是有限的。当战利品太多时，必须进行 **"负重管理"** ——丢弃低价值的破石头（老旧消息），只保留核心道具。
 
-```python
-# LangGraph Subgraph 上下文隔离
-from langgraph.graph import StateGraph
+   ```python
+   # LangGraph 消息修剪 (整理背包)
+   from langchain_core.messages import trim_messages
 
-# 子图有独立的状态和上下文
-def create_research_subgraph():
-    builder = StateGraph(ResearchState)
-    builder.add_node("search", search_node)
-    builder.add_node("analyze", analyze_node)
-    return builder.compile()
+   # 设定背包最大负重 (Token Limit)
+   trimmer = trim_messages(
+       max_tokens=1000,
+       strategy="last",  # 保留最新获得的道具
+       token_counter=len,
+   )
 
-# 主图
-main_builder = StateGraph(MainState)
-main_builder.add_node("research", create_research_subgraph())
-main_builder.add_node("respond", respond_node)
-```
+   # 在节点中使用
+   def agent_node(state):
+       # 自动丢弃超重的旧物品
+       messages = trimmer.invoke(state["messages"])
+       response = llm.invoke(messages)
+       return {"messages": [response]}
+   ```
+
+3. **Context Isolation（独立副本）**
+
+   当主线任务太复杂时，可以开启一个 **"独立副本"（Subgraph）**。在副本里，有独立的地图和状态栏。打通副本后，只把"掉落奖励"（最终结果）带回主世界，避免主地图变得混乱。
+
+   ```python
+   # LangGraph 副本挑战 (Subgraph)
+   from langgraph.graph import StateGraph
+
+   # [副本] 独立的科研任务，有独立的状态
+   def create_research_subgraph():
+       builder = StateGraph(ResearchState)
+       builder.add_node("search", search_node)
+       builder.add_node("analyze", analyze_node)
+       return builder.compile()
+
+   # [主世界]
+   main_builder = StateGraph(MainState)
+   # 玩家进入副本
+   main_builder.add_node("research", create_research_subgraph())
+   main_builder.add_node("respond", respond_node)
+   ```
 
 ### 3.4 核心概念映射
 
@@ -822,17 +836,7 @@ graph LR
 
 ## 4. 工程验证
 
-> [!IMPORTANT]
->
-> OceanBase 之类三位一体数据库的潜在优势：
->
-> 1. **强一致性 (ACID)**：事务级保证避免"记忆分裂"
-> 2. **HTAP 能力**：高频写入 + 复杂分析查询的统一处理
-> 3. **多地多活 (Paxos)**：跨区域记忆一致性
-> 4. **Hybrid Search**：SQL + Vector 的原生混合检索
-> 5. **高可用性**：99.999% SLA 保障关键记忆不丢失
-
-### 4.1 Unified Context Store (OceanBase)
+### 4.1 Unified Context Store (PGVector)
 
 基于调研，建议以下统一 Schema 设计：
 
