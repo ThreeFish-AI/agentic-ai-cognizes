@@ -988,7 +988,7 @@ options = ClaudeAgentOptions(
 
 还记得《黑客帝国》中 Neo 瞬间学会驾驶直升机的场景吗？**Agent Skills** 就是这种认知的载体。
 
-传统的 Prompt Engineering 就像是你在每一次任务前都必须对 Agent 唠叨一遍操作手册。而 Agent Skills 将这些操作手册封装成了可插拔的**"技能卡带"**。一旦 Agent 加载了相关 Skill（例如 "Kubernetes Expert"），它就立刻变成了该领域的资深专家<sup>[[3]](#ref3)</sup>。
+传统的 Prompt Engineering 就像是你在每一次任务前都必须对 Agent 唠叨一遍操作手册。而 Agent Skills 将这些操作手册封装成了可插拔的 **"技能卡带"**。一旦 Agent 加载了相关 Skill（例如 "Kubernetes Expert"），它就立刻变成了该领域的资深专家<sup>[[3]](#ref3)</sup>。
 
 **核心价值三元组**：
 
@@ -997,100 +997,118 @@ options = ClaudeAgentOptions(
 3.  **Portability (技能迁徙)**：最好的最佳实践可以轻易地在团队间、项目间复制传播。
 
 ```mermaid
-graph LR
-    subgraph "Before: The Whisperer"
-        U1[User] -->|Verbose Prompt| A1[Generic Agent]
-        A1 -->|Unstable| R1[Result ?]
-    end
-
+graph
     subgraph "After: The Matrix"
+        direction TB
         K[Skill: PyTorch Tuning]
         U2[User] -->|Simple Intent| A2[Skilled Agent]
         K -.->|Inject Knowledge| A2
         A2 -->|Expert Level| R2[Result ✅]
     end
 
+    subgraph "Before: The Whisperer"
+        direction TB
+        U1[User] -->|Verbose Prompt| A1[Generic Agent]
+        A1 -->|Unstable| R1[Result ?]
+    end
+
     style K fill:#cc785c,color:white,stroke-width:2px
     style A2 fill:#d4a574,color:white
 ```
 
-### 4.2 三层渐进加载架构
+### 4.2 Progressive Loading：认知的懒加载
 
-Skills 采用独特的三层渐进加载机制，优化上下文使用<sup>[[3]](#ref3)</sup>：
+为了在有限的 Context Window 中塞入无限的技能，Agent Skills 采用了一套精妙的 **"渐进式加载" (Progressive Loading)** 机制。这就像是一个经验丰富的图书管理员，只在需要时才去书架上取书。
 
 ```mermaid
 sequenceDiagram
-    participant U as 用户
-    participant C as Claude
-    participant FS as 文件系统
+    participant U as User
+    participant A as Agent
+    participant K as Knowledge Base
 
-    Note over C: Level 1: 元数据预加载
-    C->>C: 加载 Skills 描述到系统提示
+    Note over A: L1: Indexing (极速索引)
+    A->>A: 启动时加载所有 YAML Frontmatter
 
-    U->>C: 处理 PDF 文档
+    U->>A: "帮我处理这个发票 PDF"
 
-    Note over C: Level 2: 指令加载
-    C->>FS: bash: read pdf-skill/SKILL.md
-    FS-->>C: 返回 SKILL.md 内容
+    Note over A: L2: Activation (按需激活)
+    A->>A: 匹配到 pdf-processing skill
+    A->>K: read .claude/skills/pdf/SKILL.md
+    K-->>A: 注入具体的 PDF 操作指南
 
-    Note over C: Level 3: 资源加载
-    C->>FS: bash: read FORMS.md
-    FS-->>C: 返回表单处理指南
-    C->>FS: bash: python fill_form.py
-    FS-->>C: 只返回脚本输出
+    Note over A: L3: Execution (深度执行)
+    A->>K: read .claude/skills/pdf/scripts/ocr.py
+    A->>A: 运行 OCR 脚本并获取结果
 ```
 
-#### 三层详解
+**架构设计详解**：
 
-| 层级           | 内容类型         | 加载时机 | Context 消耗 |
-| -------------- | ---------------- | -------- | ------------ |
-| **L1: 元数据** | YAML frontmatter | 启动时   | 极小         |
-| **L2: 指令**   | SKILL.md 正文    | 触发时   | 按需         |
-| **L3: 资源**   | 附加文件、脚本   | 引用时   | 仅输出       |
+| 加载层级            | 隐喻                      | 核心内容                   | Context 消耗    | 生命周期                           |
+| :------------------ | :------------------------ | :------------------------- | :-------------- | :--------------------------------- |
+| **L1: Metadata**    | **索引卡片 (Index Card)** | 技能名称、简短描述 (YAML)  | ⭐ (极低)       | 常驻内存，始终可见                 |
+| **L2: Instruction** | **操作手册 (Manual)**     | 详细的 SOP 步骤 (Markdown) | ⭐⭐⭐ (中等)   | 仅在任务触发时加载，任务结束可丢弃 |
+| **L3: Resources**   | **工具箱 (Toolkit)**      | 辅助脚本、参考文档、大表单 | ⭐⭐⭐⭐ (较高) | 仅在执行具体步骤时瞬时读取         |
 
-**Level 1 示例**：
+**L1 & L2 结构示例**：
 
-```yaml
----
+```markdown
+## <!-- L1: 放在文件头部的元数据，Agent 随时都能"看到"这部分 -->
+
 name: pdf-processing
-description: 从 PDF 文件中提取文本和表格，填写表单，合并文档。
-  在处理 PDF 文件或用户提到 PDF、表单、文档提取时使用。
+description: 从 PDF 文件中提取文本和表格，填写表单。在用户提到发票、合同或扫描件时激活。
+
 ---
+
+<!-- L2: 具体的技能正文，平时是折叠的，只有被激活后才会展开进入 Context -->
+
+# PDF Processing Guide
+
+当处理 PDF 文档时，请遵循以下流程：
+
+1. 首先使用 `pdftotext` 尝试提取文本。
+2. 如果文本乱码，则调用 `ocr.py` 脚本（L3 资源）。
+   ...
 ```
 
-**Level 2 + Level 3 结构**：
+**L3 目录结构示例**：
 
 ```
-pdf-skill/
-├── SKILL.md           # L2: 主指令
-├── FORMS.md           # L3: 表单填写指南
-├── REFERENCE.md       # L3: API 参考
-└── scripts/
-    └── fill_form.py   # L3: 可执行脚本
+.claude/skills/pdf/
+├── SKILL.md           # L2: 主指令入口
+├── scripts/           # L3: 工具箱 (按需执行)
+│   └── ocr.py
+└── docs/              # L3: 参考资料 (按需查阅)
+    └── invoice_codes.txt
 ```
 
-### 4.3 预构建 Skills
+### 4.3 Native Skills：企业级基因
 
-Anthropic 提供以下预构建 Skills<sup>[[3]](#ref3)</sup>：
+OpenAI 让 AI 学会了聊天，Anthropic 让 AI 学会了 **办公**。Claude Code 并不把 Excel、PPT 视为纯文本（Text-based），而是通过专门优化的 Skills 实现了对二进制格式的 **原生理解与操作**。
 
-| Skill          | 能力                     | 文件格式 |
-| -------------- | ------------------------ | -------- |
-| **PowerPoint** | 创建演示、编辑幻灯片     | .pptx    |
-| **Excel**      | 创建表格、数据分析、图表 | .xlsx    |
-| **Word**       | 创建文档、格式化         | .docx    |
-| **PDF**        | 生成格式化 PDF 报告      | .pdf     |
+| Skill              | 认知能力                     | 典型场景                                                           |
+| :----------------- | :--------------------------- | :----------------------------------------------------------------- |
+| **Excel Wizard**   | **通过公式与数据透视表思考** | "分析 Q4 销售数据，用 VLOOKUP 匹配客户等级，并生成趋势图。"        |
+| **Slide Master**   | **通过视觉布局思考**         | "把这份 Word 报告转换成 10 页的 PPT，要包含关键图表和演讲者备注。" |
+| **Docu Scrivener** | **通过文档结构思考**         | "根据会议录音整理一份标准格式的会议纪要 docx，需包含 TOC 和页眉。" |
 
-**使用方式**：
+**The Magic of Implicit Invocation (隐式调用的魔法)**：
+
+最重要的是，**不需要**显式地告诉 Claude "去调用 Excel 工具"。只需要表达意图，它就会自然地运用这些技能，就像一个熟练的白领打开 Office 软件一样自然。
 
 ```python
-# 在 API 中使用 Skills
+# 🎭 场景：只需一句话，自动化完成复杂的报表工作
 response = client.messages.create(
     model="claude-sonnet-4-20250514",
     messages=[{
         "role": "user",
-        "content": "根据销售数据创建一个 Excel 报表，包含图表"
+        "content": """
+        请帮我把这个月的数据库导出文件（data.csv）做一次深度清洗：
+        1. 修复所有格式错误的电话号码。
+        2. 生成一个带数据透视表的 Excel 文件 (report.xlsx)。
+        3. 用邮件把这个 Excel 发给 boss@company.com。
+        """
     }],
-    # Skills 自动触发，无需显式配置
+    # 🪄 Magic happens here: 无需配置 tools，Skills 随模型内置
 )
 ```
 
