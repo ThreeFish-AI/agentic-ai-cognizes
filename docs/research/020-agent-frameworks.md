@@ -1269,286 +1269,373 @@ graph TB
 
 ---
 
-## 6. 实施指引
+## 6. 牛刀小试
 
-### 6.1 Google ADK 集成指南
+### 6.1 Google ADK: The Industrial Assembly Line
 
-#### 6.1.1 环境准备
+在 ADK 的世界里，我们不是在写脚本，而是在建设 **工厂**。每一个 Agent 都是流水线上的一个标准化作业单元。
+
+#### 6.1.1 Scaffolding: 搭建厂房
 
 ```bash
-# 创建项目目录
-mkdir adk-demo && cd adk-demo
+# 🏗️ 初始化工程结构
+mkdir agent-factory && cd agent-factory
 
-# 创建虚拟环境
+# 📦 安装核心套件
+# 建议使用 uv 或 poetry 进行依赖管理
 python -m venv .venv
 source .venv/bin/activate
-
-# 安装 ADK
 pip install google-adk
 
-# 配置 Google Cloud 认证
+# 🔑 颁发入厂证 (Google Cloud Auth)
+# 确保你的账号具有 Vertex AI User 权限
 gcloud auth application-default login
 ```
 
-#### 6.1.2 基础 Agent 实现
+#### 6.1.2 The Worker: 定义标准作业单元
 
-```python
-# agents/research_agent.py
+一个 `LlmAgent` 就是一个训练有素的工人。我们需要为它编写 **SOP (Standard Operating Procedure)**。
+
+````python
+# factory/workers/researcher.py
 from google.adk.agents import LlmAgent
 from google.adk.tools import google_search
 
-def create_research_agent():
-    """创建研究 Agent"""
+def hire_researcher() -> LlmAgent:
+    """招聘一名初级研究员 (Standard Worker)"""
     return LlmAgent(
-        model="gemini-2.0-flash",
-        name="research_agent",
-        description="研究并总结特定主题的信息",
-        instruction="""你是一个专业的研究助手。
+        model="gemini-2.0-flash-001",  # ⚡ 速度优先：快速扫描大量信息
+        name="research_worker_01",
 
-任务流程：
-1. 使用 google_search 工具搜索相关信息
-2. 分析搜索结果，提取关键事实
-3. 组织信息，生成结构化摘要
+        # 📜 SOP: 把模糊的指令转化为确定的动作
+        instruction="""
+        Role: Corporate Researcher (Level 1)
 
-输出要求：
-- 包含信息来源
-- 标注关键数据点
-- 提供进一步研究建议""",
+        Objective:
+        收集原始数据，建立事实基础。严禁臆造，必须有据可查。
+
+        Standard Operating Procedure (SOP):
+        1. **Query Expansion**: 将用户问题拆解为 3-5 个正交的搜索关键词。
+        2. **Cross-Examination**: 对同一个事实，寻找至少两个独立来源进行交叉验证。
+        3. **Data Structuring**: 将非结构化网页内容转化为 Bullet Points。
+
+        Output Constraint:
+        - Format: JSON-like structure with {Fact, Source, Confidence}.
+        - No opinion, just facts.
+        """,
         tools=[google_search]
     )
-```
 
-#### 6.1.3 Multi-Agent 工作流
+def hire_analyst() -> LlmAgent:
+    """招聘一名高级分析师 (Thinking Unit)"""
+    return LlmAgent(
+        model="gemini-2.0-flash-thinking",  # 🧠 推理优先：擅长逻辑链
+        name="analyst_worker_01",
+        instruction="""
+        Role: Senior Data Analyst (Level 3)
+
+        Objective:
+        负责"Raw Data -> Insight"的价值转化。
+
+        Reasoning Frameworks:
+        - **Pattern Recognition**: 识别数据中的异常值和重复模式。
+        - **Second-Order Thinking**: 不仅看现象，更要推演其长远影响。
+        - **Conflict Identification**: 指出搜索结果中相互矛盾的信息点。
+
+        Output Interface:
+        输出一段包含 "Key Findings" 和 "Strategic Implications" 的深度分析。
+        """,
+        tools=[] # 纯脑力劳动，无需外设
+    )
+
+def hire_writer() -> LlmAgent:
+    """招聘一名特稿撰写人 (Creative Unit)"""
+    return LlmAgent(
+        model="gemini-2.0-pro",  # ✍️ 文笔优先：擅长修辞与结构
+        name="lead_writer",
+        instruction="""
+        Role: Lead Tech Columnist
+
+        Objective:
+        将枯燥的分析转化为具有传播力的深度文章。
+
+        Editorial Standards:
+        1. **The Hook**: 开篇必须在 3 秒内抓住读者注意力。
+        2. **Structure**: 使用金字塔原理 (Pyramid Principle) 组织段落。
+        3. **Tone**: 专业但机智 (Professional yet witty)。避免陈词滥调 (Clichés)。
+        4. **Formatting**: 熟练使用 Markdown (Bold, Quote, Table) 增强可读性。
+        """,
+        tools=[]
+    )
+
+def hire_designer() -> LlmAgent:
+    """招聘一名数据可视化专家 (Visual Unit)"""
+    return LlmAgent(
+        model="gemini-2.0-flash",
+        name="visual_designer",
+        instruction="""
+        Role: Information Designer
+
+        Objective:
+        将抽象逻辑转化为直观的视觉图表。
+
+        Design System:
+        - Tool: Mermaid.js
+        - Allowed Types: `graph TB` (流程架构), `pie` (占比), `gantt` (时间线).
+        - Style: 简洁现代，避免复杂的嵌套。
+
+        Execution:
+        仅输出代码块 (```mermaid ... ```)，严禁包含任何解释性文字。
+        """,
+        tools=[]
+    )
+````
+
+#### 6.1.3 The Pipeline: 组装生产线
+
+只有将多个 Agent 串联起来，才能形成**"增值链" (Value Chain)**。ADK 提供了 `Sequential` (串行) 和 `Parallel` (并行) 两种传送带。
 
 ```python
-# agents/report_pipeline.py
-from google.adk.agents import LlmAgent, SequentialAgent, ParallelAgent
+# factory/pipelines/report_pipeline.py
+from google.adk.agents import SequentialAgent, ParallelAgent
+from .workers import hire_researcher, hire_analyst, hire_writer, hire_designer
 
-def create_report_pipeline():
-    """创建报告生成工作流"""
+def build_assembly_line():
+    """生产一份研报的完整流水线"""
 
-    # 研究 Agent
-    researcher = LlmAgent(
-        model="gemini-2.0-flash",
-        name="researcher",
-        instruction="收集和整理主题相关信息..."
+    # Stage 1: 原材料获取
+    researcher = hire_researcher()
+
+    # Stage 2: 粗加工 (提炼洞察)
+    analyst = hire_analyst()
+
+    # Stage 3: 精加工 (并行作业)
+    # 文字与图表同时制作，提高吞吐量
+    production_floor = ParallelAgent(
+        name="creative_process",
+        agents=[
+            hire_writer(),   # 写手
+            hire_designer()  # 画师
+        ],
+        # ⏳ 同步策略: 等待两个人都有产出再汇总
+        merge_strategy="concatenate"
     )
 
-    # 分析 Agent
-    analyst = LlmAgent(
-        model="gemini-2.0-flash",
-        name="analyst",
-        instruction="分析研究数据，提取洞见..."
-    )
-
-    # 并行处理：图表生成和文本写作
-    chart_maker = LlmAgent(
-        model="gemini-2.0-flash",
-        name="chart_maker",
-        instruction="基于分析结果生成可视化..."
-    )
-
-    writer = LlmAgent(
-        model="gemini-2.0-flash",
-        name="writer",
-        instruction="撰写报告正文..."
-    )
-
-    # 组合工作流
-    parallel_stage = ParallelAgent(
-        name="content_generation",
-        sub_agents=[chart_maker, writer]
-    )
-
+    # 🔗 最终组装
     return SequentialAgent(
-        name="report_pipeline",
-        sub_agents=[researcher, analyst, parallel_stage]
+        name="daily_report_pipeline",
+        steps=[researcher, analyst, production_floor]
     )
 ```
 
-#### 6.1.4 运行与测试
+#### 6.1.4 Smoke Test: 试运行
 
 ```python
-# main.py
+# main_factory.py
 import asyncio
-from google.adk.runner import Runner
-from agents.report_pipeline import create_report_pipeline
+from google.adk.runner import LocalRunner
+from factory.pipelines.report_pipeline import build_assembly_line
 
-async def main():
-    pipeline = create_report_pipeline()
-    runner = Runner(agent=pipeline)
+async def start_production():
+    # 🏭 启动流水线
+    pipeline = build_assembly_line()
+    runner = LocalRunner(agent=pipeline)
 
-    result = await runner.run(
-        prompt="生成一份关于 AI Agent 发展趋势的研究报告"
+    print("🚀 Factory started...")
+
+    # 📦 投料
+    product = await runner.run(
+        input_prompt="深度分析 DeepSeek-V3 对 Transformer 架构的改进"
     )
 
-    print(result)
+    print("✅ Product shipped!")
+    print(product.output)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(start_production())
 ```
 
-### 6.2 Claude Agent SDK 集成指南
+### 6.2 Claude Agent SDK: The Cognitive Symbiont
 
-#### 6.2.1 环境准备
+在 Claude SDK 的世界里，我们不是在建造工厂，而是在**培育共生体**。我们通过极简的代码，将 Claude 的认知能力"寄生"在现有的 Python 项目中。
+
+#### 6.2.1 Host Integration: 接入宿主
 
 ```bash
-# 创建项目目录
-mkdir claude-agent-demo && cd claude-agent-demo
+# 🌱 准备宿主环境
+mkdir claude-symbiont && cd claude-symbiont
 
-# 安装 Claude Code（必需运行时）
-# macOS/Linux
+# 🧠 唤醒 Core (必须安装 CLI 并登录)
+# Claude Agent SDK 本质上是 headless 模式的 claude cli
 curl -fsSL https://code.claude.com/install.sh | sh
+claude login
 
-# 运行 claude 进行认证
-claude
-
-# 安装 SDK
-pip install claude-agent-sdk
-
-# 或使用 uv
+# 🧬 注入 SDK
+# 强烈推荐使用 uv，极其快速
+uv init
 uv add claude-agent-sdk
 ```
 
-#### 6.2.2 基础 Agent 实现
+#### 6.2.2 The Cognitive Function: 认知函数化
+
+最优雅的用法，是将复杂的认知任务封装为一个简单的 Python 函数。
 
 ```python
-# agent.py
+# symbiont.py
 import asyncio
 from claude_agent_sdk import query, ClaudeAgentOptions
 
-async def code_review_agent(file_path: str):
-    """代码审查 Agent"""
+async def smart_review(target_dir: str):
+    """
+    👁️ 一个拥有独立视角的代码审查者
+    它可以"看到"文件，"理解"逻辑，并给出建议。
+    """
 
-    prompt = f"""请审查 {file_path} 文件的代码：
+    # 🌊 开启思维流
+    stream = query(
+        prompt=f"""
+        Mission: Audit Python code in '{target_dir}' for security vulnerabilities.
 
-1. 检查代码风格和命名约定
-2. 识别潜在的安全问题
-3. 评估代码可维护性
-4. 提供改进建议
+        Focus Areas:
+        1. 💉 SQL Injection (raw queries without parametrization)
+        2. 🔑 Hardcoded Secrets (API keys, passwords)
+        3. 🛡️ Unsafe Deserialization (pickle.load)
 
-输出结构化的审查报告。"""
-
-    options = ClaudeAgentOptions(
-        allowed_tools=["Read", "Glob", "Grep"],
-        permission_mode="default"
+        Output:
+        Generate a Markdown report summarizing findings with severity levels.
+        """,
+        options=ClaudeAgentOptions(
+            # 🖐️ 只给它看的权限，不给改的权限 (Read-Only)
+            allowed_tools=["Read", "Glob", "Grep"],
+            permission_mode="default" # 对于只读操作，SDK 默认会智能放行
+        )
     )
 
-    result = []
-    async for message in query(prompt=prompt, options=options):
-        if hasattr(message, 'content'):
-            result.append(message.content)
-            print(message.content)
+    print(f"🕵️ 开始审计 {target_dir}...")
 
-    return "\n".join(result)
+    async for event in stream:
+        # 实时打印它的思考过程
+        print(event)
 
 if __name__ == "__main__":
-    asyncio.run(code_review_agent("src/main.py"))
+    asyncio.run(smart_review("./src"))
 ```
 
-#### 6.2.3 带 Skills 的 Agent
+#### 6.2.3 Augmented Intelligence: 能力增强
+
+通过注入 Skills，我们可以让这个函数瞬间获得处理 Excel 或 PDF 的超能力。
 
 ```python
-# agent_with_skills.py
+# augmented_symbiont.py
 import asyncio
 from claude_agent_sdk import query, ClaudeAgentOptions
 
-async def document_processor():
-    """文档处理 Agent（使用 Skills）"""
+async def office_automation():
+    """
+    ⚡ 一个掌握了 Office 技能的自动化助理
+    """
 
+    # 💉 注入项目级配置 (包含 .claude/skills/*)
     options = ClaudeAgentOptions(
-        allowed_tools=["Read", "Edit", "Bash"],
-        setting_sources=["project"],  # 启用项目级配置（包括 Skills）
-        permission_mode="acceptEdits"
+        allowed_tools=["Read", "Edit", "Bash"], # 允许它写文件、运行命令
+        setting_sources=["project"],            # 加载当前目录下的 Skills
+        permission_mode="acceptEdits"           # 授予自动执行权
     )
 
-    prompt = """读取 data/sales_report.csv 文件，然后：
-1. 分析销售数据趋势
-2. 创建一个 Excel 报表，包含月度汇总和图表
-3. 生成一份 PDF 格式的管理层摘要"""
+    # 🗣️ 自然语言指令
+    prompt = """
+    读取 data/sales_q4.csv，做以下处理：
+    1. 用 Pandas 分析各地区的销售环比增长。
+    2. 生成一个漂亮的 Matplotlib 柱状图。
+    3. 最后生成一个总结性的 Excel 报表 (summary.xlsx)。
+    """
 
-    async for message in query(prompt=prompt, options=options):
-        print(message)
+    print("🤖 正在执行办公自动化任务...")
+    async for msg in query(prompt=prompt, options=options):
+        pass # 静默执行，只看结果
 
 if __name__ == "__main__":
-    asyncio.run(document_processor())
+    asyncio.run(office_automation())
 ```
 
-#### 6.2.4 自定义 Skill 创建
+#### 6.2.4 Knowledge Injection: 知识注入
 
-````bash
-# 创建 Skill 目录结构
-mkdir -p .claude/skills/data-analysis
+不需要改代码，只需在一个 Markdown 文件中定义逻辑，SDK 就会自动习得。
 
-# 创建 SKILL.md
-cat > .claude/skills/data-analysis/SKILL.md << 'EOF'
+```bash
+# 💉 像创建 Dockerfile 一样创建 Skill
+mkdir -p .claude/skills/data-science
+touch .claude/skills/data-science/SKILL.md
+
+# 📝 定义"数据科学家"的人设与SOP
+cat > .claude/skills/data-science/SKILL.md << 'EOF'
 ---
-name: data-analysis
-description: 执行数据分析任务，包括统计分析、可视化和报告生成。
-             当用户请求数据分析、统计或可视化时使用。
+name: data-scientist
+description: 专业的 Python 数据分析师，擅长 Pandas/Numpy/Matplotlib。
+  当用户涉及 csv 处理、统计分析或绘图时激活。
 ---
 
-# Data Analysis Skill
+# Data Science Protocol
 
-## 分析流程
+## Workflow
+1. **Inspection**: 先打印 DataFrame 的 `head()` 和 `info()`。
+2. **Cleaning**: 检查并处理 NaN 值。
+3. **Visualization**: 所有图表必须有 Title, Label 和 Legend。
+4. **Output**: 尽量保存为 high-dpi 的 vector graphics (SVG/PDF)。
 
-1. **数据加载**
-   - 使用 pandas 读取数据文件
-   - 检查数据质量
-
-2. **探索性分析**
-   - 计算描述性统计
-   - 识别异常值
-
-3. **可视化**
-   - 使用 matplotlib/seaborn 创建图表
-   - 保存为 PNG 文件
-
-## 代码模板
-
-```python
-import pandas as pd
-import matplotlib.pyplot as plt
-
-def analyze(file_path):
-    df = pd.read_csv(file_path)
-    print(df.describe())
-    # ... 更多分析
-```
-
+## Code Snippet
+在使用 Pandas 时，请优先使用链式调用 (Method Chaining) 以保持代码整洁。
 EOF
+```
 
-````
+### 6.3 The Hybrid Architecture：指挥官与特种兵
 
-### 6.3 混合架构方案
+在实战中，我们往往不需要做"单选题"。最强大的系统往往是 **Google ADK 的宏观管控力** 与 **Claude 的微观创造力** 的结合。
 
-对于复杂场景，可以考虑混合使用两个框架：
+- **Brain (大脑)**: Google ADK。负责任务分解、状态管理、记忆检索和最终的一致性校验。
+- **Hands (双手)**: Claude SDK。负责执行具体的、需要高智商（High-IQ）的代码编写或非结构化数据处理任务。
 
 ```mermaid
 graph TB
-    subgraph "混合架构"
-        U[用户请求] --> O[Orchestrator<br/>Google ADK]
+    subgraph "The Command Center (Google ADK)"
+        direction TB
+        Orchestrator["👔 General Manager<br/>(ADK Workflow Agent)"]
+        Memory[(🧠 Vertex Memory Bank)]
 
-        O --> A1[Research Agent<br/>Google ADK]
-        O --> A2[Code Agent<br/>Claude SDK]
-        O --> A3[Document Agent<br/>Claude + Skills]
-
-        A1 --> R[聚合结果]
-        A2 --> R
-        A3 --> R
+        Orchestrator <--> Memory
     end
 
-    style O fill:#4285f4,color:white
-    style A2 fill:#cc785c,color:white
-    style A3 fill:#d4a574,color:black
+    subgraph "The Field Specialists (Claude SDK)"
+        direction TB
+        CodeSpec["👨‍💻 Code Specialist<br/>(Claude SDK + Native Tools)"]
+        DocSpec["✍️ Document Specialist<br/>(Claude SDK + Office Skills)"]
+    end
+
+    subgraph "The Grid"
+        Worker["👷 Standard Worker<br/>(ADK LlmAgent)"]
+    end
+
+    U[User Task] --> Orchestrator
+
+    Orchestrator --"Delegate: Coding Task"--> CodeSpec
+    Orchestrator --"Delegate: Analysis Task"--> DocSpec
+    Orchestrator --"Delegate: Simple Search"--> Worker
+
+    CodeSpec --"Commit Code"--> Repo
+    DocSpec --"Upload Report"--> Drive
+
+    style Orchestrator fill:#4285f4,color:white
+    style CodeSpec fill:#cc785c,color:white
+    style DocSpec fill:#d4a574,color:black,stroke-width:2px
 ```
 
-**实现思路**：
+**Implementation Pattern (集成模式)**：
 
-1. 使用 ADK 作为顶层编排器
-2. 代码相关任务委托给 Claude Agent SDK
-3. 文档处理使用 Claude + Skills
-4. 通过 API 或 MCP 进行跨框架通信
+1.  **Macro-Management (宏观调度)**: 使用 ADK 的 `Workflow Agent` 定义 SOP 和状态机。
+2.  **Cognitive Routing (认知路由)**:
+    - **结构化/重复性任务** -> 派发给 ADK 原生 Worker (成本低，速度快)。
+    - **创造性/高难度任务** -> 派发给 Claude SDK (智商高，工具强)。
+3.  **Result Aggregation (结果聚合)**: 所有 Agent 的产出统一回流到 ADK 的 Context 中，并存入 Memory Bank。
 
 ---
 
