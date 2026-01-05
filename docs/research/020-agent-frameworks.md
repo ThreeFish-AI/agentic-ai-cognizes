@@ -15,61 +15,73 @@ tags:
 
 ## 1. 概述
 
-在 AI Agent 领域， Google 和 Anthropic 作为 AI 领域的领先企业，分别推出了各自的 Agent 开发框架：
+在 Agentic AI 极速演进的浪潮中，我们正见证着软件开发范式从「功能实现」向「认知架构」的深刻变革。作为这一领域的领航者，Google 和 Anthropic 分别交出了自己的答卷，为开发者开辟了两条通往未来的不同路径。
 
-- **Google Agent Development Kit (ADK)**：一个开源的、模块化的框架，支持构建、评估和部署复杂的 AI Agent 应用<sup>[[1]](#ref1)</sup>
-- **Claude Agent SDK**：基于 Claude Code 的编程接口，提供与 Claude Code 相同的工具和上下文管理能力<sup>[[2]](#ref2)</sup>
-- **Agent Skills**：Claude 的模块化能力扩展系统，通过文件系统架构实现渐进式内容加载<sup>[[3]](#ref3)</sup>
+**Google Agent Development Kit (ADK)** 与 **Claude Agent SDK** 的出现，标志着智能体开发正式进入了工程化与标准化的新纪元。它们不仅是工具集，更是两种截然不同的设计哲学的体现：
 
-### 1.2 调研目标
+- **Google Agent Development Kit (ADK)**：**智能的工业化基石**。这是一个生产级、模块化的全栈框架，旨在解决复杂 AI Agent 在构建、评估与部署中的工程挑战，为企业级应用提供了坚实的架构支撑<sup>[[1]](#ref1)</sup>
+- **Claude Agent SDK**：**认知的自然延伸**。基于 Claude Code 强大的编程接口，它将日常的工具使用与上下文管理无缝融合，让开发者在实践中以最符合直觉的方式构建具备自主能力的智能体，极大地加速了创新的验证过程<sup>[[2]](#ref2)</sup>
+- **Agent Skills**：**能力的原子化封装**。作为 Claude 生态的点睛之笔，它通过创新的文件系统架构实现了「渐进式认知加载」，重新定义了智能体能力的扩展与复用方式<sup>[[3]](#ref3)</sup>
 
-1. 全面理解两个框架的架构设计和核心概念
-2. 深入分析各自的功能特性和技术实现
-3. 对比两者的优势和适用场景
-4. 提供本项目的集成实施指引
+### 1.2 研究愿景
 
-### 1.3 核心发现摘要
+本调研旨在穿越技术细节的迷雾，还原框架设计的本质，为团队提供从认知到落地的全链路指引：
+
+1. **架构解构 (Deconstruction)**：透视 Google ADK 的「积木式」模块化设计与 Claude Agent SDK 的「交互式」流式架构的底层逻辑。
+2. **能力对齐 (Alignment)**：深度评估两者在记忆管理 (Memory)、工具调度 (Tooling) 及多智能体协作 (Multi-Agent) 上的能力边界。
+3. **场景映射 (Mapping)**：明确「工业级生产」与「敏捷验证」的最佳适用领地，构建技术选型决策树。
+4. **实战指引 (Practice)**：提炼从环境搭建、Skill 开发到生产部署的最佳实践路径。
+
+### 1.3 核心特性图谱
+
+通过深度解构，我们将两大框架的核心特性映射为以下双极能力图谱：
 
 ```mermaid
 mindmap
-  root((Google ADK))
-    多语言支持
-      Python
-      TypeScript
-      Go
-      Java
-    Agent 类型
-      LLM Agent
-      Workflow Agent
-      Custom Agent
-    特色能力
-      Multi-Agent 系统
+  root((Google ADK<br/>工业化基石))
+    核心架构
+      模块化设计 ("模块化设计(Modular)")
+      多语言运行时 (Polyglot<br/>Python, TS, Go, Java)
+      事件驱动状态机
+    智能体编排
+      LLM Agent (LLM Agent<br/>推理核心)
+      Workflow Agent (Workflow Agent<br/>确定性流)
+      Multi-Agent (Multi-Agent<br/>多体协同)
+    企业级能力
       Vertex AI Memory Bank
-      MCP/A2A 协议
+      完整评估框架 (Eval)
       完整部署方案
+      生产级安全沙箱
+    协议与标准
+      MCP 客户端/服务端
+      Agent2Agent 协议
 ```
 
 ---
 
 ```mermaid
 mindmap
-  root((Claude Agent SDK))
-    语言支持
-      Python
-      TypeScript
-    核心特性
-      内置工具
-      权限控制
-      Streaming API
+  root((Claude SDK<br/>认知延伸))
+    交互范式
+      自然语言驱动 (NL-First)
+      流式反馈 (Streaming)
+      人机分权 (Permission)
     Agent Skills
-      三层加载
-      预构建 Skills
-      自定义 Skills
+      文件系统架构
+      渐进式上下文加载
+      可复用能力单元
+    开发体验
+      REPL 交互式开发
+      内置工程工具集
+      上下文自动管理
+    生态集成
+      MCP 原生支持
+      Claude Code 协同
 ```
 
 ---
 
-## 2. Google ADK 深度分析
+## 2. Google ADK
 
 ### 2.1 架构概览
 
@@ -585,7 +597,7 @@ ADK 安全框架涵盖<sup>[[16]](#ref16)</sup>：
 
 ---
 
-## 3. Claude Agent SDK 深度分析
+## 3. Claude Agent SDK
 
 ### 3.1 SDK 概述
 
@@ -768,7 +780,7 @@ options = ClaudeAgentOptions(
 
 ---
 
-## 4. Agent Skills 深度分析
+## 4. Agent Skills
 
 ### 4.1 Skills 概念与价值
 
@@ -946,7 +958,7 @@ Skills 安全最佳实践<sup>[[3]](#ref3)</sup>：
 
 ---
 
-## 5. 功能对比分析
+## 5. 横向对比
 
 ### 5.1 核心能力矩阵
 
@@ -997,7 +1009,7 @@ graph TB
 
 ---
 
-## 6. Demo 实施指引
+## 6. 实施指引
 
 ### 6.1 Google ADK 集成指南
 
