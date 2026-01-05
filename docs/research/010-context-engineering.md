@@ -386,14 +386,20 @@ graph LR
 
 ## 3. Context Engineering 的主流框架（Agent Framework）
 
+明白了"厨房理论"，我们就来看看**业界三大顶尖"厨具商"（Frameworks）**是如何打造他们的厨房的。
+
 ### 3.1 Google ADK (Agent Development Kit)
 
+**Google ADK 就像是一座标准化的工业级中央厨房**。它最显著的特点是提供了极度严谨的**分箱收纳体系（Context Hierarchy）**：
+
 #### 3.1.1 核心 Context 体系
+
+在 ADK 中，大厨不需要每次都重新找盒子，所有东西都有严格的标签：
 
 ```mermaid
 graph TD
     subgraph ADK["Google ADK 记忆体系"]
-        IC[InvocationContext] --> S[Session]
+        IC[Invocation Context] --> S[Session]
         IC --> ST[State]
         IC --> M[Memory]
 
@@ -423,14 +429,14 @@ graph TD
 | **Event**    | 交互中的原子操作记录        | 当前会话 | 取决于 SessionService  |
 | **Artifact** | 与会话关联的文件/数据块     | 当前会话 | 取决于 ArtifactService |
 
-ADK 的 **State** 通过键前缀实现精细的作用域控制：
+ADK 独创了一套 **'魔法便利贴'（Prefix-based State）** 机制。你只需要在 Key 上加不同的 **前缀**，系统就会自动把这张便利贴贴到不同的地方（作用域）：
 
-| 前缀    | 作用域               | 持久性                 | 用例               |
-| :------ | :------------------- | :--------------------- | :----------------- |
-| 无前缀  | 当前 Session         | 取决于 SessionService  | 任务进度、临时标志 |
-| `user:` | 跨该用户所有 Session | Database/VertexAI 持久 | 用户偏好、配置     |
-| `app:`  | 跨该应用所有用户     | Database/VertexAI 持久 | 全局设置、模板     |
-| `temp:` | 当前 Invocation      | 不持久                 | 中间计算、临时数据 |
+| 前缀    | 作用域               | 持久性                 | 场景类比（便利贴贴在哪？）                             |
+| :------ | :------------------- | :--------------------- | :----------------------------------------------------- |
+| 无前缀  | 当前 Session         | 取决于 SessionService  | **餐桌上**：吃完这顿饭就清理了（任务进度、临时标志）   |
+| `user:` | 跨该用户所有 Session | Database/VertexAI 持久 | **VIP 档案里**：老顾客下次来还有（用户偏好、配置）     |
+| `app:`  | 跨该应用所有用户     | Database/VertexAI 持久 | **餐厅墙上**：所有人都得遵守（全局设置、模板）         |
+| `temp:` | 当前 Invocation      | 不持久                 | **手心里**：做完这个动作就洗掉了（中间计算、临时变量） |
 
 ```python
 # Google ADK State 使用示例 [5]
@@ -450,14 +456,18 @@ async def my_tool(ctx: ToolContext):
 
 #### 3.1.2 Context Engineering
 
-1. **Context Collection** 在 ADK 被抽象为多个层次的 Context 对象：
+在 ADK 这个"中央厨房"中，原材料（Context）的流转有着严格的 SOP：
 
-   | Context 类型          | 描述                         | 可访问位置                 |
-   | :-------------------- | :--------------------------- | :------------------------- |
-   | **InvocationContext** | 完整调用上下文，包含所有信息 | Agent 的 `_run_async_impl` |
-   | **CallbackContext**   | 回调中的只读上下文           | Agent/Model 回调           |
-   | **ToolContext**       | 工具执行时的可写上下文       | Function Tools             |
-   | **ReadonlyContext**   | 只读上下文，用于表达式评估   | Agent Config 表达式        |
+1. **Context Collection（按需领料）**
+
+   ADK 并不把所有信息一次性堆给所有人，而是根据**工种（位置）**分发不同的**领料单（Context Object）**：
+
+   | Context 类型          | 描述                         | 可访问位置                 | 角色类比                   |
+   | :-------------------- | :--------------------------- | :------------------------- | :------------------------- |
+   | **InvocationContext** | 完整调用上下文，包含所有信息 | Agent 的 `_run_async_impl` | **主厨**：全知全能         |
+   | **CallbackContext**   | 回调中的只读上下文           | Agent/Model 回调           | **督导**：只看不动         |
+   | **ToolContext**       | 工具执行时的可写上下文       | Function Tools             | **配菜员**：可操作局部状态 |
+   | **ReadonlyContext**   | 只读上下文，用于表达式评估   | Agent Config 表达式        | **显示屏**：仅供参考       |
 
    ```python
    # Google ADK 上下文收集示例
@@ -479,62 +489,71 @@ async def my_tool(ctx: ToolContext):
                )
    ```
 
-2. **Context Compaction (Compression)** 通过滑动窗口摘要老旧事件。
+2. **Context Compaction（台面清理）**
 
-```python
-# Google ADK Context Compaction
-from google.adk.apps.app import EventsCompactionConfig
+   为了防止"灶台"（Context Window）堆满，ADK 采用**滑动窗口（Sliding Window）**机制，定期清理陈旧的"果皮纸屑"（Old Events）。
 
-app = App(
-    name='my-agent',
-    root_agent=root_agent,
-    events_compaction_config=EventsCompactionConfig(
-        compaction_interval=3,  # 每 3 次调用触发压缩
-        overlap_size=1,         # 保留前一窗口的 1 个事件
-    ),
-)
-```
+   ```python
+   # Google ADK Context Compaction
+   from google.adk.apps.app import EventsCompactionConfig
 
-3. **Context Caching** 可以减少重复发送大型指令集或数据集，通过配置触发条件和缓存策略。
+   app = App(
+       name='my-agent',
+       root_agent=root_agent,
+       events_compaction_config=EventsCompactionConfig(
+           compaction_interval=3,  # 每 3 次调用触发压缩
+           overlap_size=1,         # 保留前一窗口的 1 个事件
+       ),
+   )
+   ```
 
-```python
-from google.adk.agents.context_cache_config import ContextCacheConfig
+3. **Context Caching（预制备菜）**
 
-app = App(
-    name='my-agent',
-    root_agent=root_agent,
-    context_cache_config=ContextCacheConfig(
-        min_tokens=2048,      # 触发缓存的最小 token 数
-        ttl_seconds=600,      # 缓存存活时间 (10分钟)
-        cache_intervals=5,    # 刷新间隔（使用次数）
-    ),
-)
-```
+   对于那些体积巨大且反复使用的"食材"（如超长 System Prompt 或大文件），ADK 会将其暂存为**预制菜（Cache）**，避免每次都从零处理（Token Re-computation）。
+
+   ```python
+   from google.adk.agents.context_cache_config import ContextCacheConfig
+
+   app = App(
+       name='my-agent',
+       root_agent=root_agent,
+       context_cache_config=ContextCacheConfig(
+           min_tokens=2048,      # 触发缓存的最小 token 数
+           ttl_seconds=600,      # 缓存存活时间 (10分钟)
+           cache_intervals=5,    # 刷新间隔（使用次数）
+       ),
+   )
+   ```
 
 ### 3.2 Agno
 
-#### 3.2.1 Context Collection
+如果说 Google ADK 是工业级中央厨房，那么 **Agno 就是一个主打"懒人包"的高级自助餐厅**。它的设计哲学是**配置驱动（Configuration Driven）**——你不需要自己去地里拔萝卜，只需要在菜单上勾选你要的"套餐组件"，系统就会自动把菜做好。
 
-Agno 的上下文收集基于 Agent 参数配置：
+#### 3.2.1 Context Collection（自助选餐）
 
-| 组件                   | 描述                                                     | 配置方式                      |
-| :--------------------- | :------------------------------------------------------- | :---------------------------- |
-| **System Message**     | 主上下文（description + instructions + expected_output） | Agent 构造参数                |
-| **User Message**       | 用户输入                                                 | `Agent.run(input)`            |
-| **Chat History**       | 对话历史                                                 | `add_history_to_context=True` |
-| **Additional Context** | Few-shot 示例或其他补充等                                | `additional_context` 参数     |
-| **Memory**             | 长期记忆                                                 | `enable_user_memories=True`   |
-| **Knowledge**          | 外部知识库                                               | `knowledge` 参数              |
+Agno 的上下文收集就像是在**点自助餐**，所有功能都封装成了开箱即用的**开关（Options）**：
+
+| 组件                   | 描述                                                    | 配置方式                      | 自助餐类比                               |
+| :--------------------- | :------------------------------------------------------ | :---------------------------- | :--------------------------------------- |
+| **System Message**     | 主上下文<br/>description、instructions、expected_output | Agent 构造参数                | **主菜**：定下餐厅的基调（川菜还是粤菜） |
+| **User Message**       | 用户输入                                                | `Agent.run(input)`            | **客人的点单**                           |
+| **Chat History**       | 对话历史                                                | `add_history_to_context=True` | **上一轮的盘子**：参考客人刚吃了啥       |
+| **Additional Context** | Few-shot 示例或其他补充等                               | `additional_context` 参数     | **佐料/小菜**：给这道菜加点料            |
+| **Memory**             | 长期记忆                                                | `enable_user_memories=True`   | **会员记录**：老规矩，不加香菜           |
+| **Knowledge**          | 外部知识                                                | `knowledge` 参数              | **百科全书**：不懂随时查                 |
 
 ```python
-# System Message 构建示例
+# Agno "自助点餐单" 示例
 from agno.agent import Agent
 
 agent = Agent(
+    # [主菜] 设定角色和基调
     name="Helpful Assistant",
     role="Assistant",
     description="You are a helpful assistant",
     instructions=["Help the user with their question"],
+
+    # [小菜] 加点 Few-shot 示例提味
     additional_context="""
         Here is an example:
         Request: What is the capital of France?
@@ -542,30 +561,34 @@ agent = Agent(
     """,
     expected_output="Format response with `Response: <response>`",
 
-    # Context 增强选项
-    add_datetime_to_context=True,
-    add_location_to_context=True,
-    add_name_to_context=True,
-    add_session_summary_to_context=True,  # 添加历史摘要
-    add_memories_to_context=True,          # 添加长期记忆
-    add_session_state_to_context=True,     # 添加会话状态
+    # [套餐加项] 勾选需要的配菜
+    add_datetime_to_context=True,          # 加点时间观念
+    add_location_to_context=True,          # 加点地理位置
+    add_name_to_context=True,              # 加上客人名字
+    add_session_summary_to_context=True,   # 加上历史摘要（解腻）
+    add_memories_to_context=True,          # 加上会员记忆
+    add_session_state_to_context=True,     # 加上当前状态
 
-    # 外部知识
+    # [外挂] 允许查阅百科全书
     knowledge=my_knowledge_base,
 )
 ```
 
-#### 3.2.1 Memory 模式
+#### 3.2.2 Memory & Knowledge（记忆与知识）
 
-Agno 提供两种 Memory 模式 <sup>[[8]](#ref8)</sup>：
+点完餐（Collection）后，如何记住客人的喜好？Agno 提供了一套智能的 **VIP 客户档案系统（Memory）**，并将其与**百科全书（Knowledge）**做了清晰的切割。
 
-| 模式                 | 配置                         | 行为                            |
-| :------------------- | :--------------------------- | :------------------------------ |
-| **Automatic Memory** | `enable_user_memories=True`  | 自动从对话中提取和召回记忆      |
-| **Agentic Memory**   | `enable_agentic_memory=True` | Agent 自主决定何时创建/更新记忆 |
+**1. Memory 模式：谁来写档案？**
+
+Agno 提供两种维护客户档案的方式 <sup>[[8]](#ref8)</sup>：
+
+| 模式                 | 配置                         | 行为                            | 档案员类比                                                                     |
+| :------------------- | :--------------------------- | :------------------------------ | :----------------------------------------------------------------------------- |
+| **Automatic Memory** | `enable_user_memories=True`  | 自动从对话中提取和召回记忆      | **隐形记录员**：默默站在旁边，听到"我不吃辣"就自动记入档案，完全不用大厨操心。 |
+| **Agentic Memory**   | `enable_agentic_memory=True` | Agent 自主决定何时创建/更新记忆 | **大厨亲自记**：大厨（Agent）觉得这点很重要，主动掏出本子记下来（调用工具）。  |
 
 ```python
-# Agno Memory 示例
+# Agno "智能档案" 示例
 from agno.agent import Agent
 from agno.db.postgres import PostgresDb
 
@@ -576,111 +599,117 @@ db = PostgresDb(
 
 agent = Agent(
     db=db,
-    enable_user_memories=True,  # 自动记忆
+    enable_user_memories=True,  # [隐形记录员] 上岗
 )
 
-# 记忆自动从对话中提取
+# 场景：记录员自动工作
 agent.print_response(
     "My name is Sarah and I prefer email over phone calls.",
     user_id="user-123"
 )
 
-# 记忆自动召回
+# 场景：自动翻阅档案
 agent.print_response(
     "What's the best way to reach me?",
     user_id="user-123"
-)  # Agent 会记住偏好
+)  # Agent 会翻看档案，回答 "Email"
 ```
 
 > [!IMPORTANT]
 >
-> **Knowledge 集成**
+> **基本概念区分：百科全书 vs 私人日记**
 >
-> Agno 将 Knowledge（知识库/RAG）与 Memory（记忆）区分：
+> Agno 严格区分了 **Knowledge** 和 **Memory**，切勿混淆：
 >
-> - **Knowledge**: 外部知识源（文档、数据库），用于增强 Agent 能力
-> - **Memory**: 从交互中学习的用户偏好和上下文
+> - **Knowledge (RAG)** = **百科全书/菜谱大全**。它是公共的、静态的知识（比如"法式鹅肝的做法"），用来增强 Agent 的业务能力。
+> - **Memory** = **私人日记/客户档案**。它是私有的、动态的记录（比如"Sarah 不吃葱"），用来提升个性化体验。
 
 ### 3.3 LangChain / LangGraph
 
-LangChain 官方博客整理了 Context Engineering 的四大策略：
+不管是中央厨房（ADK）还是自助餐厅（Agno），都是为你建好的房子。而 **LangChain/LangGraph 就像是"乐高积木王国"** —— 给你一地零件（工具），想盖摩天大楼还是霍比特人小屋，全看你的想象力。
+
+LangChain 官方总结了四大"积木搭建"策略：
 
 ```mermaid
 graph TD
-    CE[Context Engineering] --> W[Writing<br>写入外部存储]
-    CE --> S[Selecting<br>动态检索]
-    CE --> C[Compressing<br>压缩摘要]
-    CE --> I[Isolating<br>上下文隔离]
+    CE[Context Engineering] --> W["Writing<br>外部记事(外部存储)"]
+    CE --> S["Selecting<br>按需翻找(动态检索)"]
+    CE --> C["Compressing<br>打包压缩(压缩摘要)"]
+    CE --> I["Isolating<br>分工隔离(上下文隔离)"]
 
-    W --> W1["Scratchpad<br>外部记事本"]
-    W --> W2["LangGraph State<br>图状态持久化"]
+    W --> W1["Scratchpad<br>草稿本(临时存储)"]
+    W --> W2["LangGraph State<br>存档点(图状态持久化)"]
 
-    S --> S1["Vector Search<br>向量检索"]
-    S --> S2["Just-in-Time RAG<br>实时 RAG"]
+    S --> S1["Vector Search<br>相似积木(向量检索)"]
+    S --> S2["Just-in-Time RAG<br>缺啥找啥(实时 RAG)"]
 
-    C --> C1["Summarization<br>对话摘要"]
-    C --> C2["Token Pruning<br>Token 修剪"]
+    C --> C1["Summarization<br>写游记(对话摘要)"]
+    C --> C2["Token Pruning<br>扔掉废料(Token 修剪)"]
 
-    I --> I1["Sub-Agent<br>子 Agent"]
-    I --> I2["Subgraph<br>子图"]
+    I --> I1["Sub-Agent<br>各管一摊(子 Agent)"]
+    I --> I2["Subgraph<br>独立房间(子图)"]
 ```
 
 #### 3.3.1 Memory 机制
 
-LangGraph 区分两种持久化机制 <sup>[[11]](#ref11)[[12]](#ref12)</sup>：
+可以将 **Memory 机制** 形象地类比为 **游戏进度存档**。在冒险游戏中，LangGraph 提供了两套不同维度的"存档"机制（持久化机制） <sup>[[11]](#ref11)[[12]](#ref12)</sup>：
 
-| 类型                  | 机制         | 范围      | 用途                   |
-| :-------------------- | :----------- | :-------- | :--------------------- |
-| **Short-term Memory** | Checkpointer | Thread 内 | 对话历史、状态快照     |
-| **Long-term Memory**  | Store        | 跨 Thread | 用户偏好、学习到的知识 |
+| 类型                  | 机制             | 范围      | 用途/类比                                                                                                                             |
+| :-------------------- | :--------------- | :-------- | :------------------------------------------------------------------------------------------------------------------------------------ |
+| **Short-term Memory** | **Checkpointer** | Thread 内 | 对话历史、状态快照。<br/>**游戏存档点 (Save Point)**：随时可以回档重玩（Time Travel），记录每一关的状态，关机（会话结束）可能就没了。 |
+| **Long-term Memory**  | **Store**        | 跨 Thread | 用户偏好、学习到的知识。<br/>**全成就奖杯库 (Global Trophy Room)**：不管开几个新存档，你解锁的成就和收集的图鉴都在。                  |
 
-LangGraph 的 Memory 类型：
+LangGraph 还提供了各种不同款式的 **"冒险背包"（Memory Types）**：
 
-| Memory 类型                         | 描述                            | 适用场景       |
-| :---------------------------------- | :------------------------------ | :------------- |
-| **ConversationBufferMemory**        | 存储完整对话历史                | 短对话         |
-| **ConversationBufferWindowMemory**  | 滑动窗口，仅保留最近 K 条       | 中等对话       |
-| **ConversationSummaryMemory**       | 摘要历史对话                    | 长对话         |
-| **ConversationSummaryBufferMemory** | 混合：摘要旧对话 + 完整保留近期 | 平衡场景       |
-| **VectorStoreRetrieverMemory**      | 向量存储，基于相似度检索        | 跨会话持久记忆 |
+| Memory 类型                         | 描述                                                                                 | 适用场景             |
+| :---------------------------------- | :----------------------------------------------------------------------------------- | :------------------- |
+| **ConversationBufferMemory**        | 存储完整对话历史<br/>**无限次元袋**：啥都往里塞，不管多重。                          | 短途旅行（短对话）   |
+| **ConversationBufferWindowMemory**  | 滑动窗口，仅保留最近 K 条<br/>**限定容量包**：新东西进来，旧东西挤出去。             | 轻装上阵（中等对话） |
+| **ConversationSummaryMemory**       | 摘要历史对话<br/>**探险日记本**：东西都扔了，只记发生了什么。                        | 长篇史诗（长对话）   |
+| **ConversationSummaryBufferMemory** | 混合：摘要旧对话 + 完整保留近期<br/>**混合战术包**：近期物品随身带，早期经历写日记。 | 平衡型（最佳实践）   |
+| **VectorStoreRetrieverMemory**      | 向量存储，基于相似度检索<br/>**魔法召唤阵**：心念一动，相关物品自动飞来。            | 跨越时空的记忆       |
 
 ```python
-# LangGraph 短期记忆 (Checkpointer)
+# LangGraph 游戏存档点 (Checkpointer)
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.postgres import PostgresSaver
 
-# 本地测试
+# [试玩版存档] - 内存
 checkpointer = InMemorySaver()
 
-# 生产环境
+# [正式版云存档] - 数据库
 checkpointer = PostgresSaver(conn)
 
+# 编译游戏引擎
 graph = builder.compile(checkpointer=checkpointer)
 
-# 使用 thread_id 标识对话
-config = {"configurable": {"thread_id": "conversation-123"}}
+# [自动存档/读档机制]
+# 只要配置了 thread_id，LangGraph 就会开启"RPG 模式"：
+# 1. Load (读档): 自动读取该 thread_id 的历史状态
+# 2. Auto-Save (自动存档): 每次节点(Node)执行完，自动保存最新状态
+config = {"configurable": {"thread_id": "save-file-001"}}
 graph.invoke(input_data, config)
 ```
 
 ```python
-# LangGraph 长期记忆 (Store)
+# LangGraph 成就/藏宝库 (Store)
 from langgraph.store.memory import InMemoryStore
 from langgraph_checkpoint_postgres import PostgresStore
 
 store = InMemoryStore()
 
-# 编译时同时启用 checkpointer 和 store
+# 游戏引擎由双核驱动：存档点 + 藏宝库
 graph = builder.compile(checkpointer=checkpointer, store=store)
 
-# 在节点中使用 store
+# 在关卡(Node)中存取宝物
 def my_node(state, config, *, store):
     user_id = config["configurable"]["user_id"]
     namespace = (user_id, "memories")
 
-    # 存储记忆
+    # 获得成就：喜欢披萨
     store.put(namespace, "preference", {"food": "pizza"})
 
-    # 检索记忆 (支持语义搜索)
+    # 查攻略：我喜欢啥？
     memories = store.search(namespace, query="what do I like?")
 ```
 
