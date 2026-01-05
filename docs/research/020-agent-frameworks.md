@@ -83,52 +83,56 @@ mindmap
 
 ## 2. Google ADK
 
-### 2.1 架构概览
+### 2.1 架构概览：智能的工业化堆栈
 
-Google Agent Development Kit (ADK) 是一个灵活的、模块化的框架，专为构建和部署 AI Agent 而设计<sup>[[1]](#ref1)</sup>。ADK 的核心设计理念包括：
+Google ADK 不需要被视为一个简单的 SDK，而是一套完整的**智能体工业化堆栈 (Industrial Stack for Agents)**。它采用分层解耦的架构设计，旨在消除从「原型 Demo」到「生产级应用」之间的鸿沟，让开发者能够像搭建乐高积木一样构建复杂的智能体系统。
 
-- **模块化架构**：各组件可独立使用和组合
-- **多语言支持**：Python（主要）、TypeScript、Go、Java
-- **生产就绪**：完整的部署、评估和安全方案
-- **生态整合**：与 Google Cloud 服务深度集成
+其架构哲学可以概括为 **"Composable Intelligence" (可组合的智能)**：
+
+- **多语言原生 (Polyglot Runtime)**：打破语言壁垒，提供 Python, TypeScript, Go, Java 的原生支持，让工程团队使用最熟悉的武器。
+- **模块化组件 (Modular Components)**：将记忆(Memory)、工具(Tools)、状态(State)解耦为独立服务，既可单体运行，也可微服务化部署。
+- **生产级基座 (Production Foundation)**：内置了企业级应用必须的安全沙箱、可观测性与弹性扩缩能力。
 
 ```mermaid
 graph TB
-    subgraph "ADK 架构层次"
+    subgraph "Layer 1: User Experience"
+        A[Client App / Frontend]
+    end
+
+    subgraph "Layer 2: Agent Abstractions (The Brains)"
         direction TB
-        A[Application Layer] --> B[Agent Layer]
-        B --> C[Runtime Layer]
-        C --> D[Infrastructure Layer]
+        B1[LLM Agent<br/>推理与决策]
+        B2[Workflow Agent<br/>编排与控制]
+        B3[Custom Agent<br/>领域逻辑]
     end
 
-    subgraph "Agent Layer 详情"
-        B1[LLM Agent]
-        B2[Workflow Agent]
-        B3[Custom Agent]
+    subgraph "Layer 3: Core Runtime (The Nervous System)"
+        direction LR
+        C1[Session Service<br/>会话管理]
+        C2[Memory Service<br/>长期记忆]
+        C3[Tool Registry<br/>工具调度]
+        C4[State Mgmt<br/>上下文状态]
     end
 
-    subgraph "核心组件"
-        C1[Session Service]
-        C2[Memory Service]
-        C3[Artifact Service]
-        C4[Tool Registry]
+    subgraph "Layer 4: Infrastructure (The Body)"
+        D1[Vertex AI Agent Engine]
+        D2[Cloud Run / K8s]
+        D3[Local / Docker]
     end
 
-    subgraph "部署目标"
-        D1[Agent Engine]
-        D2[Cloud Run]
-        D3[GKE]
-        D4[Local/Docker]
-    end
+    A --> B1 & B2
+    B1 & B2 & B3 --> C1 & C2 & C3 & C4
+    C1 & C2 & C3 & C4 -.-> D1 & D2 & D3
 
-    B --> B1 & B2 & B3
-    C --> C1 & C2 & C3 & C4
-    D --> D1 & D2 & D3 & D4
+    classDef blue fill:#e8f0fe,stroke:#4285f4,color:#1967d2,stroke-width:2px;
+    classDef green fill:#e6f4ea,stroke:#34a853,color:#137333,stroke-width:2px;
+    classDef yellow fill:#fef7e0,stroke:#fbbc04,color:#b06000,stroke-width:2px;
+    classDef red fill:#fce8e6,stroke:#ea4335,color:#c5221f,stroke-width:2px;
 
-    style A fill:#4285f4,color:white
-    style B fill:#34a853,color:white
-    style C fill:#fbbc04,color:black
-    style D fill:#ea4335,color:white
+    class A blue
+    class B1,B2,B3 green
+    class C1,C2,C3,C4 yellow
+    class D1,D2,D3 red
 ```
 
 ### 2.2 Agent 类型体系
