@@ -459,73 +459,97 @@ consultant = LlmAgent(
 )
 ```
 
-### 2.5 Context 管理
+#### 2.4.3 Context Objects：通往世界的钥匙
 
-ADK 提供四种 Context 类型，用于不同场景<sup>[[10]](#ref10)</sup>：
+在 ADK 中，Context 对象是连接 Agent 逻辑与底层 Runtime 的 **"万能钥匙"**。为了践行 **最小权限原则 (Principle of Least Privilege)**，ADK 根据使用场景提供了不同权限等级的 Context 对象，防止不安全的越权操作。
 
-| Context 类型        | 使用场景       | 主要能力                |
-| ------------------- | -------------- | ----------------------- |
-| `InvocationContext` | Agent 实现内部 | 完整访问                |
-| `ReadonlyContext`   | 指令提供器     | 只读访问                |
-| `CallbackContext`   | 回调函数       | 事件处理                |
-| `ToolContext`       | 工具函数       | 状态读写、Artifact 操作 |
+| Context 类型          | 权限等级 | 隐喻                     | 适用场景                                                                  |
+| :-------------------- | :------- | :----------------------- | :------------------------------------------------------------------------ |
+| **ToolContext**       | ⭐⭐⭐   | **特种装备 (Equipment)** | 供工具函数使用。除了读写 State，还能创建 Artifact（如生成的文件、图表）。 |
+| **InvocationContext** | ⭐⭐⭐⭐ | **指挥棒 (Baton)**       | 供 Agent 内部逻辑使用。拥有控制流程、调用子 Agent 的最高权限。            |
+| **ReadonlyContext**   | ⭐       | **查看器 (Viewer)**      | 供 Prompt 模板使用。仅允许读取 State 变量进行渲染，绝无副作用。           |
+| **CallbackContext**   | ⭐⭐     | **传感器 (Sensor)**      | 供生命周期钩子使用。用于监听事件和记录日志。                              |
+
+**实战：编写一个"上下文感知"的工具**：
+传统的工具函数通常是无状态的（Stateless），但在 ADK 中，通过注入 `ToolContext`，工具可以变得"聪明"起来——它能记住之前的操作，甚至直接向用户发送多媒体文件。
 
 ```python
 from google.adk.context import ToolContext
 
-def process_document(file_path: str, ctx: ToolContext) -> str:
-    """处理文档并保存结果"""
+# 注入 ToolContext，让工具具备"记忆"和"创造"能力
+def generate_analysis_report(data_id: str, ctx: ToolContext) -> str:
+    """生成并保存数据分析报告。
 
-    # 读取状态
-    user_id = ctx.state.get("user_id")
+    Args:
+        data_id: 数据集 ID
+        ctx: ADK 自动注入的上下文对象 (Magic Argument)
+    """
+    # 1. Access State: 获取用户的身份信息
+    user_tier = ctx.state.get("user_tier", "standard")
 
-    # 处理文档
-    content = read_file(file_path)
-    summary = summarize(content)
+    # 2. Side Effect: 生成 PDF 文件并作为 Artifact 保存
+    report_content = _run_analysis(data_id, depth=user_tier)
+    artifact_url = ctx.save_artifact(
+        name=f"report_{data_id}.pdf",
+        content=report_content,
+        mime_type="application/pdf"
+    )
 
-    # 保存 Artifact
-    ctx.save_artifact("document_summary", summary.encode())
+    # 3. Mutate State: 更新任务进度
+    ctx.state["last_report_url"] = artifact_url
 
-    # 更新状态
-    ctx.state["last_processed"] = file_path
-
-    return summary
+    return f"报告已生成完毕，您可以点击此处下载: {artifact_url}"
 ```
 
-### 2.6 Multi-Agent 系统
+### 2.5 Multi-Agent Systems：智能体的分形组织
 
-ADK 原生支持构建复杂的多 Agent 系统<sup>[[11]](#ref11)</sup>：
+ADK 的多智能体系统并非简单的扁平堆砌，而是一种**分形架构 (Fractal Architecture)**。这意味着每一个 Agent 内部都可以包含一个完整的子 Agent 系统，从而支持无限层级的嵌套与编排。
 
-#### 2.6.1 Agent 层级结构
+这种设计使得开发者可以像组建 **"一家公司"** 一样构建系统：
+
+- **Root Agent (CEO)**：负责最高层级的意图拆解与任务分发。
+- **Workflow Agent (Project Manager)**：负责特定业务线的流程管控。
+- **Specialist Agent (Expert Employee)**：负责具体领域的执行。
 
 ```mermaid
 graph TB
-    subgraph "Multi-Agent 架构"
-        R[Root Agent<br/>Orchestrator]
+    subgraph "Organization (The Fractal System)"
+        direction TB
 
-        subgraph "Workflow Layer"
-            W1[SequentialAgent]
-            W2[ParallelAgent]
+        CEO[Root Orchestrator<br/>决策大脑]
+
+        subgraph "Division A: Research Dept"
+            M1[Research Manager<br/>WorkflowAgent]
+            W1[Web Searcher]
+            W2[Paper Reader]
         end
 
-        subgraph "Specialist Agents"
-            A1[Research Agent]
-            A2[Analysis Agent]
-            A3[Writing Agent]
-            A4[Review Agent]
+        subgraph "Division B: Content Dept"
+            M2[Editor in Chief<br/>WorkflowAgent]
+            W3[Draft Writer]
+            W4[Critic & Reviewer]
         end
+
+        CEO --> M1 & M2
+        M1 --> W1 & W2
+        M2 --> W3 & W4
     end
 
-    R --> W1 & W2
-    W1 --> A1 --> A2
-    W2 --> A3 & A4
-
-    style R fill:#4285f4,color:white
-    style W1 fill:#34a853,color:white
-    style A1 fill:#fbbc04,color:black
+    style CEO fill:#4285f4,color:white,stroke-width:4px
+    style M1 fill:#34a853,color:white,stroke-width:2px
+    style M2 fill:#34a853,color:white,stroke-width:2px
+    style W1 fill:#fbbc04,color:black
+    style W3 fill:#fbbc04,color:black
 ```
 
-#### 2.6.2 Agent 委托模式
+#### 2.5.1 System of Agents (SoA)
+
+ADK 通过标准化的接口，将异构的智能体（LLM Agent, Workflow Agent, Custom Agent）编织成一个 **"有机整体"**。这种架构带来了两个核心优势：
+
+1. **Complexity Encapsulation (复杂度封装)**：上层 Agent 无需知道下层的实现细节，只需关注接口契约。
+2. **Cognitive Specialization (认知专业化)**：每个 Agent 可以使用不同的 Prompt、Tools 甚至不同的 LLM 模型（如 Researcher 用 Flash 模型，Writer 用 Pro 模型）。
+
+#### 2.5.2 Agent 委托模式
 
 ```python
 from google.adk.agents import LlmAgent, SequentialAgent
