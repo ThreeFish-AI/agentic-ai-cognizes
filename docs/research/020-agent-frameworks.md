@@ -95,18 +95,18 @@ Google ADK 不需要被视为一个简单的 SDK，而是一套完整的**智能
 
 ```mermaid
 graph TB
-    subgraph "Layer 1: User Experience"
+    subgraph "User Experience"
         A[Client App / Frontend]
     end
 
-    subgraph "Layer 2: Agent Abstractions (The Brains)"
+    subgraph "Agent Layer"
         direction TB
         B1[LLM Agent<br/>推理与决策]
         B2[Workflow Agent<br/>编排与控制]
         B3[Custom Agent<br/>领域逻辑]
     end
 
-    subgraph "Layer 3: Core Runtime (The Nervous System)"
+    subgraph "Core Runtime"
         direction LR
         C1[Session Service<br/>会话管理]
         C2[Memory Service<br/>长期记忆]
@@ -114,7 +114,7 @@ graph TB
         C4[State Mgmt<br/>上下文状态]
     end
 
-    subgraph "Layer 4: Infrastructure (The Body)"
+    subgraph "Infrastructure"
         D1[Vertex AI Agent Engine]
         D2[Cloud Run / K8s]
         D3[Local / Docker]
@@ -135,113 +135,163 @@ graph TB
     class D1,D2,D3 red
 ```
 
-### 2.2 Agent 类型体系
+### 2.2 Agent Layer：从确定性到自主性
 
-ADK 提供三种核心 Agent 类型，每种类型针对不同的使用场景<sup>[[4]](#ref4)</sup>：
+ADK 的 Agent Layer 并非简单的类别划分，而是一套覆盖了从 **"严格规则执行"** 到 **"开放式语义推理"** 的完整控制光谱。开发者可以根据任务的**熵（不确定性）**，灵活组合不同形态的智能体：
 
-#### 2.2.1 LLM Agent（LlmAgent / Agent）
+- **LlmAgent (概率性推理)**：处理高熵任务。基于语义理解进行动态决策，适用于复杂的意图识别与非结构化问题解决。
+- **WorkflowAgent (确定性编排)**：处理低熵任务。基于预定义的 DAG 图或状态机执行，确保关键业务流程的绝对可控。
+- **CustomAgent (领域特化)**：处理专用任务。封装传统的算法模型或遗留系统，作为连接新旧世界的桥梁。
 
-LLM Agent 是 ADK 的核心组件，使用大语言模型作为"思考引擎"，进行推理、决策和生成响应<sup>[[5]](#ref5)</sup>。
+#### 2.2.1 LLM Agent：概率性推理核心
 
-**核心特性**：
+LLM Agent 是系统的**语义大脑**。在 ADK 中，它被设计为一个具备完整 "Perception-Action Loop"（感知-行动循环）的自主实体，而非简单的 API 包装器。
 
-- **非确定性行为**：基于 LLM 动态决定执行路径
-- **工具调用**：根据上下文自主选择使用哪些工具
-- **任务委托**：可将控制权转移给其他 Agent
+**核心认知能力**：
 
-**关键配置**：
+- **Intention Routing (意图路由)**：基于语义理解而非关键词匹配来动态调整执行路径。
+- **Tool Autonomy (工具自主)**：具备"自我修正"能力，能根据执行反馈（Feedback）调整工具参数。
+- **Dynamic Delegation (动态委托)**：能够识别自身能力边界，将特定子任务主动转交（Handoff）给专家 Agent。
 
-| 参数                             | 说明                                     |
-| -------------------------------- | ---------------------------------------- |
-| `name`                           | Agent 唯一标识符                         |
-| `model`                          | 使用的 LLM 模型（如 `gemini-2.0-flash`） |
-| `instruction`                    | 指导 Agent 行为的系统指令                |
-| `tools`                          | 可用工具列表                             |
-| `generate_content_config`        | LLM 生成参数配置                         |
-| `input_schema` / `output_schema` | 输入输出结构定义                         |
-
-**代码示例**：
+**定义一个"地理学家"智能体**：
 
 ```python
 from google.adk.agents import LlmAgent
 
-# 定义工具函数
+# 1. 定义感知工具：赋予 Agent 探索世界的能力
 def get_capital_city(country: str) -> str:
-    """获取指定国家的首都城市"""
-    capitals = {"france": "Paris", "japan": "Tokyo", "canada": "Ottawa"}
-    return capitals.get(country.lower(), f"未知国家: {country}")
+    """查询指定国家的首都。
 
-# 创建 LLM Agent
-capital_agent = LlmAgent(
-    model="gemini-2.0-flash",
-    name="capital_agent",
-    description="回答关于国家首都的问题",
-    instruction="""你是一个地理知识专家。
-    当用户询问某个国家的首都时，使用 get_capital_city 工具获取答案。
-    如果工具返回未知，礼貌地告知用户并建议其他获取信息的方式。""",
-    tools=[get_capital_city]
+    Args:
+        country: 国家名称（支持中文和英文）
+    """
+    capitals = {"france": "Paris", "中国": "北京", "japan": "Tokyo"}
+    return capitals.get(country, f"数据库中未找到: {country}")
+
+# 2. 构建认知模型：注入角色设定与思维链
+geographer = LlmAgent(
+    model="gemini-2.0-flash",  # 选择推理基座
+    name="geographer_agent",   # 设定唯一身份标识
+    description="专注于地理知识的查询与解答",
+
+    # System Prompt 即 Agent 的"灵魂"
+    instruction="""
+    你是一个严谨的地理学家。
+    1. 在回答问题前，先判断是否需要使用工具。
+    2. 如果查询结果不存在，请诚实地告知用户，不要编造。
+    3. 对于工具返回的数据，结合你的知识库进行补充说明（如人口、气候等）。
+    """,
+
+    tools=[get_capital_city]   # 挂载认知工具
 )
 ```
 
-#### 2.2.2 Workflow Agent（Sequential / Parallel / Loop）
+**配置详解**：
 
-Workflow Agent 是专门用于编排子 Agent 执行流程的控制器，本身不使用 LLM 进行决策，而是遵循预定义的执行模式<sup>[[6]](#ref6)</sup>。
+| 核心参数      | 认知映射          | 作用说明                                     |
+| :------------ | :---------------- | :------------------------------------------- |
+| `instruction` | **长期记忆/性格** | 定义 Agent 的行为准则、思维方式和输出约束    |
+| `tools`       | **手眼/效应器**   | 扩展 Agent 的能力边界，使其能与外部世界交互  |
+| `model`       | **智商/算力**     | 决定 Agent 的推理深度和多模态理解能力        |
+| `schemas`     | **沟通协议**      | 定义结构化的输入输出，确保与其他系统无缝对接 |
 
-**三种工作流模式**：
+#### 2.2.2 Workflow Agent：确定性编排引擎
 
-| 类型              | 执行模式 | 适用场景           |
-| ----------------- | -------- | ------------------ |
-| `SequentialAgent` | 顺序执行 | 有依赖关系的任务链 |
-| `ParallelAgent`   | 并行执行 | 独立任务批处理     |
-| `LoopAgent`       | 循环执行 | 迭代优化、轮询检查 |
+如果说 LLM Agent 是具有创造力的"员工"，那么 Workflow Agent 就是严格的**"工厂流水线"**。它不消耗 Token 进行推理，而是作为轻量级的**控制平面 (Control Plane)**，负责将多个 Agent 的无序思考收敛为有序的业务价值。
+
+它解决了 Agent 系统中常被忽视的 **"可控性悖论"**：虽然我们需要 LLM 的灵活性，但在企业级应用中，我们需要执行流程是可预测、可调试且幂等的。
+
+**三大编排模式 (Orchestration Patterns)**：
+
+| 模式           | 工业隐喻                            | 核心逻辑                   | 典型场景                                                                                                      |
+| :------------- | :---------------------------------- | :------------------------- | :------------------------------------------------------------------------------------------------------------ |
+| **Sequential** | **接力赛 (Relay)**，顺序执行        | `Pipe(A -> B -> C)`        | **链式处理**：研究员搜集 -> 分析师总结 -> 翻译官润色。上游的输出严格作为下游的输入。<br/>有依赖关系的任务链。 |
+| **Parallel**   | **集思广益 (MapReduce)**，并行执行  | `Fan-out / Fan-in`         | **并发生成**：同时让 3 个不同角色的 Critic Agent 评审同一份代码，最后聚合所有意见。<br/> 独立任务批处理。     |
+| **Loop**       | **精细打磨 (Refinement)**，循环执行 | `While(!Satisfied) { Do }` | **自我修正**：生成代码 -> 运行单元测试 -> 失败则修复 -> 重试，直到测试通过。<br/>迭代优化、轮询检查。         |
 
 ```mermaid
 graph LR
-    subgraph "Sequential 模式"
-        S1[Agent A] --> S2[Agent B] --> S3[Agent C]
-    end
+    subgraph "Orchestration Patterns"
+        direction TB
 
-    subgraph "Parallel 模式"
-        P0[入口] --> P1[Agent A]
-        P0 --> P2[Agent B]
-        P0 --> P3[Agent C]
-        P1 & P2 & P3 --> P4[聚合]
-    end
+        subgraph "Loop: 闭环优化"
+            direction TB
+            L1[Drafting] --> L2{Quality Check}
+            L2 -->|Pass| L3(Final)
+            L2 -->|Fail| L1
+            style L1 fill:#fef7e0,stroke:#fbbc04,stroke-width:2px,color:#000
+            style L2 fill:#fce8e6,stroke:#ea4335,shape:diamond,stroke-width:2px,color:#000
+        end
 
-    subgraph "Loop 模式"
-        L1[Agent A] --> L2{终止条件?}
-        L2 -->|否| L1
-        L2 -->|是| L3[完成]
-    end
+        subgraph "Parallel: 矩阵作业"
+            direction TB
+            P0(Task)
+            P0 --> P1[Agent A]
+            P0 --> P2[Agent B]
+            P1 & P2 --> P3(Aggregated Result)
+            style P1 fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#000
+            style P2 fill:#e6f4ea,stroke:#34a853,stroke-width:2px,color:#000
+        end
 
-    style S1 fill:#4285f4,color:white
-    style P0 fill:#34a853,color:white
-    style L2 fill:#fbbc04,color:black
+        subgraph "Sequential: 价值流转"
+            direction TB
+            S1(Input) ==> S2[Agent A] ==> S3[Agent B] ==> S4(Output)
+            style S2 fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#000
+            style S3 fill:#e8f0fe,stroke:#4285f4,stroke-width:2px,color:#000
+        end
+    end
 ```
 
-#### 2.2.3 Custom Agent
+#### 2.2.3 Custom Agent：领域特化与混合智能
 
-通过继承 `BaseAgent` 类，可以实现自定义的 Agent 逻辑，满足特殊需求<sup>[[4]](#ref4)</sup>。
+如果说 LlmAgent 代表了 **"神经网络"** 的直觉，那么 Custom Agent 则代表了 **"符号主义"** 的严谨。并非所有任务都需要 LLM 的介入，Custom Agent 允许开发者通过继承 `BaseAgent`，将传统的算法、规则引擎甚至遗留系统（Legacy Systems）封装为标准的智能体。
+
+它是连接 **"概率性 AI 世界"** 与 **"确定性软件世界"** 的桥梁，实现了真正的 **混合智能 (Hybrid Intelligence)**。
+
+**典型应用模式**：
+
+- **The Gatekeeper (守门人)**：在 Workflow 中实施严格的输入/输出合规性检查（如 PII 过滤、格式验证）。
+- **The Calculator (计算器)**：执行 LLM 不擅长的精确数学运算或复杂模拟。
+- **The Bridge (连接器)**：将现有的微服务或 API 伪装成一个 Agent，使其能参与到 Multi-Agent 的协作中。
+
+**定义一个"合规守门人" Agent**：
 
 ```python
 from google.adk.agents import BaseAgent
+from google.adk.model import ModelContext
 
-class ValidationAgent(BaseAgent):
-    """自定义验证 Agent"""
+class ComplianceAgent(BaseAgent):
+    """一个不使用 LLM，但拥有『一票否决权』的规则智能体"""
 
-    async def run(self, context):
-        # 实现自定义逻辑
-        data = context.state.get("pending_data")
-        is_valid = self._validate(data)
-        context.state["validation_result"] = is_valid
-        return {"validated": is_valid}
+    def __init__(self, name: str, strictly_mode: bool = True):
+        super().__init__(name=name)
+        self.strictly_mode = strictly_mode
 
-    def _validate(self, data):
-        # 验证逻辑
-        return data is not None and len(data) > 0
+    async def run(self, context: ModelContext) -> dict:
+        # 1. 获取上下文中的"记忆"
+        draft_content = context.state.get("draft_report", "")
+
+        # 2. 执行确定性的逻辑 (Symbolic Logic)
+        sensitives = self._scan_sensitive_words(draft_content)
+
+        if sensitives:
+            # 拒绝通过，并返回结构化的反馈
+            return {
+                "status": "REJECTED",
+                "reason": f"Detect sensitive words: {sensitives}",
+                "suggestion": "Please sanitize the content."
+            }
+
+        # 3. 更新状态，允许流程继续
+        context.state["compliance_passed"] = True
+        return {"status": "APPROVED"}
+
+    def _scan_sensitive_words(self, text: str) -> list:
+        # 实现高效的 AC 自动机或正则匹配
+        return [w for w in ["机密", "Top Secret"] if w in text]
 ```
 
-### 2.3 Tools 生态系统
+### 2.3 Tools 生态
 
 ADK 提供丰富的工具生态系统，支持多种工具类型<sup>[[7]](#ref7)</sup>：
 
