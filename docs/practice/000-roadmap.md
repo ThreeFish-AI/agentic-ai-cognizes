@@ -17,7 +17,7 @@ tags:
 
 > [!NOTE]
 >
-> **基于调研**: [010-context-engineering.md](../research/010-context-engineering.md) | [020-agent-runtime-frameworks.md](../research/020-agent-runtime-frameworks.md)
+> **基于调研**: [context-engineering](../research/010-context-engineering.md) | [agent-runtime-frameworks](../research/020-agent-runtime-frameworks.md) | [vector-search-algorithm](../research/030-vector-search-algorithm.md) | [vector-databases](../research/032-vector-databases.md)
 
 ## 1. 验证目标
 
@@ -40,17 +40,75 @@ tags:
 - **RAG Engine**: 高性能的混合检索链路。
 - **Sandbox**: 安全可控的代码执行环境。
 
-最终，使用这套 **自建的 Agent Engine** 搭配 **Google ADK**，走通 Agent 搭建的**全场景闭环**。
+最终，使用这套自建的 **Agent Engine** 搭配 **Google ADK**，走通 Agent 搭建的 **全场景闭环**。
 
-### 1.3 Context Engineering 三大支柱（基于调研）
+### 1.3 核心能力全景图 (Features Panorama)
 
-根据《Context Engineering 2.0》论文与主流框架实践，项目需覆盖 Context Engineering 的三大核心维度：
+基于 **"De-Google, but Re-Google"** 战略，我们将 Google Vertex AI Agent Engine 的黑盒能力解构为以下四大可复刻的工程支柱。我们致力于构建一个更自主、更透明的 **"Glass-Box Engine" (白盒引擎)**，利用 PostgreSQL 生态的原子能力（JSONB, Vectors, Triggers, Notify）实现对标甚至超越原生服务的核心能力（**完整性 (Integrity)** 与 **颗粒度 (Granularity)**）。
 
-| 支柱                   | 定义                                         | OceanBase 验证点                         |
-| :--------------------- | :------------------------------------------- | :--------------------------------------- |
-| **Context Collection** | 收集用户输入、系统指令、对话历史、外部数据   | Session Events 高频写入性能              |
-| **Context Management** | 分层存储（Short-term/Long-term）、压缩、隔离 | Memory Transfer (Session→Insight) 原子性 |
-| **Context Usage**      | 检索与选择、动态组装、Token Budgeting        | Hybrid Search 延迟与召回率               |
+#### 1.3.1 Stateful Session Engine (会话状态引擎) —— "The Pulse"
+
+> [!NOTE]
+>
+> **对标**: Google `VertexAiSessionService` (Firestore/Redis) + Realtime API
+> **核心职责**: 提供高并发、强一致、可回溯的会话上下文管理。
+
+不再依赖外部缓存，利用 PostgreSQL 的强一致性构建稳健的会话状态管理：
+
+- **ACID State Transitions**: 利用 PG 事务特性（Transactions）保证 `state_delta` 的原子性应用，并在高并发下通过行级锁（Row-Level Locking）彻底解决状态竞争，告别复杂的分布式锁维护。
+- **Thread & Run Separation**: 细化状态颗粒度，区分 **Thread** (长期会话容器) 与 **Run** (单次执行链路)。Thread 负责用户级上下文的持久化，Run 负责推理过程中的中间状态 (Steps/Thoughts) 追踪。
+- **Optimistic Concurrency Control (OCC)**: 利用 PG 的 `xmin` 系统列或版本号字段实现乐观并发控制，在无锁情况下解决多 Agent 同时写入同一 Session 的状态冲突难题。
+- **JSONB Structured State**: 充分利用 PG 的 JSONB 类型，完整支持 ADK 的多级作用域机制（`user:`, `session:`, `app:`），提供媲美 NoSQL 的 Schema-less 灵活性与毫秒级读写性能。
+- **Real-time Event Streaming**: 不仅仅记录状态快照，更记录完整的 `Events` append-only 日志，原生支持 **Time-Travel Debugging**（会话回放）与审计。利用 `LISTEN / NOTIFY` 机制构建轻量级 Pub/Sub，实现 Agent 推理事件 (Token Streaming, Tool Calls) 的毫秒级实时推送，对标 Server-Sent Events (SSE)。
+
+#### 1.3.2 Bionic Memory System (仿生记忆系统) —— "The Hippocampus"
+
+> [!NOTE]
+>
+> **对标**: Google `VertexAiMemoryBankService` (Vector Search + LLM Extraction)
+> **核心职责**: 模拟人类记忆机制，实现短期记忆向长期记忆的动态转化。
+
+构建这一系统的核心在于打破"存"与"算"的物理隔离：
+
+- **Unified Storage ("Zero-ETL")**: 将 Session Log（海马体短期记忆）与 Narrative Memory（长期情景记忆）存储于同一个 PG 实例中。数据无需在 Redis、向量数据库和主库之间搬运，极大降低了 ETL 延迟与一致性风险。
+- **Async Dual-Process Consolidation (Memory Sleep)**: 模拟人类大脑的睡眠机制，通过后台 Worker（基于 `pg_cron` 或外部服务）异步从 Session Log 中提炼 Insights，将其转化为向量化记忆而不阻塞主线程。
+  - **Replay (回放)**: 基于 `pg_cron` 定期重放最近的 Session Events。
+  - **Reflection (反思)**: 调用 LLM 提炼高层 Insights (Facts, Preferences, Summaries)，形成**语义记忆 (Semantic Memory)**。
+- **Ebbinghaus Decay**: 引入"遗忘曲线"算法，基于时间衰减（Time Decay）与访问频率（Access Frequency）动态调整记忆权重，自动清理低价值噪音。
+- **Episodic Indexing (情景索引)**: 对原始对话记录进行分块向量化，保留时间戳与原始上下文，形成**情景记忆 (Episodic Memory)**，用于具体细节的回溯。
+- **Context Window Management**: 在数据库层实现 **"滑动窗口"**查询策略，根据 Token 预算自动组装 `System Prompt` + `Relevant Memories` + `Recent History`，精准控制上下文负载。
+
+#### 1.3.3 Unified Neural Search (统一搜索神经中枢) —— "The Perception"
+
+> [!NOTE]
+>
+> **对标**: Vertex AI RAG Engine + Vector Search + Enterprise Search
+> **核心职责**: 提供多模态、混合与重排序的检索能力。
+
+打造"多模态、全能型"的单一检索入口，拒绝应用层的复杂拼装：
+
+- **One-Shot Retrieval**: 利用 PG 强大的查询优化器，在 **单次 SQL 查询**中同时完成 **语义检索 (HNSW)** + **关键词匹配 (BM25/tsvector)** + **元数据过滤 (Metadata Filtering)**。
+- **Hybrid Search + Reranking**: 建立 **"Recall -> Rerank"** 两阶段链路。
+  - **L0 (Recall)**: 利用 SQL 结合 `HNSW` (语义) + `BM25` (关键词) + `GIN` (元数据) 进行广度召回。
+  - **L1 (Rerank)**: (可选) 集成轻量级 Cross-Encoder 模型 (如 `pgml` 或外部服务) 对召回结果进行重排序，大幅提升 Top-K 准确率。
+- **Complex Metadata Filtering**: 不同于专用向量库受限的过滤能力，直接利用 PG 成熟的 B-Tree/GIN 索引处理复杂的业务过滤规则（如"查询最近一周、状态为 Active 且属于 Finance 部门的文档"）。
+- **Iterative Filtering**: 利用 PGVector 的 HNSW 索引特性，支持复杂的**Pre-Filtering** (先过滤后检索) 场景，解决传统向量库在强过滤条件下召回率为零的问题。
+- **Iterative Scan**: 利用 PGVector 的迭代扫描特性，完美解决"先过滤后检索"场景下的低召回率痛点。
+
+#### 1.3.4 Open Agent Runtime (开放运行时) —— "The Cortex"
+
+> [!NOTE]
+>
+> **对标**: Vertex AI Agent Engine (ADK on Agent Engine) + Extensions
+> **核心职责**: 提供标准化的执行环境、工具管理与可观测性。
+
+实现 **"Google's Framework, Your Infrastructure"** 的战略解耦：
+
+- **Standard Implementation**: 1:1 基于 Google ADK 的 `SessionService` 与 `MemoryService` 接口标准，实现 Open Agent Runtime 与 Google ADK 的适配。
+- **Vendor Agnostic**: 确保上层业务代码（基于 Google ADK 开发的 Agent 逻辑、Tool 定义）完全无感知底层是运行在 Vertex AI 上还是自建的 Postgres 集群上，实现零成本迁移。
+- **Dynamic Tool Registry**: 不仅仅硬编码工具，而是在 PG 中建立 **Tool Registry** 表，存储 OpenAPI Schema、权限配置与执行统计。Agent 运行时动态加载可用工具集。
+- **Execution Tracing Store**: 1:1 复刻 OpenTelemetry 结构，将 Agent 的思考过程 (Reasoning Steps)、工具调用 (Tool Inputs/Outputs) 与最终结果结构化存入 Trace 表，支持全链路可视化调试。
+- **Sandboxed Execution**: 集成安全沙箱机制（执行环境：如 Docker 容器或 WebAssembly 运行时），确保 Python/Node.js 代码解释器 (Code Interpreter) 与自定义工具（Function Tools）的安全隔离运行。
 
 ## 2. 架构对比与选型维度
 
