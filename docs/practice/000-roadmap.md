@@ -42,7 +42,7 @@ tags:
 
 最终，使用这套自建的 **Agent Engine** 搭配 **Google ADK**，走通 Agent 搭建的 **全场景闭环**。
 
-### 1.3 核心能力全景图 (Features Panorama)
+### 1.3 核心能力核验覆盖 (Features Coverage)
 
 基于 **"De-Google, but Re-Google"** 战略，我们将 Google Vertex AI Agent Engine 的黑盒能力解构为以下四大可复刻的工程支柱。我们致力于构建一个更自主、更透明的 **"Glass-Box Engine" (白盒引擎)**，利用 PostgreSQL 生态的原子能力（JSONB, Vectors, Triggers, Notify）实现对标甚至超越原生服务的核心能力（**完整性 (Integrity)** 与 **颗粒度 (Granularity)**）。
 
@@ -110,7 +110,16 @@ tags:
 - **Execution Tracing Store**: 1:1 复刻 OpenTelemetry 结构，将 Agent 的思考过程 (Reasoning Steps)、工具调用 (Tool Inputs/Outputs) 与最终结果结构化存入 Trace 表，支持全链路可视化调试。
 - **Sandboxed Execution**: 集成安全沙箱机制（执行环境：如 Docker 容器或 WebAssembly 运行时），确保 Python/Node.js 代码解释器 (Code Interpreter) 与自定义工具（Function Tools）的安全隔离运行。
 
-## 2. 架构对比与选型维度
+## 2. 复刻架构拆解与核验点
+
+基于 "Glass-Box Engine" 的构建目标，我们将 **PostgreSQL Agent Engine (Target)** 与 **Google Vertex AI Agent Engine (Reference)** 进行全维度对标。这不仅是基础设施选型，更是**单体统一架构 (Unified Monolith)** 与**云原生组合架构 (Composed Microservices)** 的理念碰撞。
+
+| 全景模块                        | 维度           | Google Vertex AI Agent Engine (Reference Black-Box)                                              | PostgreSQL Agent Engine (Target Glass-Box)                                                             | 核心核验点                                                     |
+| :------------------------------ | :------------- | :----------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- | :------------------------------------------------------------- |
+| **The Pulse**<br>(Session)      | **架构模式**   | **Composed (组合式)**<br>状态存 Firestore，缓存存 Redis，变更推 Pub/Sub。                        | **Unified (统一式)**<br>Transaction Log + JSONB State 无缝融合，利用 `NOTIFY` 推送变更。               | **并发一致性 (OCC)**<br>多 Agent 竞争下的数据正确性。          |
+| **The Hippocampus**<br>(Memory) | **数据流转**   | **ETL Pipeline**<br>数据需在 Memorystore 与 Vector Search 之间物理搬运，存在同步延迟。           | **Zero-ETL**<br>Session Log (行存) 与 Context Vectors (向存) 同库存储，分析与回写零网络开销。          | **记忆新鲜度 (Freshness)**<br>从"发生"到"可回忆"的时延。       |
+| **The Perception**<br>(Search)  | **检索链路**   | **Service Assembly**<br>混合检索需要在应用层拼装 Keyword (Search) 与 Semantic (Vector) 结果。    | **One-Shot SQL**<br>`DBMS_HYBRID_SEARCH`: 一次查询完成 SQL 过滤、关键词匹配与向量召回。                | **复杂过滤性能**<br>高过滤比下的召回率与耗时。                 |
+| **The Cortex**<br>(Runtime)     | **开放运行时** | **Opaque (黑盒)**<br>仅可见 Input/Output 与计费 Token，内部推理步骤 (Reasoning Details) 不可见。 | **Observable (白盒)**<br>OpenTelemetry 级全链路追踪，完整记录 Thought Chain、Tool IO 与 Slot Updates。 | **可调试性 (Debuggability)**<br>能否精准定位推理死循环或幻觉。 |
 
 基于 Google Agent Architecture（参考 `assets/` 架构图）与调研报告，对标维度如下：
 
@@ -125,10 +134,22 @@ tags:
 
 ### 2.1 当前预选型对照组
 
-1. **OceanBase (SeekDB)**: 极简架构 (HTAP)，强一致性，多地多活 (Paxos)。(Primary Target)
-2. **PostgreSQL Ecosystem**: 插件化架构 (pgvector + pg_cron)。(Baseline)
-3. **Specialized Vector DBs**: Milvus / Weaviate / Pinecone。(Feature Comparison)
-4. **Google Agent Engine Stack**: 原生 Reference 架构。(Reference)
+1. **PostgreSQL Ecosystem (Primary Target)**:
+
+   - **定位**: **"The Golden Standard"**。
+   - **构成**: PostgreSQL 16+ (Kernel) + `pgvector` (Vector) + `pg_cron` (Scheduler) + `pg_jsonschema` (Validation)。
+   - **优势**: 极致的开箱即用体验 (DX) 与全栈一致性，架构熵最低。
+
+2. **Google Agent Engine Stack (Reference)**:
+
+   - **定位**: **"The North Star"**。
+   - **构成**: Vertex AI Agent Builder (ADK + Agent Engine)。
+   - **价值**: 提供能力基准线 (Baseline Capabilities) 与 API 设计规范。
+
+3. **Specialized Vector DBs (VectorChord/Weaviate/Milvus)**:
+
+   - **定位**: **"Specific Enhancer"**。
+   - **场景**: 仅当 PG 在千万级 (10M+) 向量规模出现显著性能瓶颈，或需要特定多模态索引 (如 DiskANN) 时作为组件引入。
 
 ## 3. 调研与验证执行计划
 
