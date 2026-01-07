@@ -1,7 +1,7 @@
 ---
 id: cognitive-enhancement
 sidebar_position: 0
-title: 智能认知增强课题调研报告
+title: 智能认知增强
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-22
