@@ -5,8 +5,8 @@ title: Agentic AI Engine Validation Roadmap
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-22
-  updated_at: 2026-01-06
-  version: 1.2
+  updated_at: 2026-01-07
+  version: 1.3
   status: Pending Review
 tags:
   - Agentic AI Engine
@@ -21,19 +21,19 @@ tags:
 
 ## 1. 验证目标
 
-核心验证目标是**在私有化/自托管环境下，重构并验证「Agentic AI Engine」的完整工程能力**。不仅要"用" Agent，更要"造" Engine。我们致力于脱离 Google Vertex AI 的全托管黑盒服务，基于开源标准技术栈，对标并复刻 **Google Vertex AI Agent Engine** 的核心架构。
+核心验证目标是 **在私有化/自托管环境下，重构并验证「Agentic AI Engine」的完整工程能力**。不仅要"用" Agent，更要"造" Engine。我们致力于脱离 Google Vertex AI 的全托管黑盒服务，基于开源标准技术栈，对标并复刻 **Google Vertex AI Agent Engine** 的核心架构。
 
 ### 1.1 两大核心验证命题
 
-1. **Agent Platform Engineering (Agent 平台工程验证)**：
+1. **Agentic AI Engine Engineering (Agent Engine 工程验证)**：
    验证在脱离 Google Vertex AI Agent Engine 托管服务后，如何通过自建基础设施搭配 **Google ADK (Agent Development Kit)**，构建一套涵盖 **开发 (Dev)**、**测试 (Test)**、**评估 (Eval)** 到 **部署 (Ops)** 等的全链路 Agent 工程体系。
 
-2. **Unified Search Platform (企业级统一搜索平台验证)**：
-   验证构建一个"多模态、全能型"的 **企业级统一搜索平台 (Unified Search Platform)**。它不仅是 RAG Engine，通过 **PostgreSQL + PGVector** 的融合能力，同时实现 **语义检索 (Vector Search)**、**关键字搜索 (Keyword Search)** 与 **元数据过滤 (Metadata Filtering)** 等的统一调度。
+2. **Unified Retrieval Platform (企业级统一检索平台验证)**：
+   验证构建一个"多模态、全能型"的 **企业级统一检索平台 (Unified Retrieval Platform)**。它不仅是 RAG Engine，通过 **PostgreSQL + PGVector** 的融合能力，同时实现 **语义检索 (Vector Search)**、**关键字搜索 (Keyword Search)** 与 **元数据过滤 (Metadata Filtering)** 等的统一调度。
 
 ### 1.2 现阶段执行目标 (Current Phase)
 
-**"De-Google, but Re-Google"**，基于 **PostgreSQL + PGVector** 介质，**1:1 复刻甚至优化** Google Vertex AI Agent Engine 的关键原子能力：
+**"De-Google, but Re-Google"**，基于 **PostgreSQL + PGVector** 存储介质，**1:1 复刻（甚至更优）** Google Vertex AI Agent Engine 的关键原子能力：
 
 - **Session Management**: 会话状态的原子性管理与持久化。
 - **Memory Bank**: 长期记忆的"海马体"构建（存储、索引与提取）。
