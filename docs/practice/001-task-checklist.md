@@ -370,6 +370,35 @@ gantt
 | P4-2-11 | 实现 `search_memory()` 方法         | 🔲 待开始 | 向量相似度检索           |
 | P4-2-12 | 实现 `list_memories()` 方法         | 🔲 待开始 | 列出所有记忆             |
 
+#### 4.2.3 Tool Registry 实现
+
+> [!NOTE]
+>
+> **对标 Roadmap 4.1**: "实现数据库驱动的 `tools` 表，支持 OpenAPI Schema 动态加载。"
+
+| 任务 ID | 任务描述                                        | 状态      | 验收标准                 |
+| :------ | :---------------------------------------------- | :-------- | :----------------------- |
+| P4-2-13 | 设计 `tools` 表 Schema (存储 OpenAPI Spec)      | 🔲 待开始 | DDL + JSONB 存储 OpenAPI |
+| P4-2-14 | 实现 `register_tool()` 方法                     | 🔲 待开始 | 工具注册到 DB            |
+| P4-2-15 | 实现 `get_available_tools()` 方法               | 🔲 待开始 | 动态加载工具列表         |
+| P4-2-16 | 实现工具热更新机制 (无需重启)                   | 🔲 待开始 | 新增工具无需重启服务     |
+| P4-2-17 | 集成权限配置 (`allowed_users`, `rate_limit` 等) | 🔲 待开始 | 工具调用鉴权与限流       |
+| P4-2-18 | 实现执行统计 (`call_count`, `avg_latency`)      | 🔲 待开始 | 工具调用计数与性能追踪   |
+
+#### 4.2.4 Orchestration Loop 实现
+
+> [!NOTE]
+>
+> **对标 Roadmap 4.1**: "开发 Python 驱动的 `AgentExecutor`，管理 `Thought -> Action -> Observation` 循环。"
+
+| 任务 ID | 任务描述                                               | 状态      | 验收标准                        |
+| :------ | :----------------------------------------------------- | :-------- | :------------------------------ |
+| P4-2-19 | 实现 `AgentExecutor` 类框架                            | 🔲 待开始 | 类定义 + 生命周期方法           |
+| P4-2-20 | 实现 `run()` 主循环 (Thought -> Action -> Observation) | 🔲 待开始 | ReAct Loop 正确执行             |
+| P4-2-21 | 实现 `invoke_tool()` 方法                              | 🔲 待开始 | 调用注册工具并返回结果          |
+| P4-2-22 | 实现最大步数限制与超时控制                             | 🔲 待开始 | 防止无限循环                    |
+| P4-2-23 | 验证 Executor 与 ADK Runner 的协同                     | 🔲 待开始 | 与 `InvocationContext` 正确交互 |
+
 ### 4.3 单元测试与集成测试
 
 | 任务 ID | 任务描述                                        | 状态      | 验收标准             |
@@ -390,13 +419,28 @@ gantt
 | P4-4-3  | 配置 Trace Exporter (Jaeger/OTLP) | 🔲 待开始 | Trace 数据导出成功                    |
 | P4-4-4  | 设计 `traces` 表结构化存储        | 🔲 待开始 | DDL + 结构定义                        |
 
-#### 4.4.2 可视化验证
+#### 4.4.2 Sandboxed Execution（安全沙箱）
+
+> [!NOTE]
+>
+> **对标 Roadmap Pillar IV**: "集成安全沙箱机制（Docker 容器或 WebAssembly 运行时），确保 Code Interpreter 与 Function Tools 的安全隔离运行。"
+
+| 任务 ID | 任务描述                                              | 状态      | 验收标准                      |
+| :------ | :---------------------------------------------------- | :-------- | :---------------------------- |
+| P4-4-5  | 评估沙箱方案 (Docker / gVisor / WebAssembly)          | 🔲 待开始 | 方案对比分析文档              |
+| P4-4-6  | 实现 `SandboxRunner` 接口抽象                         | 🔲 待开始 | 接口定义 + 基础实现           |
+| P4-4-7  | 实现 Docker 沙箱执行 (首选方案)                       | 🔲 待开始 | Python 代码在隔离容器中执行   |
+| P4-4-8  | 实现资源限制 (CPU/Memory/Timeout)                     | 🔲 待开始 | 资源超限时强制终止            |
+| P4-4-9  | 实现网络隔离策略                                      | 🔲 待开始 | 沙箱无法访问外部网络 (可配置) |
+| P4-4-10 | 验证恶意代码防护 (`import os; os.system('rm -rf /')`) | 🔲 待开始 | 恶意操作被拦截，主机不受影响  |
+
+#### 4.4.3 可视化验证
 
 | 任务 ID | 任务描述                            | 状态      | 验收标准                                      |
 | :------ | :---------------------------------- | :-------- | :-------------------------------------------- |
-| P4-4-5  | 部署 Jaeger 或 SigNoz 可视化服务    | 🔲 待开始 | UI 可访问                                     |
-| P4-4-6  | 验证完整 Trace 链路还原             | 🔲 待开始 | `User Input -> Reasoning -> Action -> Answer` |
-| P4-4-7  | 验证调试能力 (定位推理死循环或幻觉) | 🔲 待开始 | 可通过 Trace 定位问题                         |
+| P4-4-11 | 部署 Jaeger 或 SigNoz 可视化服务    | 🔲 待开始 | UI 可访问                                     |
+| P4-4-12 | 验证完整 Trace 链路还原             | 🔲 待开始 | `User Input -> Reasoning -> Action -> Answer` |
+| P4-4-13 | 验证调试能力 (定位推理死循环或幻觉) | 🔲 待开始 | 可通过 Trace 定位问题                         |
 
 ### 4.5 Phase 4 验收与文档
 
@@ -439,33 +483,47 @@ gantt
 
 #### 5.2.1 The Pulse 验收
 
-| 任务 ID | 任务描述                 | 状态      | 验收标准                 |
-| :------ | :----------------------- | :-------- | :----------------------- |
-| P5-2-1  | 模拟 10 用户并发多轮对话 | 🔲 待开始 | Session 状态无脏读或丢失 |
-| P5-2-2  | 验证状态回溯能力         | 🔲 待开始 | 可回溯历史状态           |
+> **KPI**: 并发一致性 (OCC) —— 多 Agent 竞争下的数据正确性。
+
+| 任务 ID | 任务描述                 | 状态      | 验收标准                        |
+| :------ | :----------------------- | :-------- | :------------------------------ |
+| P5-2-1  | 模拟 10 用户并发多轮对话 | 🔲 待开始 | Session 状态无脏读或丢失        |
+| P5-2-2  | 验证状态回溯能力         | 🔲 待开始 | 可回溯历史状态                  |
+| P5-2-3  | 验证实时推送延迟         | 🔲 待开始 | Event 产生到前端收到 < **50ms** |
 
 #### 5.2.2 The Hippocampus 验收
 
+> **KPI**: 记忆新鲜度 (Freshness) —— 从 "发生" 到 "可回忆" 的时延。
+
 | 任务 ID | 任务描述                                 | 状态      | 验收标准                           |
 | :------ | :--------------------------------------- | :-------- | :--------------------------------- |
-| P5-2-3  | 测试跨会话偏好记忆 ("I hate spicy food") | 🔲 待开始 | 新会话自动召回偏好                 |
-| P5-2-4  | 验证记忆巩固流程                         | 🔲 待开始 | Fast Replay + Deep Reflection 正常 |
+| P5-2-4  | 测试跨会话偏好记忆 ("I hate spicy food") | 🔲 待开始 | 新会话自动召回偏好                 |
+| P5-2-5  | 验证记忆巻固流程                         | 🔲 待开始 | Fast Replay + Deep Reflection 正常 |
+| P5-2-6  | 测量 Read-Your-Writes 延迟               | 🔲 待开始 | 新记忆在下一 Turn 立即可见         |
 
 #### 5.2.3 The Perception 验收
 
+> **KPI**: 检索精度 (Recall@10 with Filters) —— 高过滤比下的召回率。
+
 | 任务 ID | 任务描述                                   | 状态      | 验收标准                  |
 | :------ | :----------------------------------------- | :-------- | :------------------------ |
-| P5-2-5  | 测试混合检索 ("Suggest some chill places") | 🔲 待开始 | 关键词 + 向量融合结果正确 |
-| P5-2-6  | 验证 Reranking 提升效果                    | 🔲 待开始 | Top-10 结果更相关         |
+| P5-2-7  | 测试混合检索 ("Suggest some chill places") | 🔲 待开始 | 关键词 + 向量融合结果正确 |
+| P5-2-8  | 验证 Reranking 提升效果                    | 🔲 待开始 | Top-10 结果更相关         |
+| P5-2-9  | 验证高过滤比场景召回率 (99% filter)        | 🔲 待开始 | Recall@10 >= 90%          |
 
 #### 5.2.4 The Realm of Mind 验收
 
+> **KPI**: 可调试性 (Debuggability) —— 能否精准定位推理死循环或幻觉。
+
 | 任务 ID | 任务描述                          | 状态      | 验收标准                |
 | :------ | :-------------------------------- | :-------- | :---------------------- |
-| P5-2-7  | 使用可视化工具追踪复杂推理 Trace  | 🔲 待开始 | Step-by-Step 透明度确认 |
-| P5-2-8  | 验证调试能力 (人工注入推理死循环) | 🔲 待开始 | 可通过 Trace 发现问题   |
+| P5-2-10 | 使用可视化工具追踪复杂推理 Trace  | 🔲 待开始 | Step-by-Step 透明度确认 |
+| P5-2-11 | 验证调试能力 (人工注入推理死循环) | 🔲 待开始 | 可通过 Trace 发现问题   |
+| P5-2-12 | 验证沙箱安全隔离                  | 🔲 待开始 | 恶意代码不影响主机      |
 
 ### 5.3 性能对比
+
+> **KPI**: P99 响应延迟差异 < **100ms**。
 
 | 任务 ID | 任务描述                           | 状态      | 验收标准         |
 | :------ | :--------------------------------- | :-------- | :--------------- |
@@ -496,7 +554,11 @@ gantt
 |             | **The Pulse**         | `docs/practice/010-the-pulse.md`               | `docs/practice/engine/pulse/transaction_manager.py`        |
 | **Phase 2** | **The Hippocampus**   | `docs/practice/020-the-hippocampus.md`         | `docs/practice/engine/hippocampus/consolidation_worker.py` |
 | **Phase 3** | **The Perception**    | `docs/practice/030-the-perception.md`          | `docs/practice/engine/perception/hybrid_search.sql`        |
-| **Phase 4** | **The Realm of Mind** | `docs/practice/040-the-realm-of-mind.md`       | `docs/practice/adapters/adk_postgres/`                     |
+|             |                       |                                                | `docs/practice/engine/perception/reranker.py`              |
+| **Phase 4** | **The Realm of Mind** | `docs/practice/040-the-realm-of-mind.md`       | `docs/practice/adapters/adk_postgres/` (Python Package)    |
+|             | **Tool Registry**     |                                                | `docs/practice/engine/mind/tool_registry.py`               |
+|             | **Orchestration**     |                                                | `docs/practice/engine/mind/agent_executor.py`              |
+|             | **Sandbox**           |                                                | `docs/practice/engine/mind/sandbox_runner.py`              |
 | **Phase 5** | **Integrated Demo**   | `docs/practice/050-final-validation-report.md` | `docs/practice/demos/e2e_travel_agent/`                    |
 
 ### B. 参考资源
