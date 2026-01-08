@@ -112,3 +112,4 @@ papers/source/general/general_**_test.pdf
 papers/.metadata/general_**_test.pdf.json
 ui/playwright-report/**
 ui/test-results/**
+docs/.backup/
