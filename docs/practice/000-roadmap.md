@@ -174,7 +174,10 @@ tags:
 > **Goal**: 实现 **Zero-ETL** 的记忆生命周期管理，对标 Google `MemoryBankService` (Vector Search + LLM Extraction)。验证从 "Short-term" 到 "Long-term" 的无缝流转。
 
 - [ ] **2.1: Memory Consolidation Worker (记忆巩固)**
-  - **Research**: 调研 ADK `MemoryStore` 接口与 LangGraph `Checkpointer` 机制。
+  - **Research**: 调研 ADK `MemoryStore` 接口与 **LangGraph Memory** (`Checkpointer` + `Store`) 机制。
+    - ADK 文档: [ADK Memory](https://google.github.io/adk-docs/sessions/)
+    - 参考项目: [`langchain-ai/langgraph`](https://github.com/langchain-ai/langgraph) (Checkpointer Design)
+    - 参考项目: [`langchain-ai/langgraph-memory`](https://github.com/langchain-ai/langgraph-memory) (Long-term Memory Pattern)
   - **Async Worker**: 开发后台 Python Worker (由 `pg_cron` 或外部触发)，实现 `consolidate()` 函数：
     - **Extraction**: 异步调用 LLM 从最近的 `events` 中提取 Facts 与 Insights。
       - **Fast Replay**: 将最近 `events` 压缩为 `summary`。
@@ -210,6 +213,9 @@ tags:
 
 - [ ] **4.1: The Realm of Mind Implementation (心智运行时)**
   - **Research**: 深入阅读 ADK 源码，理解 `SessionInterface`, `MemoryInterface` 抽象基类。
+    - ADK 文档: [ADK Docs](https://google.github.io/adk-docs/)
+    - 官方文档: [Vertex AI Agent Builder](https://docs.cloud.google.com/agent-builder/overview)
+    - 代码参考: [GoogleCloudPlatform/generative-ai](https://github.com/GoogleCloudPlatform/generative-ai) (Search `gemini/agents/`)
   - **Orchestration Loop**: 开发 Python 驱动的 `AgentExecutor`，管理 `Thought -> Action -> Observation` 循环。
   - **Tool Registry**: 实现数据库驱动的 `tools` 表，支持 OpenAPI Schema 动态加载。
   - **Glass-Box Tracing**: 集成 OpenTelemetry，将思考步骤结构化写入 `traces` 表，实现可视化调试。Google ADK Adapter Development (核心集成)
