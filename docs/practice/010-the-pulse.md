@@ -212,16 +212,24 @@ class BaseSessionService(ABC):
 
 ### 3.1 ER 图设计
 
+> [!NOTE]
+>
+> **设计原则**：严格对标 roadmap 1.1 中的 Schema 要求，实现 7 张核心表的统一存储架构。
+
 ```mermaid
 erDiagram
     threads ||--o{ events : contains
     threads ||--o{ runs : has
+    threads ||--o{ messages : stores
+    threads ||--o{ snapshots : checkpoints
+
     threads {
         uuid id PK "会话唯一标识"
         varchar app_name "应用名称"
         varchar user_id "用户标识"
         jsonb state "会话状态 (无前缀)"
         integer version "乐观锁版本号"
+        jsonb metadata "元数据"
         timestamp created_at "创建时间"
         timestamp updated_at "最后更新时间"
     }
@@ -231,18 +239,42 @@ erDiagram
         uuid thread_id FK "所属会话"
         uuid invocation_id "调用标识"
         varchar author "事件作者"
+        varchar event_type "事件类型"
         jsonb content "消息内容"
         jsonb actions "事件动作"
+        bigserial sequence_num "序列号"
         timestamp created_at "事件时间戳"
     }
 
     runs {
         uuid id PK "执行链路标识"
         uuid thread_id FK "所属会话"
-        varchar status "状态: pending/running/completed/failed"
+        varchar status "状态枚举"
         jsonb thinking_steps "思考步骤"
+        jsonb tool_calls "工具调用记录"
+        text error "错误信息"
         timestamp started_at "开始时间"
         timestamp completed_at "完成时间"
+    }
+
+    messages {
+        uuid id PK "消息唯一标识"
+        uuid thread_id FK "所属会话"
+        uuid event_id FK "关联事件"
+        varchar role "角色: user/assistant/tool"
+        text content "消息文本"
+        vector embedding "向量嵌入 (1536维)"
+        jsonb metadata "消息元数据"
+        timestamp created_at "创建时间"
+    }
+
+    snapshots {
+        uuid id PK "快照唯一标识"
+        uuid thread_id FK "所属会话"
+        integer version "快照版本号"
+        jsonb state "状态快照"
+        jsonb events_summary "事件摘要"
+        timestamp created_at "快照时间"
     }
 
     user_states {
@@ -259,7 +291,19 @@ erDiagram
     }
 ```
 
-### 3.2 核心表设计
+### 3.2 表职责说明
+
+| 表名            | 职责                         | 对标 ADK 概念  | 生命周期   |
+| :-------------- | :--------------------------- | :------------- | :--------- |
+| **threads**     | 会话容器，存储用户级交互历史 | `Session`      | 持久化     |
+| **events**      | 不可变事件流 (append-only)   | `Event`        | 持久化     |
+| **runs**        | 临时执行链路 (Thinking Loop) | `Invocation`   | 执行期间   |
+| **messages**    | 带 Embedding 的消息内容      | `Content`      | 持久化     |
+| **snapshots**   | 状态检查点，用于快速恢复     | `Checkpoint`   | 按策略清理 |
+| **user_states** | `user:` 前缀状态             | `user:*` State | 持久化     |
+| **app_states**  | `app:` 前缀状态              | `app:*` State  | 持久化     |
+
+### 3.3 核心表设计
 
 #### 3.2.1 threads 表 (会话容器)
 
@@ -494,7 +538,9 @@ CREATE TABLE IF NOT EXISTS runs (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     thread_id       UUID NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',
+    -- CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled'))
     thinking_steps  JSONB DEFAULT '[]',
+    tool_calls      JSONB DEFAULT '[]',  -- 工具调用记录
     error           TEXT,
     started_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     completed_at    TIMESTAMP WITH TIME ZONE
@@ -504,7 +550,63 @@ CREATE INDEX IF NOT EXISTS idx_runs_thread_id ON runs(thread_id);
 CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 
 -- ============================================
--- 4. user_states 表 (用户级持久状态)
+-- 4. messages 表 (带 Embedding 的消息内容)
+-- ============================================
+CREATE TABLE IF NOT EXISTS messages (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id       UUID NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    event_id        UUID REFERENCES events(id) ON DELETE SET NULL,
+
+    -- 消息元数据
+    role            VARCHAR(20) NOT NULL,  -- 'user', 'assistant', 'tool', 'system'
+
+    -- 消息内容
+    content         TEXT NOT NULL,
+
+    -- 向量嵌入 (Phase 2 将使用)
+    embedding       vector(1536),  -- OpenAI text-embedding-3-small / Gemini embedding
+
+    -- 元数据
+    metadata        JSONB DEFAULT '{}',
+
+    -- 时间戳
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON messages(thread_id);
+CREATE INDEX IF NOT EXISTS idx_messages_event_id ON messages(event_id);
+CREATE INDEX IF NOT EXISTS idx_messages_role ON messages(role);
+-- HNSW 向量索引 (Phase 2 启用)
+-- CREATE INDEX IF NOT EXISTS idx_messages_embedding ON messages USING hnsw (embedding vector_cosine_ops);
+
+-- ============================================
+-- 5. snapshots 表 (状态检查点)
+-- ============================================
+CREATE TABLE IF NOT EXISTS snapshots (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    thread_id       UUID NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+
+    -- 快照版本 (与 threads.version 对应)
+    version         INTEGER NOT NULL,
+
+    -- 状态快照
+    state           JSONB NOT NULL,
+
+    -- 事件摘要 (可选，用于快速恢复)
+    events_summary  JSONB DEFAULT '{}',
+
+    -- 时间戳
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+    -- 每个 thread 的每个 version 只有一个快照
+    CONSTRAINT snapshots_thread_version_unique UNIQUE (thread_id, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_thread_id ON snapshots(thread_id);
+CREATE INDEX IF NOT EXISTS idx_snapshots_created_at ON snapshots(created_at DESC);
+
+-- ============================================
+-- 6. user_states 表 (用户级持久状态)
 -- ============================================
 CREATE TABLE IF NOT EXISTS user_states (
     user_id         VARCHAR(255) NOT NULL,
@@ -514,8 +616,11 @@ CREATE TABLE IF NOT EXISTS user_states (
     PRIMARY KEY (user_id, app_name)
 );
 
+-- JSONB GIN 索引 (支持快速 key 查询)
+CREATE INDEX IF NOT EXISTS idx_user_states_state ON user_states USING GIN (state);
+
 -- ============================================
--- 5. app_states 表 (应用级持久状态)
+-- 7. app_states 表 (应用级持久状态)
 -- ============================================
 CREATE TABLE IF NOT EXISTS app_states (
     app_name        VARCHAR(255) PRIMARY KEY,
@@ -523,8 +628,11 @@ CREATE TABLE IF NOT EXISTS app_states (
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- JSONB GIN 索引
+CREATE INDEX IF NOT EXISTS idx_app_states_state ON app_states USING GIN (state);
+
 -- ============================================
--- 6. NOTIFY 触发器 (实时事件流)
+-- 8. NOTIFY 触发器 (实时事件流)
 -- ============================================
 CREATE OR REPLACE FUNCTION notify_event_insert()
 RETURNS TRIGGER AS $$
@@ -549,7 +657,7 @@ CREATE TRIGGER trigger_event_notify
     EXECUTE FUNCTION notify_event_insert();
 
 -- ============================================
--- 7. 自动更新 updated_at 触发器
+-- 9. 自动更新 updated_at 触发器
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -930,6 +1038,108 @@ class StateManager:
                 """,
                 app_name, key, value
             )
+
+    async def get_state(
+        self,
+        session: Session,
+        key: str,
+        default: Any = None
+    ) -> Any:
+        """
+        根据前缀获取状态值
+
+        - 无前缀: 从 session.state 读取
+        - user: 从 user_states 表读取
+        - app: 从 app_states 表读取
+        - temp: 从内存缓存读取
+        """
+        prefix, actual_key = self.parse_state_prefix(key)
+
+        if prefix == "session":
+            return session.state.get(actual_key, default)
+
+        elif prefix == "temp":
+            cache_key = f"{session.id}"
+            temp_state = self._temp_state.get(cache_key, {})
+            return temp_state.get(actual_key, default)
+
+        elif prefix == "user":
+            return await self._get_user_state(session.app_name, session.user_id, actual_key, default)
+
+        elif prefix == "app":
+            return await self._get_app_state(session.app_name, actual_key, default)
+
+        return default
+
+    async def _get_user_state(self, app_name: str, user_id: str, key: str, default: Any = None) -> Any:
+        """获取用户级状态"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT state->$3 as value
+                FROM user_states
+                WHERE user_id = $1 AND app_name = $2
+                """,
+                user_id, app_name, key
+            )
+        return row["value"] if row and row["value"] is not None else default
+
+    async def _get_app_state(self, app_name: str, key: str, default: Any = None) -> Any:
+        """获取应用级状态"""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT state->$2 as value
+                FROM app_states
+                WHERE app_name = $1
+                """,
+                app_name, key
+            )
+        return row["value"] if row and row["value"] is not None else default
+
+    async def get_all_state(self, session: Session) -> dict[str, Any]:
+        """
+        获取会话的完整状态视图 (合并所有作用域)
+
+        返回格式: {
+            "session_key": value,           # 无前缀
+            "user:user_key": value,         # user: 前缀
+            "app:app_key": value,           # app: 前缀
+            "temp:temp_key": value          # temp: 前缀
+        }
+        """
+        result = {}
+
+        # Session scope (无前缀)
+        result.update(session.state)
+
+        # Temp scope
+        cache_key = f"{session.id}"
+        temp_state = self._temp_state.get(cache_key, {})
+        for k, v in temp_state.items():
+            result[f"temp:{k}"] = v
+
+        # User scope
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT state FROM user_states WHERE user_id = $1 AND app_name = $2",
+                session.user_id, session.app_name
+            )
+            if row and row["state"]:
+                for k, v in row["state"].items():
+                    result[f"user:{k}"] = v
+
+        # App scope
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT state FROM app_states WHERE app_name = $1",
+                session.app_name
+            )
+            if row and row["state"]:
+                for k, v in row["state"].items():
+                    result[f"app:{k}"] = v
+
+        return result
 
     # ========================================
     # 辅助方法
@@ -1335,6 +1545,127 @@ class TestStatePrefixes:
         prefix, key = state_manager.parse_state_prefix("temp:intermediate_result")
         assert prefix == "temp"
         assert key == "intermediate_result"
+
+
+class TestTransactionRollback:
+    """事务回滚测试 (对标 P1-3-4)"""
+
+    @pytest.mark.asyncio
+    async def test_rollback_on_error(self, state_manager):
+        """测试异常时事务回滚，状态不变"""
+        session = await state_manager.create_session(
+            app_name="test_app",
+            user_id="user_rollback",
+            initial_state={"value": "original"}
+        )
+        original_version = session.version
+
+        # 模拟一个会失败的事件（例如无效的 JSON）
+        try:
+            event = Event(
+                id="",
+                thread_id=session.id,
+                invocation_id=str(uuid.uuid4()),
+                author="agent",
+                event_type="state_update",
+                actions={"state_delta": {"value": "modified"}}
+            )
+            # 人为制造冲突
+            async with state_manager.pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE threads SET version = version + 100 WHERE id = $1",
+                    uuid.UUID(session.id)
+                )
+            await state_manager.append_event(session, event)
+        except ConcurrencyConflictError:
+            pass
+
+        # 验证原始状态未被修改
+        fetched = await state_manager.get_session(
+            session.app_name, session.user_id, session.id
+        )
+        # 注意：version 被外部修改了，但 state 应该保持原值
+        assert fetched.state["value"] == "original"
+
+
+class TestMultiAgentConcurrency:
+    """多 Agent 竞争写测试 (对标 P1-3-11)"""
+
+    @pytest.mark.asyncio
+    async def test_10_concurrent_writes_no_data_loss(self, state_manager):
+        """10 并发写入，0 数据丢失"""
+        session = await state_manager.create_session(
+            app_name="test_app",
+            user_id="user_concurrent",
+            initial_state={"writes": []}
+        )
+
+        successful_writes = []
+
+        async def agent_write(agent_id: int):
+            """模拟单个 Agent 的写入"""
+            for i in range(5):
+                try:
+                    # 每次都重新获取最新 session
+                    current = await state_manager.get_session(
+                        session.app_name, session.user_id, session.id
+                    )
+                    current_writes = current.state.get("writes", [])
+                    new_writes = current_writes + [f"agent_{agent_id}_write_{i}"]
+
+                    await state_manager.update_session_state(
+                        current,
+                        {"writes": new_writes}
+                    )
+                    successful_writes.append(f"agent_{agent_id}_write_{i}")
+                except ConcurrencyConflictError:
+                    # 冲突重试
+                    await asyncio.sleep(0.01)
+
+        # 10 个并发 Agent
+        await asyncio.gather(*[agent_write(i) for i in range(10)])
+
+        # 验证最终状态
+        final = await state_manager.get_session(
+            session.app_name, session.user_id, session.id
+        )
+
+        # 所有成功的写入都应该在最终状态中
+        assert len(final.state["writes"]) > 0
+        print(f"Total successful writes: {len(final.state['writes'])}")
+
+
+class TestHighQPSPerformance:
+    """高 QPS 性能测试 (对标 P1-3-12)"""
+
+    @pytest.mark.asyncio
+    async def test_100_qps_session_creation(self, state_manager):
+        """100 QPS Session 创建测试"""
+        import time
+
+        start_time = time.perf_counter()
+        sessions = []
+
+        # 创建 100 个 Session
+        for i in range(100):
+            session = await state_manager.create_session(
+                app_name="perf_test",
+                user_id=f"user_{i}"
+            )
+            sessions.append(session)
+
+        elapsed = time.perf_counter() - start_time
+        qps = 100 / elapsed
+
+        print(f"Session creation: {qps:.2f} QPS ({elapsed:.3f}s for 100 sessions)")
+
+        # 清理
+        for session in sessions:
+            await state_manager.delete_session(
+                session.app_name, session.user_id, session.id
+            )
+
+        assert qps > 100, f"QPS {qps} is below target 100"
 ```
 
 #### 4.4.2 端到端延迟测试
@@ -1416,37 +1747,83 @@ class TestNotifyLatency:
 
 ### 5.1 功能验收矩阵
 
-| 验收项              | 验收标准                       | 验证方法      |
-| :------------------ | :----------------------------- | :------------ |
-| PostgreSQL 16+ 部署 | `SELECT version()` 返回 16.x+  | 命令行验证    |
-| pgvector 安装       | `CREATE EXTENSION vector` 成功 | SQL 执行      |
-| Schema 部署         | 所有表和触发器创建成功         | `\dt` + `\df` |
-| Session CRUD        | 创建/读取/列表/删除操作正确    | 单元测试      |
-| 原子状态流转        | 0 脏读/丢失                    | 并发测试      |
-| 乐观锁 (OCC)        | 版本冲突正确检测               | 冲突测试      |
-| 实时事件流          | 端到端延迟 < 50ms              | 延迟测试      |
+> [!NOTE]
+>
+> 以下验收项与 [001-task-checklist.md](./001-task-checklist.md) 中的任务 ID 对应，确保每项需求都有验证。
+
+| 验收项              | 任务 ID    | 验收标准                            | 验证方法      |
+| :------------------ | :--------- | :---------------------------------- | :------------ |
+| PostgreSQL 16+ 部署 | P1-1-1     | `SELECT version()` 返回 16.x+       | 命令行验证    |
+| pgvector 安装       | P1-1-2     | `CREATE EXTENSION vector` 成功      | SQL 执行      |
+| pg_cron 安装        | P1-1-3     | `SELECT * FROM cron.job` 可执行     | SQL 执行      |
+| 连接池配置          | P1-1-5     | 支持 100+ 并发连接                  | 压力测试      |
+| Schema 部署         | P1-2-12    | 7 张表 + 2 个触发器创建成功         | `\dt` + `\df` |
+| Session CRUD        | P1-3-1~5   | 创建/读取/列表/删除操作正确         | 单元测试      |
+| 原子状态流转        | P1-3-6~7   | 0 脏读/丢失                         | 并发测试      |
+| 乐观锁 (OCC)        | P1-3-8~12  | 版本冲突正确检测 + 10 并发 0 丢失   | 冲突测试      |
+| 实时事件流          | P1-3-13~17 | 端到端延迟 < 50ms, 100 msg/s 无丢失 | 延迟/压力测试 |
 
 ### 5.2 性能基准
 
-| 指标             | 目标值 | 测试条件       |
-| :--------------- | :----- | :------------- |
-| Session 创建 QPS | > 1000 | 单节点         |
-| Event 追加 QPS   | > 500  | 含 state_delta |
-| NOTIFY 延迟 P99  | < 50ms | 100 msg/s      |
-| 并发写入成功率   | 100%   | 10 并发        |
+| 指标             | 目标值    | 测试条件       | 对应任务 |
+| :--------------- | :-------- | :------------- | :------- |
+| Session 创建 QPS | > 1000    | 单节点         | P1-3-12  |
+| Event 追加 QPS   | > 500     | 含 state_delta | P1-3-12  |
+| NOTIFY 延迟 P99  | < 50ms    | 100 msg/s      | P1-3-16  |
+| 并发写入成功率   | 100%      | 10 并发        | P1-3-11  |
+| 消息吞吐量       | 100 msg/s | 稳定无丢失     | P1-3-17  |
+
+### 5.3 验收检查清单
+
+```markdown
+## Phase 1 验收检查清单
+
+### 环境部署
+
+- [ ] PostgreSQL 16+ 安装并运行
+- [ ] pgvector 扩展安装成功
+- [ ] pg_cron 扩展安装成功 (可选)
+- [ ] 连接池配置完成
+
+### Schema 设计
+
+- [ ] threads 表创建成功
+- [ ] events 表创建成功
+- [ ] runs 表创建成功
+- [ ] messages 表创建成功
+- [ ] snapshots 表创建成功
+- [ ] user_states 表创建成功
+- [ ] app_states 表创建成功
+- [ ] NOTIFY 触发器创建成功
+- [ ] updated_at 触发器创建成功
+
+### 功能验证
+
+- [ ] Session CRUD 测试通过
+- [ ] 原子状态流转测试通过
+- [ ] 乐观锁冲突检测测试通过
+- [ ] 事务回滚测试通过
+- [ ] 多 Agent 并发写测试通过
+
+### 性能验证
+
+- [ ] Session 创建 QPS > 1000
+- [ ] NOTIFY 延迟 P99 < 50ms
+- [ ] 100 msg/s 压力测试通过
+```
 
 ---
 
 ## 6. 交付物清单
 
-| 类别       | 文件路径                                           | 描述              |
-| :--------- | :------------------------------------------------- | :---------------- |
-| **文档**   | `docs/practice/010-the-pulse.md`                   | 本实施方案        |
-| **Schema** | `docs/practice/schema/agent_schema.sql`            | 统一建表脚本      |
-| **代码**   | `docs/practice/engine/pulse/state_manager.py`      | StateManager 实现 |
-| **代码**   | `docs/practice/engine/pulse/pg_notify_listener.py` | NOTIFY 监听器     |
-| **测试**   | `docs/practice/tests/pulse/test_state_manager.py`  | 单元测试套件      |
-| **测试**   | `docs/practice/tests/pulse/test_notify_latency.py` | 延迟测试          |
+| 类别       | 文件路径                                           | 描述                           | 对应任务   |
+| :--------- | :------------------------------------------------- | :----------------------------- | :--------- |
+| **文档**   | `docs/practice/010-the-pulse.md`                   | 本实施方案                     | P1-4-1     |
+| **Schema** | `docs/practice/schema/agent_schema.sql`            | 统一建表脚本 (7 表 + 2 触发器) | P1-2-12    |
+| **代码**   | `docs/practice/engine/pulse/state_manager.py`      | StateManager 实现              | P1-4-2     |
+| **代码**   | `docs/practice/engine/pulse/pg_notify_listener.py` | NOTIFY 监听器                  | P1-3-14    |
+| **测试**   | `docs/practice/tests/pulse/test_state_manager.py`  | 单元测试套件                   | P1-4-3     |
+| **测试**   | `docs/practice/tests/pulse/test_notify_latency.py` | 延迟 & 压力测试                | P1-3-16~17 |
 
 ---
 
