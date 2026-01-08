@@ -46,7 +46,7 @@ tags:
 
 我们将 **Agentic AI Engine** 的黑盒能力解构为四个 **正交 (Orthogonal)** 的工程支柱。通过 **"Glass-Box (白盒化)"** 策略，利用 PostgreSQL 生态的原子能力（JSONB, Vectors, Triggers, Notify）实现对 Google Vertex AI 中这 4 个支柱的对标、复刻与机制透明化，从而 **"De-Google, but Re-Google"**。
 
-#### 🏛️ Pillar I: The Pulse (脉搏引擎)
+#### 🫀 Pillar I: The Pulse (脉搏引擎)
 
 > **Definition**: **Session Engine** —— 负责管理 Agent 与环境交互的 **瞬时状态 (Ephemeral State)** 与 **控制流 (Control Flow)**。
 > **Core Value**: **Consistency (一致性：可回溯的会话上下文)** & **Real-time (实时性：高并发、强一致)**。
@@ -90,10 +90,10 @@ tags:
    - **Iterative Indexing**: 利用 PGVector 的 HNSW 迭代扫描特性，彻底解决 "High-Selectivity Filtering" (高过滤比) 场景下向量检索召回率为 0 的痛点。
    - **Complex Predicates**: 支持基于 JSONB 的任意深度的布尔逻辑过滤 (如 `metadata->'author'->>'role' == 'admin'`).
 
-#### 🤖 Pillar IV: The Realm of Mind (心智空间)
+#### 🔮 Pillar IV: The Realm of Mind (心智空间)
 
 > **Definition**: **Agent Runtime** —— 负责编排思考路径、调度工具与沙箱的 **执行环境 (Execution Environment)**。
-> **Core Value**: **Observability (可观测性)**、**Safety (安全性：标准化的执行环境、工具管理)**、**"Google's Framework, Flexible Infrastructure"**。
+> **Core Value**: **Observability (可观测性：自省性)**、**Safety (安全性：标准化的执行环境、工具管理)**、**"Google's Framework, Flexible Infrastructure"**。
 > **Align With**: Vertex AI Agent Engine (ADK on Agent Engine) + Extensions
 
 1. **Execution Orchestration (执行编排)**
@@ -131,6 +131,15 @@ tags:
 | **The Hippocampus (仿生记忆)**   | **Memory**    | **ETL Pipeline (Memory Bank)**<br>- 异步 ETL 流程 (Log → Insight)：数据需在 Memorystore 与 Vector Search 之间物理搬运，存在同步延迟               | **Zero-ETL (Unified Memory)**<br>- Session Log (行存) 与 Context Vectors (向存) 同库存储，分析与回写零网络开销<br/>- 事务级强一致 (ACID) | **记忆新鲜度 (Freshness)**<br>从"发生"到"可回忆"的时延。                                 |
 | **The Perception (神经感知)**    | **Retrieval** | **RAG Pipeline**<br>- 需应用层自行拼装 Keyword (Search) 与 Semantic (Vector) 结果。                                                               | **One-Shot Integrated**<br>- One-Shot SQL (DBMS Native)<br>- `DBMS_HYBRID_SEARCH`: 一次查询完成 SQL 过滤、关键词匹配与向量召回。         | **复杂过滤性能**<br>高过滤比下的召回率与耗时。                                           |
 | **The Realm of Mind (心智空间)** | **Runtime**   | **Opaque (黑盒)**<br/>- 仅可见 Input/Output 与计费 Token，内部推理步骤 (Reasoning Details) 不可见                                                 | **Observable (白盒)**<br>- OpenTelemetry 级全链路追踪<br>- 完整记录 Thought Chain、Tool IO 与 Slot Updates                               | **可调试性 (Debuggability)**<br>能否精准定位推理死循环或幻觉                             |
+
+基于 "Glass-Box Engine" 的构建目标，我们将 **Open Agent Engine (Target)** 与 **Google Vertex AI Agent Engine (Reference)** 进行全维度复刻对标。这不仅是基础设施选型的参考，更是 **Open Agent Engine** 自建路径的实践与印证。
+
+| 全景模块                                    | 维度         | Google Vertex AI Agent Engine (Reference Black-Box)                                                                                               | Open Agent Engine (Target Glass-Box)                                                                                                     | 核心核验点                                                                               |
+| :------------------------------------------ | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **The Pulse (交互脉搏)**<br>Session         | **脉搏机制** | **Composed (组合式)**<br>- Short-term: Memorystore (Redis)<br>- Long-term: Vertex Vector Search<br>- Preferneces: Firestore<br/>- Events: Pub/Sub | **Unified (统一式)**<br>- Transaction Log<br/>- JSONB State/KV<br/>- Vector: Embedding Column<br/>- `NOTIFY` 推送变更                    | - **架构复杂度 vs 能力完备性**<br/>- **并发一致性 (OCC):** 多 Agent 竞争下的数据正确性。 |
+| **The Hippocampus (仿生记忆)**<br>Memory    | **记忆流转** | **ETL Pipeline (Memory Bank)**<br>- 异步 ETL 流程 (Log → Insight)：数据需在 Memorystore 与 Vector Search 之间物理搬运，存在同步延迟               | **Zero-ETL (Unified Memory)**<br>- Session Log (行存) 与 Context Vectors (向存) 同库存储，分析与回写零网络开销<br/>- 事务级强一致 (ACID) | **记忆新鲜度 (Freshness)**<br>从"发生"到"可回忆"的时延。                                 |
+| **The Perception (神经感知)**<br>Search     | **检索链路** | **RAG Pipeline**<br>- 需应用层自行拼装 Keyword (Search) 与 Semantic (Vector) 结果。                                                               | **One-Shot Integrated**<br>- One-Shot SQL (DBMS Native)<br>- `DBMS_HYBRID_SEARCH`: 一次查询完成 SQL 过滤、关键词匹配与向量召回。         | **复杂过滤性能**<br>高过滤比下的召回率与耗时。                                           |
+| **The Realm of Mind (心智空间)**<br>Runtime | **透明度**   | **Opaque (黑盒)**<br/>- 仅可见 Input/Output 与计费 Token，内部推理步骤 (Reasoning Details) 不可见                                                 | **Observable (白盒)**<br>- OpenTelemetry 级全链路追踪<br>- 完整记录 Thought Chain、Tool IO 与 Slot Updates                               | **可调试性 (Debuggability)**<br>能否精准定位推理死循环或幻觉                             |
 
 ### 2.1 当前预选型对照组
 
