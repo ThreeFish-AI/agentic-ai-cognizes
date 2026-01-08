@@ -111,9 +111,11 @@ tags:
    - **Structured Reasoning**: 将 LLM 的 `Chain-of-Thought` 显式结构化存入 Trace 表，而非仅作为文本日志（1:1 复刻 OpenTelemetry 结构，记录思考过程 (Reasoning Steps)、工具调用 (Tool Inputs/Outputs) 与最终结果，支持全链路可视化调试）。
    - **Sandboxed Execution**: 集成安全沙箱机制（执行环境：如 Docker 容器或 WebAssembly 运行时），确保 Python/Node.js 代码解释器 (Code Interpreter) 与自定义工具（Function Tools）的安全隔离运行。
 
-## 2. 架构对比与验证矩阵
+## 2. 架构验证矩阵
 
 基于上述四支柱，我们将 **"Glass-Box"** 的 **Open Agent Engine** 架构目标与 **Google Vertex AI Agent Engine** 进行全维度对标印证、复刻实践。
+
+### 2.1 架构验证矩阵
 
 | 全景模块                         | 维度          | Google Vertex AI Agent Engine (Align With - Black-Box)                                                                                                                                                            | Open Agent Engine (Target - Glass-Box)                                                                                                                                             | 核心核验指标 (KPI)                                                                                                          |
 | :------------------------------- | :------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
@@ -122,7 +124,7 @@ tags:
 | **The Perception (神经感知)**    | **Retrieval** | **RAG Pipeline**<br>- 需应用层自行拼装 Keyword (Search) 与 Semantic (Vector) 结果。                                                                                                                               | **One-Shot SQL (DBMS Native)**<br>- `DBMS_HYBRID_SEARCH`: 一次查询完成 SQL 过滤、关键词匹配与向量召回。                                                                            | **ADK/LangGraph 兼容性**<br/>**检索延迟 vs 开发效率**<br/>**Recall@10 (with Filters)**<br>- 高过滤比下的召回率与耗时。      |
 | **The Realm of Mind (心智空间)** | **Runtime**   | **Opaque (黑盒)**<br/>- 仅可见 Input/Output 与计费 Token，内部推理步骤 (Reasoning Details) 不可见<br>**运维成本**<br/>- Serverless (Managed)                                                                      | **Observable (白盒)**<br>- OpenTelemetry 级全链路追踪<br>- 完整记录 Thought Chain、Tool IO 与 Slot Updates<br/>**运维成本**<br/>- Self-hosted / Cloud<br/> - 多地多活 (Paxos)      | **可调试性 (Debuggability)**<br>- 能否精准定位推理死循环或幻觉，所需时间。**单集群 vs 多组件运维**<br/>- 跨区数据同步延迟。 |
 
-### 2.1 当前预选型对照组
+### 2.2 预选型对照
 
 1. **PostgreSQL Ecosystem (Primary Target)**:
 
@@ -133,7 +135,7 @@ tags:
 2. **Google Agent Engine Stack (Reference)**:
 
    - **定位**: **"The North Star"**。
-   - **构成**: Vertex AI Agent Builder (ADK + Agent Engine)。
+   - **构成**: Open Agent Engine (适配 ADK)。
    - **价值**: 提供能力基准线 (Baseline Capabilities) 与 API 设计规范。
 
 3. **Specialized Vector DBs (VectorChord/Weaviate/Milvus)**:
@@ -141,7 +143,7 @@ tags:
    - **定位**: **"Specific Enhancer"**。
    - **场景**: 仅当 PG 在千万级 (10M+) 向量规模出现显著性能瓶颈，或需要特定多模态索引 (如 DiskANN) 时作为组件引入。
 
-## 3. 调研与验证执行计划
+## 3. 验证执行计划
 
 ### 阶段一：基座部署与 Unified Schema 设计 (Foundation) ✅
 
