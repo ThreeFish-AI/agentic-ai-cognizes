@@ -1,6 +1,6 @@
 ---
 id: agentic-ai-engine-validation-roadmap
-sidebar_position: 0
+sidebar_position: 1.0
 title: Agentic AI Engine Validation Roadmap
 last_update:
   author: Aurelius Huang
