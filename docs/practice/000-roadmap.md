@@ -145,7 +145,7 @@ tags:
 
 ## 3. 验证执行计划
 
-本计划严格依照前述 **四大正交支柱** 进行拆解，确保每个模块的工程实现均能对标并优于 Google Vertex AI 的黑盒方案。
+本计划严格遵循 **"De-Google, but Re-Google"** 策略，按四大正交支柱分阶段实施。每个阶段均包含 **"Research (Google ADK Analysis)"** 与 **"Replication (PostgreSQL Implementation)"** 两个闭环步骤，确保技术实现的精准对标。
 
 ### Phase 1：Foundation & The Pulse (基座与脉搏验证)
 
@@ -154,31 +154,37 @@ tags:
 > **Goal**: 构建 PostgreSQL + PGVector 统一存储基座，并验证 **Session Engine (The Pulse)** 的高并发与强一致性。
 
 - [ ] **1.1: Environment & Unified Schema Design (部署与模型设计)**
+  - **Research**: 分析 ADK `FirestoreSession` 与 `RedisChatMessageHistory` 的 Schema 结构。
   - **Deploy**: 部署 PostgreSQL 16+ (Kernel), `pgvector` (0.7.0+), `pg_cron` (Scheduler)。
-  - **Schema**: 设计统一存储模型 `agent_schema.sql`：
-    - `threads` (Human-Agent Interaction)
-    - `runs` (Ephemeral Thinking Loop)
-    - `events` (Immutable Stream)
-    - `messages` (Content with Embedding)
-- [ ] **1.2: The Pulse Implementation (脉搏机制实现)**
-  - **Atomic State Transitions**: 使用 PG 事务 (`BEGIN...COMMIT`) 实现 `User Msg -> State Update -> Tool Call` 的原子流转，验证 `0` 脏读/丢失。
-  - **Real-time Streaming**: 开发 `pg_notify_listener.py`，验证基于 `LISTEN/NOTIFY` 的事件流推送延迟 (< 50ms)，替代 Redis Pub/Sub。
-  - **Optimistic Concurrency**: 模拟多 Agent 并发更新同一会话状态，验证 `CAS` (Compare-And-Swap) 机制的冲突处理能力。
+  - **Schema**: 设计 `agent_schema.sql`，实现 **Unified Storage**：
+    - `threads` (User Sessions): 存储 Metadata 与用户偏好。
+      - `runs` (Ephemeral Thinking Loop)
+    - `events` (Immutable Stream): 存储 Message, ToolCall, StateUpdate，使用 `JSONB` 保持灵活。
+      - `messages` (Content with Embedding)
+    - `snapshots` (State Checkpoints): 用于快速恢复会话状态。
+- [ ] **1.2: The Pulse Engine Implementation (脉搏机制)**
+  - **Atomic State Transitions**: 开发 `StateManger` 类，利用 PG 事务 (`BEGIN...COMMIT`) 保证 `User Input -> Thought -> Tool Execution -> State Update` 的原子性状态流转，验证 `0` 脏读/丢失。
+  - **Optimistic Concurrency (OCC)**: 在 `update_session()` 中实现基于 `version` 字段的 `CAS` (Check-And-Set) 逻辑，解决多 Agent 竞争写问题。
+  - **Real-time Streaming**: 开发 `pg_notify_listener.py`，利用 `LISTEN/NOTIFY` 实现 Database-Native 的事件流推送，验证 < 50ms 的端到端延迟。
 
 ### Phase 2：The Hippocampus (仿生记忆验证)
 
 > [!NOTE]
 >
-> **Goal**: 实现 **Zero-ETL** 的记忆生命周期管理，验证从 "Short-term" 到 "Long-term" 的无缝流转。
+> **Goal**: 实现 **Zero-ETL** 的记忆生命周期管理，对标 Google `MemoryBankService` (Vector Search + LLM Extraction)。验证从 "Short-term" 到 "Long-term" 的无缝流转。
 
-- [ ] **2.1: Memory Consolidation (记忆巩固机制)**
-  - **Async Consolidation**: 开发后台 Worker (`pg_cron` 触发)，执行 `consolidate_memory()`：
-    - **Fast Replay**: 将最近 `events` 压缩为 `summary`。
-    - **Deep Reflection**: 异步调用 LLM 提取 `Key-Facts` 并写入 `facts` 向量表。
-  - **Verification**: 验证 "写入即记忆" (Read-Your-Writes)，对比 Google "Log -> ETL -> Vector DB" 的同步延迟。
+- [ ] **2.1: Memory Consolidation Worker (记忆巩固)**
+  - **Research**: 调研 ADK `MemoryStore` 接口与 LangGraph `Checkpointer` 机制。
+  - **Async Worker**: 开发后台 Python Worker (由 `pg_cron` 或外部触发)，实现 `consolidate()` 函数：
+    - **Extraction**: 异步调用 LLM 从最近的 `events` 中提取 Facts 与 Insights。
+      - **Fast Replay**: 将最近 `events` 压缩为 `summary`。
+      - **Deep Reflection**: 提取 `Key-Facts` 并写入 `facts` 向量表。
+    - **Vectorization**: 将 Insights 向量化并写入 `memories` 表 (PGVector)。
+  - **Verification**: 验证 "Read-Your-Writes" 延迟，确保新生成的记忆在下一个 Turn 中立即可见（对比 Google 方案的同步延迟）。
 - [ ] **2.2: Biological Retention (遗忘与保持)**
-  - **Ebbinghaus Decay**: 实现基于时间的权重衰减算法，自动清理低频访问的 Short-term 记忆。
+  - **Ebbinghaus Decay**: 实现基于时间的权重衰减算法，自动清理低频访问的 Short-term 记忆（SQL 函数 `calculate_retention_score(time, access_count)`）。
   - **Episodic Indexing**: 验证按 `session_id` + `time_bucket` 的情景分块检索性能。
+  - **Context Budgeting**: 开发 `get_context_window()` 函数，根据 Token 限制动态组装 `System Prompt` + `Top-K Memories` + `Recent History`，防止 Context Overflow。
 
 ### Phase 3：The Perception (神经感知验证)
 
@@ -186,58 +192,65 @@ tags:
 >
 > **Goal**: 构建 **One-Shot Integrated** 检索链路，验证 "SQL + Vector" 融合检索的精度与效率。
 
-- [ ] **3.1: Fusion Retrieval (融合检索链路)**
-  - **Implementation**: 开发 `hybrid_search()` 存储过程，单次调用实现：
-    - **Keyword**: `tsvector` 全文检索 (BM25)。
-    - **Semantic**: `vector` 相似度检索 (HNSW)。
-    - **Structural**: JSONB Metadata 过滤。
-  - **RRF Fusion**: 在数据库内实现倒排秩融合 (Reciprocal Rank Fusion)。
-- [ ] **3.2: Advanced Filtering & Reranking**
-  - **High-Selectivity**: 构造高过滤比场景 (Filtering 99% data)，验证 HNSW `ef_search` 参数对召回率的影响。
-  - **L1 Reranking**: 集成轻量级 Cross-Encoder，对 PG 返回的 Top-20 结果进行精排，评估 `Recall@10` 提升幅度。
+- [ ] **3.1: Fusion Retrieval Implementation (融合检索)**
+  - **Hybrid Search SQL**: 编写 `hybrid_search_function.sql`，单次查询融合：
+    - **Semantic**: `embedding <=> query_embedding` (HNSW)。
+    - **Keyword**: `to_tsvector(content) @@ plainto_tsquery(query)` (BM25)。
+    - **Metadata**: JSONB `metadata @> '{"role": "user"}'`。
+  - **RRF (Reciprocal Rank Fusion)**: 在 SQL 或应用层实现 RRF 算法，合并多路召回结果。
+- [ ] **3.2: Advanced RAG Capabilities (高阶能力: Recall 优化、Reranking)**
+  - **High-Selectivity**: 验证 `HNSW` 索引在 `WHERE user_id = 'xxx'` (High Filter Ratio: 99%) 场景下的召回率与性能 (QPS/Recall)，验证 HNSW `ef_search` 参数对召回率的影响。
+  - **L1 Reranking**: 集成 `BAAI/bge-reranker` 等轻量模型，对 PG 返回的 Top-50 结果进行从排序，验证 Precision@10 提升。
 
-### Phase 4：The Realm of Mind (心智与集成验证)
+### Phase 4：The Realm of Mind (心智集成验证)
 
 > [!NOTE]
 >
-> **Goal**: 实现 **Glass-Box Runtime**，并完成与 **Google ADK** 的标准化集成。
+> **Goal**: 实现 **Glass-Box Runtime**，并完成与 **Google ADK** 的标准化集成 (Adapter)。
 
-- [ ] **4.1: The Realm of Mind Implementation (运行时实现)**
+- [ ] **4.1: The Realm of Mind Implementation (心智运行时)**
+  - **Research**: 深入阅读 ADK 源码，理解 `SessionInterface`, `MemoryInterface` 抽象基类。
   - **Orchestration Loop**: 开发 Python 驱动的 `AgentExecutor`，管理 `Thought -> Action -> Observation` 循环。
   - **Tool Registry**: 实现数据库驱动的 `tools` 表，支持 OpenAPI Schema 动态加载。
-  - **Glass-Box Tracing**: 集成 OpenTelemetry，将思考步骤结构化写入 `traces` 表，实现可视化调试。
+  - **Glass-Box Tracing**: 集成 OpenTelemetry，将思考步骤结构化写入 `traces` 表，实现可视化调试。Google ADK Adapter Development (核心集成)
 - [ ] **4.2: Google ADK Adapter (框架集成)**
   - **Interface Compliance**: 开发 `adk-postgres` 适配器，实现：
-    - `PostgresSessionService` (implements `SessionService`)
-    - `PostgresMemoryService` (implements `MemoryService`)
+    - `PostgresSession`: 实现 `load()`, `save()`, `clear()`。
+    - `PostgresMemory`: 实现 `add()`, `query()`, `list()`。
+  - **Unit Test**: 跑通 ADK 官方提供的 Interface Compliance Tests。
   - **E2E Testing**: 使用 Google Vertex AI Agent Builder 的官方 Demo，无缝替换后端存储为 PostgreSQL，验证功能由 Glass-Box 引擎接管。
+- [ ] **4.3: Glass-Box Observability (白盒可观测)**
+  - **OpenTelemetry Tracing**: 在 Adapter 层埋点，记录 `Chain start/end`, `Tool call/return`。
+  - **Visualization**: 部署 Jaeger 或使用 Honeycomb，验证能完整还原 "User Input -> Reasoning -> Action -> Final Answer" 的全链路 Trace。
 
 ### Phase 5：Integrated Demo & Final Validation (综合集成验证)
 
 > [!NOTE]
 >
-> **Goal**: 通过复刻 Google 官方高复杂度 Demo (e.g., Travel Agent)，验证 **Open Agent Engine** 在真实业务场景下的闭环能力与 "Glass-Box" 优势。
+> **Goal**: 全场景复刻 Google 官方高复杂度 Demo (e.g., Travel Agent)，验证 Glass-Box Engine 在正式场景下的 **"Drop-in Replacement"** 能力与 "Glass-Box" 优势。
 
 - [ ] **5.1: E2E Scenario Replication (全场景复刻)**
   - **Subject**: 选取 Google Cloud ADK 官方仓库中的 `Travel Agent` 或 `E-commerce Support` 示例。
-  - **Modification**: 保持其前端与 Prompt 逻辑不变，仅将后端 `Session/Memory/Search` 接口切至 `adk-postgres` 适配器。
-  - **Outcome**: 验证 Agent 从"对话开启"到"订单完成"的全流程 0 报错，且响应延迟与原生 Google Stack 相当。
-- [ ] **5.2: Holistic Pillar Validation (四支柱协同验证)**
-  - **Pulse Check**: 验证在高并发多轮对话中，Session 状态 (State) 无脏读或丢失。
-  - **Memory Check**: 验证用户偏好 ("I hate spicy food") 能在后续跨 Session 对话中被 `Hippocampus` 自动召回。
-  - **Perception Check**: 验证模糊查询 ("Suggest some chill places") 能正确融合关键词与向量检索结果。
-  - **Mind Check**: 使用 OpenTelemetry 可视化工具 (e.g., Jaeger/Signoz) 完整追踪一次复杂推理的 Trace 链路，确认 Step-by-Step 的透明度。
+  - **Action**: 保持前端 (Streamlit/React) 与 Prompt 不变，仅替换 Backend (`Session/Memory/Search`) 为 `adk-postgres` 实现。
+  - **Success Criteria**:
+    - **Functionality**: 所有 Use Cases (订票、查询、修改) 运行无误。
+    - **Performance**: P99 响应延迟与 Google 原生方案差异 < 100ms。
+- [ ] **5.2: Holistic Validation (四支柱联合验收)**
+  - **Pulse**: 验证在高并发多轮对话中，Session 状态 (State) 无脏读或丢失。
+  - **Hippocampus**: 验证跨会话偏好记忆（"I hate spicy food"）准确被 `Hippocampus` 自动召回。
+  - **Perception**: 混合检索 ("Suggest some chill places") 结果正确融合关键词与向量检索，准确度达标。
+  - **Mind**: 使用 OpenTelemetry 可视化工具 (e.g., Jaeger/Signoz) 完整追踪一次复杂推理的 Trace 链路，确认 Step-by-Step 的透明度。验证调试能力。
 
 ## 4. 交付物汇总
 
 | 阶段        | 交付物模块            | 文件/代码路径                                                                                | 状态      |
 | :---------- | :-------------------- | :------------------------------------------------------------------------------------------- | :-------- |
 | **Phase 1** | **Foundation**        | `src/schema/agent_schema.sql` (Unified Schema)                                               | 🔲 待开始 |
-|             | **The Pulse**         | `src/engine/pulse/transaction_manager.py`<br>`docs/001-pulse-concurrency-report.md`          | 🔲 待开始 |
-| **Phase 2** | **The Hippocampus**   | `src/engine/hippocampus/consolidation_worker.py`<br>`docs/002-memory-freshness-benchmark.md` | 🔲 待开始 |
-| **Phase 3** | **The Perception**    | `src/engine/perception/retrieval_fusion.sql`<br>`docs/003-hybrid-search-evaluation.md`       | 🔲 待开始 |
-| **Phase 4** | **The Realm of Mind** | `src/engine/mind/executor.py`<br>`src/adapters/adk_postgres/` (Adapter Package)              | 🔲 待开始 |
-| **Phase 5** | **Integrated Demo**   | `demos/e2e_travel_agent/` (Replicating Google Demo)                                          | 🔲 待开始 |
+|             | **The Pulse**         | `src/engine/pulse/transaction_manager.py`<br>`docs/001-the-pulse.md`                         | 🔲 待开始 |
+| **Phase 2** | **The Hippocampus**   | `src/engine/hippocampus/consolidation_worker.py`<br>`docs/002-the-hippocampus.md`            | 🔲 待开始 |
+| **Phase 3** | **The Perception**    | `src/engine/perception/hybrid_search.sql`<br>`docs/003-the-perception.md`                    | 🔲 待开始 |
+| **Phase 4** | **The Realm of Mind** | `src/adapters/adk_postgres/` (Python Package)<br>`docs/004-the-realm-of-mind.md`             | 🔲 待开始 |
+| **Phase 5** | **Integrated Demo**   | `demos/e2e_travel_agent/` (Replicating Google Demo)<br>`docs/005-final-validation-report.md` | 🔲 待开始 |
 
 ## 5. 工程验证 Roadmap
 
