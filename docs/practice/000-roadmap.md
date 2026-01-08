@@ -37,7 +37,7 @@ tags:
 
 - **Session Management**: 会话状态的原子性管理与持久化。
 - **Memory Bank**: 长期记忆的"海马体"构建（存储、索引与提取）。
-- **RAG Engine**: 高性能的混合检索链路。
+- **Retrieval Engine**: 高性能的混合检索链路。
 - **Sandbox**: 安全可控的代码执行环境。
 
 最终，使用这套自建的 **Agent Engine** 搭配 **Google ADK**，走通 Agent 搭建的 **全场景闭环**。
@@ -48,9 +48,11 @@ tags:
 
 #### 🫀 Pillar I: The Pulse (脉搏引擎)
 
-> **Definition**: **Session Engine** —— 负责管理 Agent 与环境交互的 **瞬时状态 (Ephemeral State)** 与 **控制流 (Control Flow)**。
-> **Core Value**: **Consistency (一致性：可回溯的会话上下文)** & **Real-time (实时性：高并发、强一致)**。
-> **Align With**: Google `VertexAiSessionService` (Firestore/Redis) + Realtime API。
+> [!NOTE]
+>
+> - **Definition**: **Session Engine** —— 负责管理 Agent 与环境交互的 **瞬时状态 (Ephemeral State)** 与 **控制流 (Control Flow)**。
+> - **Core Value**: **Consistency (一致性：可回溯的会话上下文)** & **Real-time (实时性：高并发、强一致)**。
+> - **Align With**: Google `VertexAiSessionService` (Firestore/Redis) + Realtime API。
 
 1. **State Granularity (状态颗粒度)**
    - **Thread (会话容器)**: 持久化存储用户级交互历史（Human-Agent Interaction），作为长期记忆的输入源。
@@ -63,9 +65,11 @@ tags:
 
 #### 🧠 Pillar II: The Hippocampus (仿生记忆)
 
-> **Definition**: **Memory System** —— 负责将瞬时状态转化为 **持久记忆 (Persistent Memory)** 的生命周期管理系统。
-> **Core Value**: **Evolution (演化性：短期记忆向长期记忆的动态转化)** & **Relevance (关联性：模拟人类记忆机制)**。
-> **Align With**: Google `VertexAiMemoryBankService` (Vector Search + LLM Extraction)。
+> [!NOTE]
+>
+> - **Definition**: **Memory System** —— 负责将瞬时状态转化为 **持久记忆 (Persistent Memory)** 的生命周期管理系统。
+> - **Core Value**: **Evolution (演化性：短期记忆向长期记忆的动态转化)** & **Relevance (关联性：模拟人类记忆机制)**。
+> - **Align With**: Google `VertexAiMemoryBankService` (Vector Search + LLM Extraction)。
 
 1. **Memory Formation (记忆形成)**
    - **Zero-ETL Unified Storage**: 摒弃 `Redis (App)` + `VectorDB (Mem)` 的割裂架构。Session Log (Raw Events) 与 Semantic Memory (Vectors) 存入同一 PG 库，实现 **"写入即记忆"**。
@@ -79,22 +83,26 @@ tags:
 
 #### 👁️ Pillar III: The Perception (神经感知)
 
-> **Definition**: **Unified Search** —— 负责从海量记忆与知识中 **精准定位 (Pinpoint)** 信息的检索中枢。
-> **Core Value**: **Precision (精准度：重排序、精排序)** & **Fusion (融合性：多模态、混合的检索能力)**。
-> **Align With**: Vertex AI RAG Engine + Vector Search + VertexAIMemoryBankService。
+> [!NOTE]
+>
+> - **Definition**: **Unified Search** —— 负责从海量记忆与知识中 **精准定位 (Pinpoint)** 信息的检索中枢。
+> - **Core Value**: **Precision (精准度：重排序、精排序)** & **Fusion (融合性：多模态、混合的检索能力)**。
+> - **Align With**: Vertex AI RAG Engine + Vector Search + VertexAIMemoryBankService。
 
 1. **Fusion Retrieval (融合检索)**
    - **One-Shot SQL (L0 Rerank)**: 利用 `DBMS_HYBRID_SEARCH` 在单次查询中融合 **Lexical (BM25)** + **Semantic (HNSW)** + **Structural (Metadata)** 三种信号。
    - **Post-Retrieval Reranking**: 引入轻量级 Cross-Encoder 模型 (L1 Rerank) 对 PG 召回的粗排结果进行语义重排，解决向量检索的"语义漂移"问题。
 2. **Advanced Filtering (高阶过滤)**
    - **Iterative Indexing**: 利用 PGVector 的 HNSW 迭代扫描特性，彻底解决 "High-Selectivity Filtering" (高过滤比) 场景下向量检索召回率为 0 的痛点。
-   - **Complex Predicates**: 支持基于 JSONB 的任意深度的布尔逻辑过滤 (如 `metadata->'author'->>'role' == 'admin'`).
+   - **Complex Predicates**: 支持基于 JSONB 的任意深度的布尔逻辑过滤 (如 `metadata->'author'->>'role' == 'admin'`)。
 
 #### 🔮 Pillar IV: The Realm of Mind (心智空间)
 
-> **Definition**: **Agent Runtime** —— 负责编排思考路径、调度工具与沙箱的 **执行环境 (Execution Environment)**。
-> **Core Value**: **Observability (可观测性：自省性)**、**Safety (安全性：标准化的执行环境、工具管理)**、**"Google's Framework, Flexible Infrastructure"**。
-> **Align With**: Vertex AI Agent Engine (ADK on Agent Engine) + Extensions
+> [!NOTE]
+>
+> - **Definition**: **Agent Runtime** —— 负责编排思考路径、调度工具与沙箱的 **执行环境 (Execution Environment)**。
+> - **Core Value**: **Observability (可观测性：自省性)**、**Safety (安全性：标准化的执行环境、工具管理)**、**"Google's Framework, Flexible Infrastructure"**。
+> - **Align With**: Vertex AI Agent Engine (ADK on Agent Engine) + Extensions。
 
 1. **Execution Orchestration (执行编排)**
    - **Standard Interface**: 1:1 实现 Google ADK 的 `SessionService` 与 `MemoryService` 协议，保障上层业务逻辑与下层 Framework (ADK) 及 Runtime (Open Agent Engine) 集成的 **Vendor Agnostic (供应商无关)**。
@@ -105,41 +113,14 @@ tags:
 
 ## 2. 架构对比与验证矩阵
 
-基于 "Glass-Box Engine" 的构建目标，我们将 **Open Agent Engine (Target)** 与 **Google Vertex AI Agent Engine (Reference)** 进行全维度复刻对标。这不仅是基础设施选型的参考，更是 **Open Agent Engine** 自建路径的实践与印证。
+基于上述四支柱，我们将 **"Glass-Box"** 的 **Open Agent Engine** 架构目标与 **Google Vertex AI Agent Engine** 进行全维度对标印证、复刻实践。
 
-| 全景模块                              | 维度           | Google Vertex AI Agent Engine (Reference Black-Box)                                                                                                                                       | Open Agent Engine (Target Glass-Box)                                                                                                                                    | 核心核验点                                                                                                         |
-| :------------------------------------ | :------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
-| **The Pulse(脉搏)**<br>Session        | **架构模式**   | **Composed (组合式)**<br>- Short-term: Memorystore (Redis)<br>- Long-term: Vertex Vector Search<br>- Preferences: Firestore<br/>- Events: Pub/Sub。                                       | **Unified (统一式)**<br>- Transaction Log<br/>- JSONB State/KV<br/>- Vector: Embedding Column<br/>- `NOTIFY` 推送变更                                                   | - **架构复杂度 vs 能力完备性**<br/>- **并发一致性 (OCC):** 多 Agent 竞争下的数据正确性。                           |
-| **The Hippocampus(海马体)**<br>Memory | **记忆管理**   | **ETL Pipeline (Memory Bank)**<br>- 异步 ETL 流程 (Log → Insight)：数据需在 Memorystore 与 Vector Search 之间物理搬运，存在同步延迟<br>- `MemoryService` 接口抽象                         | **Zero-ETL (Unified Memory)**<br>- Session Log (行存) 与 Context Vectors (向存) 同库存储，分析与回写零网络开销<br/>- 事务级强一致 (ACID)<br>- 原子性 "Consolidation"    | **记忆新鲜度 (Freshness, Read-Your-Writes)**<br>从"发生"到"可回忆"的时延。                                         |
-| **The Perception(感知)**<br>Search    | **检索链路**   | **框架集成**<br/>- `SessionService` + `MemoryService` 接口<br/>**RAG Pipeline**<br>- <br/>**Service Assembly**<br>- 混合检索需要在应用层拼装 Keyword (Search) 与 Semantic (Vector) 结果。 | **框架集成**<br/>- `OpenSessionService` + `OpenMemoryService`<br/>**One-Shot SQL (DBMS Native)**<br>`DBMS_HYBRID_SEARCH`: 一次查询完成 SQL 过滤、关键词匹配与向量召回。 | **ADK/LangGraph 兼容性**<br/>**检索延迟 vs 开发效率**<br/>**复杂过滤性能**<br>高过滤比下的召回率与耗时。           |
-| **The Cortex(运行时)**<br>Runtime     | **开放运行时** | **Opaque (黑盒)**<br/>- 仅可见 Input/Output 与计费 Token，内部推理步骤 (Reasoning Details) 不可见<br>**运维成本**<br/>- Serverless (Managed)                                              | **Observable (白盒)**<br>OpenTelemetry 级全链路追踪，完整记录 Thought Chain、Tool IO 与 Slot Updates<br/>**运维成本**<br/>- Self-hosted / Cloud<br/> - 多地多活 (Paxos) | **可调试性 (Debuggability)**<br>能否精准定位推理死循环或幻觉<br/>**单集群 vs 多组件运维**<br/>**跨区数据同步延迟** |
-
-基于上述四支柱，我们将基于 PostgreSQL 的 **Glass-Box** 架构与 **Google Vertex AI Black-Box** 进行全维度验证对标。
-
-| 验证支柱                               | 维度           | Google Vertex AI (Reference)                                                                | PostgreSQL Engine (Target)                                                           | 核心核验指标 (KPI)                                              |
-| :------------------------------------- | :------------- | :------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------- | :-------------------------------------------------------------- |
-| **I. The Pulse**<br>(Session)          | **一致性架构** | **Eventual Consistency**<br>Firestore (State) + Redis (Cache) + Pub/Sub (Stream) 组合维持。 | **Strong Consistency**<br>单体 PG 事务 (ACID) + `NOTIFY` 实现状态与事件的原子同步。  | **Concurrency Conflict Rate**<br>高并发下状态丢失或覆盖的概率。 |
-| **II. The Hippocampus**<br>(Memory)    | **数据流转**   | **ETL Pipeline**<br>需跨服务搬运 (Log → Insight)，存在同步延迟 (Seconds/Minutes)。          | **Zero-ETL**<br>同库存储，In-Database Processing，实现亚秒级巩固。                   | **Memory Freshness (P99)**<br>从"发生"到"可被检索"的时间差。    |
-| **III. The Perception**<br>(Retrieval) | **检索能力**   | **Assembly Required**<br>需应用层自行拼装 Keyword, Vector, Filter 结果。                    | **One-Shot Integrated**<br>SQL 原生支持混合检索与复杂以及过滤。                      | **Recall@10 (with Filters)**<br>高过滤比场景下的有效召回率。    |
-| **IV. The Cortex**<br>(Runtime)        | **透明度**     | **Opaque (黑盒)**<br>仅可见输入输出与计费，内部推理不可见，调试困难。                       | **Observable (白盒)**<br>全链路结构化追踪 (OpenTelemetry Schema)，支持推理步进调试。 | **Debug Efficiency**<br>定位"幻觉"或"死循环"根因所需时间。      |
-
-基于 "Glass-Box Engine" 的构建目标，我们将 **Open Agent Engine (Target)** 与 **Google Vertex AI Agent Engine (Reference)** 进行全维度复刻对标。这不仅是基础设施选型的参考，更是 **Open Agent Engine** 自建路径的实践与印证。
-
-| 全景模块                         | 维度          | Google Vertex AI Agent Engine (Reference Black-Box)                                                                                               | Open Agent Engine (Target Glass-Box)                                                                                                     | 核心核验点                                                                               |
-| :------------------------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
-| **The Pulse (脉搏引擎)**         | **Session**   | **Composed (组合式)**<br>- Short-term: Memorystore (Redis)<br>- Long-term: Vertex Vector Search<br>- Preferneces: Firestore<br/>- Events: Pub/Sub | **Unified (统一式)**<br>- Transaction Log<br/>- JSONB State/KV<br/>- Vector: Embedding Column<br/>- `NOTIFY` 推送变更                    | - **架构复杂度 vs 能力完备性**<br/>- **并发一致性 (OCC):** 多 Agent 竞争下的数据正确性。 |
-| **The Hippocampus (仿生记忆)**   | **Memory**    | **ETL Pipeline (Memory Bank)**<br>- 异步 ETL 流程 (Log → Insight)：数据需在 Memorystore 与 Vector Search 之间物理搬运，存在同步延迟               | **Zero-ETL (Unified Memory)**<br>- Session Log (行存) 与 Context Vectors (向存) 同库存储，分析与回写零网络开销<br/>- 事务级强一致 (ACID) | **记忆新鲜度 (Freshness)**<br>从"发生"到"可回忆"的时延。                                 |
-| **The Perception (神经感知)**    | **Retrieval** | **RAG Pipeline**<br>- 需应用层自行拼装 Keyword (Search) 与 Semantic (Vector) 结果。                                                               | **One-Shot Integrated**<br>- One-Shot SQL (DBMS Native)<br>- `DBMS_HYBRID_SEARCH`: 一次查询完成 SQL 过滤、关键词匹配与向量召回。         | **复杂过滤性能**<br>高过滤比下的召回率与耗时。                                           |
-| **The Realm of Mind (心智空间)** | **Runtime**   | **Opaque (黑盒)**<br/>- 仅可见 Input/Output 与计费 Token，内部推理步骤 (Reasoning Details) 不可见                                                 | **Observable (白盒)**<br>- OpenTelemetry 级全链路追踪<br>- 完整记录 Thought Chain、Tool IO 与 Slot Updates                               | **可调试性 (Debuggability)**<br>能否精准定位推理死循环或幻觉                             |
-
-基于 "Glass-Box Engine" 的构建目标，我们将 **Open Agent Engine (Target)** 与 **Google Vertex AI Agent Engine (Reference)** 进行全维度复刻对标。这不仅是基础设施选型的参考，更是 **Open Agent Engine** 自建路径的实践与印证。
-
-| 全景模块                                    | 维度         | Google Vertex AI Agent Engine (Reference Black-Box)                                                                                               | Open Agent Engine (Target Glass-Box)                                                                                                     | 核心核验点                                                                               |
-| :------------------------------------------ | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
-| **The Pulse (交互脉搏)**<br>Session         | **脉搏机制** | **Composed (组合式)**<br>- Short-term: Memorystore (Redis)<br>- Long-term: Vertex Vector Search<br>- Preferneces: Firestore<br/>- Events: Pub/Sub | **Unified (统一式)**<br>- Transaction Log<br/>- JSONB State/KV<br/>- Vector: Embedding Column<br/>- `NOTIFY` 推送变更                    | - **架构复杂度 vs 能力完备性**<br/>- **并发一致性 (OCC):** 多 Agent 竞争下的数据正确性。 |
-| **The Hippocampus (仿生记忆)**<br>Memory    | **记忆流转** | **ETL Pipeline (Memory Bank)**<br>- 异步 ETL 流程 (Log → Insight)：数据需在 Memorystore 与 Vector Search 之间物理搬运，存在同步延迟               | **Zero-ETL (Unified Memory)**<br>- Session Log (行存) 与 Context Vectors (向存) 同库存储，分析与回写零网络开销<br/>- 事务级强一致 (ACID) | **记忆新鲜度 (Freshness)**<br>从"发生"到"可回忆"的时延。                                 |
-| **The Perception (神经感知)**<br>Search     | **检索链路** | **RAG Pipeline**<br>- 需应用层自行拼装 Keyword (Search) 与 Semantic (Vector) 结果。                                                               | **One-Shot Integrated**<br>- One-Shot SQL (DBMS Native)<br>- `DBMS_HYBRID_SEARCH`: 一次查询完成 SQL 过滤、关键词匹配与向量召回。         | **复杂过滤性能**<br>高过滤比下的召回率与耗时。                                           |
-| **The Realm of Mind (心智空间)**<br>Runtime | **透明度**   | **Opaque (黑盒)**<br/>- 仅可见 Input/Output 与计费 Token，内部推理步骤 (Reasoning Details) 不可见                                                 | **Observable (白盒)**<br>- OpenTelemetry 级全链路追踪<br>- 完整记录 Thought Chain、Tool IO 与 Slot Updates                               | **可调试性 (Debuggability)**<br>能否精准定位推理死循环或幻觉                             |
+| 全景模块                         | 维度          | Google Vertex AI Agent Engine (Align With - Black-Box)                                                                                                                                                            | Open Agent Engine (Target - Glass-Box)                                                                                                                                             | 核心核验指标 (KPI)                                                                                                          |
+| :------------------------------- | :------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| **The Pulse (脉搏引擎)**         | **Session**   | **Composed (组合式)**<br>- Short-term (State): Memorystore (Redis)<br>- Long-term: Vertex Vector Search<br>- Preferneces: Firestore<br/>- Events: Pub/Sub (Stream)<br>**框架集成**<br>- `SessionService` 接口抽象 | **Unified (统一式)**<br>- Transaction Log<br/>- JSONB State/KV<br/>- Vector: Embedding Column<br/>- `NOTIFY` 推送变更<br>**框架集成**<br/>- `OpenSessionService`                   | **架构复杂度 vs 能力完备性**<br/>**并发一致性 (OCC):**<br>- 多 Agent 竞争下的数据正确性或覆盖的概率。                       |
+| **The Hippocampus (仿生记忆)**   | **Memory**    | **ETL Pipeline (Memory Bank)**<br>- 异步 ETL 流程 (Log → Insight)：数据需在 Memorystore 与 Vector Search 之间物理搬运，存在同步延迟<br>**框架集成**<br>- `MemoryService` 接口抽象                                 | **Zero-ETL (Unified Memory)**<br>- Session Log (行存) 与 Context Vectors (向存) 同库存储，分析与回写零网络开销<br/>- 事务级强一致 (ACID)<br>**框架集成**<br/>- `OpenMemoryService` | **记忆新鲜度 (Freshness)**<br>- 从"发生"到"可回忆"的时延。                                                                  |
+| **The Perception (神经感知)**    | **Retrieval** | **RAG Pipeline**<br>- 需应用层自行拼装 Keyword (Search) 与 Semantic (Vector) 结果。                                                                                                                               | **One-Shot SQL (DBMS Native)**<br>- `DBMS_HYBRID_SEARCH`: 一次查询完成 SQL 过滤、关键词匹配与向量召回。                                                                            | **ADK/LangGraph 兼容性**<br/>**检索延迟 vs 开发效率**<br/>**Recall@10 (with Filters)**<br>- 高过滤比下的召回率与耗时。      |
+| **The Realm of Mind (心智空间)** | **Runtime**   | **Opaque (黑盒)**<br/>- 仅可见 Input/Output 与计费 Token，内部推理步骤 (Reasoning Details) 不可见<br>**运维成本**<br/>- Serverless (Managed)                                                                      | **Observable (白盒)**<br>- OpenTelemetry 级全链路追踪<br>- 完整记录 Thought Chain、Tool IO 与 Slot Updates<br/>**运维成本**<br/>- Self-hosted / Cloud<br/> - 多地多活 (Paxos)      | **可调试性 (Debuggability)**<br>- 能否精准定位推理死循环或幻觉，所需时间。**单集群 vs 多组件运维**<br/>- 跨区数据同步延迟。 |
 
 ### 2.1 当前预选型对照组
 
