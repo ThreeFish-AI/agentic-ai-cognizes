@@ -6,8 +6,8 @@ last_update:
   author: Aurelius Huang
   created_at: 2026-01-08
   updated_at: 2026-01-08
-  version: 1.0
-  status: Draft
+  version: 1.2
+  status: Final
 tags:
   - The Pulse
   - Session Engine
@@ -70,14 +70,59 @@ ADK 通过 Key 前缀实现不同作用域的状态管理：
 | `app:`  | App Scope        | 持久化                | 存入 `app_states` 表       |
 | `temp:` | Invocation Scope | 仅当前调用            | 内存缓存，不持久化         |
 
-### 1.3 工期规划
+#### 1.2.2 State Granularity (状态颗粒度)
 
-| 阶段 | 任务模块          | 预估工期 | 交付物                             |
-| :--- | :---------------- | :------- | :--------------------------------- |
-| 1.1  | 环境部署          | 0.5 Day  | PostgreSQL 16+ 环境就绪            |
-| 1.2  | Schema 设计       | 0.5 Day  | `agent_schema.sql`                 |
-| 1.3  | Pulse Engine 实现 | 1 Day    | `StateManager`, `PgNotifyListener` |
-| 1.4  | 测试与验收        | 0.5 Day  | 测试报告 + 技术文档                |
+> [!IMPORTANT]
+>
+> **对标 Roadmap Pillar I**：状态颗粒度是 The Pulse 的核心设计要素，决定了数据的存储层次和生命周期。
+
+```mermaid
+graph TB
+    subgraph "State Granularity"
+        T[Thread 会话容器<br/>持久化] --> R[Run 执行链路<br/>临时]
+        T --> E[Events 事件流<br/>不可变]
+        E --> M[Messages 消息<br/>带 Embedding]
+        T --> S[Snapshots 快照<br/>可恢复]
+    end
+
+    style T fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style R fill:#7c2d12,stroke:#fb923c,color:#fff
+    style E fill:#065f46,stroke:#34d399,color:#fff
+```
+
+| 层次         | 表名        | 定义                                                  | 生命周期       | 对应 Roadmap             |
+| :----------- | :---------- | :---------------------------------------------------- | :------------- | :----------------------- |
+| **Thread**   | `threads`   | 持久化存储用户级交互历史 (Human-Agent Interaction)    | 长期持久化     | "作为长期记忆的输入源"   |
+| **Run**      | `runs`      | 临时存储单次推理过程中的 Thinking Steps 和 Tool Calls | 仅执行期间存活 | "保障推理的可观测性"     |
+| **Event**    | `events`    | 不可变事件记录 (Message, ToolCall, StateUpdate)       | Append-only    | "Immutable Stream"       |
+| **Message**  | `messages`  | 带 Embedding 的消息内容                               | 持久化         | "Content with Embedding" |
+| **Snapshot** | `snapshots` | 状态检查点，用于快速恢复会话                          | 按策略清理     | "State Checkpoints"      |
+
+#### 1.2.3 任务-章节对照表
+
+> [!NOTE]
+>
+> 以下表格将 [001-task-checklist.md](./001-task-checklist.md) 的任务 ID 与本文档章节进行对照，便于追踪执行进度。
+
+| 任务模块            | 任务 ID 范围      | 对应章节                                                                                   |
+| :------------------ | :---------------- | :----------------------------------------------------------------------------------------- |
+| PostgreSQL 生态部署 | P1-1-1 ~ P1-1-5   | [4.1 Step 1: 环境部署](#41-step-1-环境部署与基础设施)                                      |
+| 开发环境配置        | P1-1-6 ~ P1-1-9   | [4.1.2 开发环境配置](#412-开发环境配置)                                                    |
+| ADK Schema 调研     | P1-2-1 ~ P1-2-6   | [2. 技术调研](#2-技术调研adk-sessionservice-深度分析)                                      |
+| PostgreSQL Schema   | P1-2-7 ~ P1-2-14  | [3. 架构设计](#3-架构设计unified-schema) + [4.2 Schema 部署](#42-step-2-schema-设计与部署) |
+| 原子状态流转        | P1-3-1 ~ P1-3-7   | [4.3.1 StateManager](#431-statemanager-类实现)                                             |
+| 乐观并发控制        | P1-3-8 ~ P1-3-12  | [4.3.1 StateManager (OCC)](#431-statemanager-类实现)                                       |
+| 实时事件流          | P1-3-13 ~ P1-3-17 | [4.3.2 PgNotifyListener](#432-pgnotifylistener-实现)                                       |
+| 验收与文档          | P1-4-1 ~ P1-4-4   | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)                                    |
+
+### 1.4 工期规划
+
+| 阶段 | 任务模块          | 任务 ID          | 预估工期 | 交付物                             |
+| :--- | :---------------- | :--------------- | :------- | :--------------------------------- |
+| 1.1  | 环境部署          | P1-1-1 ~ P1-1-9  | 0.5 Day  | PostgreSQL 16+ 环境就绪            |
+| 1.2  | Schema 设计       | P1-2-1 ~ P1-2-14 | 0.5 Day  | `agent_schema.sql`                 |
+| 1.3  | Pulse Engine 实现 | P1-3-1 ~ P1-3-17 | 1 Day    | `StateManager`, `PgNotifyListener` |
+| 1.4  | 测试与验收        | P1-4-1 ~ P1-4-4  | 0.5 Day  | 测试报告 + 技术文档                |
 
 ---
 
@@ -1739,6 +1784,48 @@ class TestNotifyLatency:
 
         assert avg_latency < 50, f"Avg latency {avg_latency}ms exceeds 50ms"
         assert p99_latency < 50, f"P99 latency {p99_latency}ms exceeds 50ms"
+
+    @pytest.mark.asyncio
+    async def test_100_msg_per_second_throughput(self, conn):
+        """测试 100 msg/s 吞吐量 (对标 P1-3-17)"""
+        received_count = 0
+        lost_count = 0
+        total_messages = 100
+
+        received_messages = set()
+
+        def on_notify(connection, pid, channel, payload):
+            nonlocal received_count
+            received_count += 1
+            received_messages.add(payload)
+
+        await conn.add_listener("throughput_test", on_notify)
+
+        start_time = time.perf_counter()
+
+        # 以 100 msg/s 的速率发送
+        for i in range(total_messages):
+            await conn.execute(f"NOTIFY throughput_test, 'msg_{i}'")
+            await asyncio.sleep(0.01)  # 10ms 间隔 = 100 msg/s
+
+        # 等待所有消息到达
+        await asyncio.sleep(0.5)
+
+        elapsed = time.perf_counter() - start_time
+
+        await conn.remove_listener("throughput_test", on_notify)
+
+        # 计算丢失率
+        lost_count = total_messages - len(received_messages)
+        loss_rate = (lost_count / total_messages) * 100
+        throughput = len(received_messages) / elapsed
+
+        print(f"Throughput: {throughput:.2f} msg/s")
+        print(f"Received: {len(received_messages)}/{total_messages}")
+        print(f"Loss rate: {loss_rate:.2f}%")
+
+        assert lost_count == 0, f"Lost {lost_count} messages"
+        assert throughput >= 90, f"Throughput {throughput} is below 90 msg/s"
 ```
 
 ---
