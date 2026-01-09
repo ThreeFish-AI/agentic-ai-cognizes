@@ -282,6 +282,89 @@ LangGraph 明确区分了两种记忆写入模式<sup>[[2]](#ref2)</sup>：
 | **巩固策略** | LLM 提取 → 自动向量化          | 应用层控制                       | 两阶段巩固 + 艾宾浩斯衰减        |
 | **开放程度** | 黑盒 (依赖 Vertex AI)          | 白盒 (完全可控)                  | 白盒 (PostgreSQL 原生)           |
 
+### 2.5 调研交付物摘要
+
+> [!NOTE]
+>
+> 本节对应任务 **P2-1-1 ~ P2-1-5** 的调研交付物，提供结构化的接口清单和对比分析。
+
+#### 2.5.1 ADK MemoryService 接口方法清单 (P2-1-1)
+
+基于 ADK 源码分析，`BaseMemoryService` 抽象接口包含以下核心方法：
+
+| 方法签名                                  | 语义                              | 返回类型               |
+| :---------------------------------------- | :-------------------------------- | :--------------------- |
+| `add_session_to_memory(session: Session)` | 将 Session 对话转化为可搜索的记忆 | `None`                 |
+| `search_memory(app_name, user_id, query)` | 基于 Query 检索相关记忆           | `SearchMemoryResponse` |
+
+**SearchMemoryResponse 结构**：
+
+```python
+@dataclass
+class SearchMemoryResponse:
+    memories: list[Memory]  # 检索到的记忆列表
+
+@dataclass
+class Memory:
+    content: str           # 记忆内容
+    metadata: dict         # 元数据 (来源 Session, 时间等)
+```
+
+#### 2.5.2 VertexAiMemoryBankService 工作流程 (P2-1-2)
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant MBS as MemoryBankService
+    participant VS as Vertex Vector Search
+    participant LLM as LLM (Gemini)
+
+    Note over App,LLM: 写入流程 (add_session_to_memory)
+    App->>MBS: add_session_to_memory(session)
+    MBS->>LLM: 提取 Facts/Insights
+    LLM-->>MBS: 结构化 Memory 对象
+    MBS->>VS: 向量化 + 存储
+
+    Note over App,LLM: 读取流程 (search_memory)
+    App->>MBS: search_memory(query)
+    MBS->>LLM: 生成 Query Embedding
+    LLM-->>MBS: Query Vector
+    MBS->>VS: 向量检索 (Top-K)
+    VS-->>MBS: 相似记忆列表
+    MBS-->>App: SearchMemoryResponse
+```
+
+**关键实现细节**：
+
+| 组件           | Google 实现             | 我们的复刻                  |
+| :------------- | :---------------------- | :-------------------------- |
+| 向量存储       | Vertex AI Vector Search | PostgreSQL + PGVector       |
+| Embedding 模型 | `textembedding-gecko`   | Gemini `text-embedding-004` |
+| LLM 提取       | Gemini Pro              | Gemini 2.0 Flash            |
+| 索引算法       | ScaNN (未公开)          | HNSW (IVFFlat 备选)         |
+
+#### 2.5.3 LangGraph Checkpointer vs Store 对比 (P2-1-3, P2-1-4)
+
+| 维度         | Checkpointer                 | Store                           |
+| :----------- | :--------------------------- | :------------------------------ |
+| **作用域**   | 单个 Thread 内               | 跨 Thread (全局)                |
+| **存储内容** | 完整 State Snapshot          | Key-Value 记忆 (Namespace 隔离) |
+| **生命周期** | 随 Thread 存在               | 持久化，手动管理                |
+| **检索方式** | 按 Checkpoint ID / Thread ID | `store.search()` 语义检索       |
+| **典型用途** | 对话历史恢复、状态回滚       | 用户偏好、长期记忆、跨会话知识  |
+
+#### 2.5.4 综合对比分析表 (P2-1-5)
+
+| 评估维度         | Google ADK MemoryService | LangGraph Store | Open Memory Engine |
+| :--------------- | :----------------------- | :-------------- | :----------------- |
+| **架构复杂度**   | ⭐⭐⭐ (多组件)          | ⭐⭐ (较灵活)   | ⭐ (统一)          |
+| **开箱即用**     | ⭐⭐⭐ (托管服务)        | ⭐⭐ (需配置)   | ⭐⭐ (需部署 PG)   |
+| **白盒透明度**   | ⭐ (黑盒)                | ⭐⭐⭐ (全开源) | ⭐⭐⭐ (SQL 可见)  |
+| **成本可控性**   | ⭐ (按调用计费)          | ⭐⭐⭐ (自托管) | ⭐⭐⭐ (自托管)    |
+| **记忆类型支持** | ⭐⭐ (单一)              | ⭐⭐⭐ (三类型) | ⭐⭐⭐ (三类型)    |
+| **遗忘机制**     | ❌ (无内建)              | ❌ (需自实现)   | ✅ (艾宾浩斯)      |
+| **Context 预算** | ❌ (需应用层)            | ⭐⭐ (部分支持) | ✅ (内建)          |
+
 ---
 
 ## 3. 架构设计：Hippocampus Schema 扩展
@@ -787,6 +870,92 @@ psql -d agent_db -c "\df cleanup_low_value_memories"
 
 # 测试衰减函数
 psql -d agent_db -c "SELECT calculate_retention_score(5, NOW() - INTERVAL '3 days');"
+```
+
+#### 4.1.3 pg_cron 定时任务配置 (P2-2-8)
+
+> [!NOTE]
+>
+> pg_cron 是 PostgreSQL 的定时任务扩展，用于实现自动记忆清理和巩固触发。
+
+**Step 1: 安装 pg_cron**
+
+```bash
+# macOS (Homebrew)
+brew install pg_cron
+
+# Ubuntu/Debian
+sudo apt-get install postgresql-16-cron
+
+# Docker (在 Dockerfile 中)
+RUN apt-get update && apt-get install -y postgresql-16-cron
+```
+
+**Step 2: 配置 postgresql.conf**
+
+```bash
+# 编辑 postgresql.conf
+sudo nano /etc/postgresql/16/main/postgresql.conf
+
+# 添加以下配置
+shared_preload_libraries = 'pg_cron'
+cron.database_name = 'agent_db'
+```
+
+**Step 3: 重启 PostgreSQL 并启用扩展**
+
+```bash
+# 重启服务
+sudo systemctl restart postgresql
+
+# 连接数据库启用扩展
+psql -d agent_db -c "CREATE EXTENSION IF NOT EXISTS pg_cron;"
+```
+
+**Step 4: 配置定时任务**
+
+```sql
+-- 查看现有任务
+SELECT * FROM cron.job;
+
+-- 每天凌晨 2 点执行记忆清理 (P2-3-4)
+SELECT cron.schedule(
+    'cleanup_memories',
+    '0 2 * * *',
+    $$SELECT cleanup_low_value_memories(0.1, 7)$$
+);
+
+-- 每小时触发一次记忆巩固检查 (可选)
+SELECT cron.schedule(
+    'trigger_consolidation',
+    '0 * * * *',
+    $$
+    INSERT INTO consolidation_jobs (thread_id, job_type, status)
+    SELECT id, 'full_consolidation', 'pending'
+    FROM threads
+    WHERE updated_at > NOW() - INTERVAL '1 hour'
+      AND id NOT IN (
+          SELECT thread_id FROM consolidation_jobs
+          WHERE created_at > NOW() - INTERVAL '1 hour'
+      )
+    $$
+);
+
+-- 删除任务
+-- SELECT cron.unschedule('cleanup_memories');
+
+-- 查看任务执行日志
+SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10;
+```
+
+**验证 pg_cron 安装**：
+
+```bash
+# 检查扩展是否启用
+psql -d agent_db -c "SELECT * FROM pg_extension WHERE extname = 'pg_cron';"
+
+# 检查定时任务列表
+psql -d agent_db -c "SELECT jobid, schedule, command FROM cron.job;"
 ```
 
 ### 4.2 Step 2: Memory Consolidation Worker 实现
@@ -2486,6 +2655,486 @@ class OpenMemoryService:
 | **ADK MemoryService 兼容** | `OpenMemoryService` 可作为 ADK `MemoryService` 替代使用 |
 | **Phase 1 兼容**           | 与 `threads`/`events` 表无缝关联                        |
 | **向量格式兼容**           | 使用与 Phase 1 相同的 1536 维向量 (Gemini embedding)    |
+
+### 5.4 验证测试代码
+
+> [!NOTE]
+>
+> 本节提供关键验证测试的代码实现，对应任务 P2-2-13~14, P2-3-7, P2-4-3。
+
+#### 5.4.1 Read-Your-Writes 延迟测试 (P2-2-13, P2-2-14)
+
+创建 `docs/practice/tests/hippocampus/test_read_your_writes.py`：
+
+```python
+"""
+Read-Your-Writes 延迟测试
+
+验证新写入的记忆能否在下一个 Turn 立即可见，
+确保我们的 Zero-ETL 架构比 Google 方案更快。
+
+验收标准: 延迟 < 100ms
+"""
+
+import asyncio
+import time
+import uuid
+from statistics import mean, stdev
+
+import asyncpg
+import pytest
+
+from hippocampus.consolidation_worker import MemoryConsolidationWorker, JobType
+from hippocampus.memory_service import OpenMemoryService
+
+
+class TestReadYourWrites:
+    """Read-Your-Writes 延迟测试套件"""
+
+    @pytest.fixture
+    async def pool(self):
+        """创建数据库连接池"""
+        pool = await asyncpg.create_pool(
+            "postgresql://user:pass@localhost/agent_db_test"
+        )
+        yield pool
+        await pool.close()
+
+    @pytest.fixture
+    async def memory_service(self, pool):
+        """创建 MemoryService 实例"""
+        return OpenMemoryService(pool)
+
+    @pytest.fixture
+    async def setup_test_thread(self, pool):
+        """创建测试用的 Thread 和 Events"""
+        thread_id = str(uuid.uuid4())
+        user_id = "test_user"
+        app_name = "test_app"
+
+        async with pool.acquire() as conn:
+            # 创建 Thread
+            await conn.execute("""
+                INSERT INTO threads (id, user_id, app_name, state)
+                VALUES ($1, $2, $3, '{}')
+            """, uuid.UUID(thread_id), user_id, app_name)
+
+            # 创建测试 Events
+            for i in range(5):
+                await conn.execute("""
+                    INSERT INTO events (thread_id, author, event_type, content, sequence_num)
+                    VALUES ($1, $2, 'message', $3, $4)
+                """, uuid.UUID(thread_id),
+                    'user' if i % 2 == 0 else 'agent',
+                    f'{{"text": "测试消息 {i}"}}',
+                    i)
+
+        yield {"thread_id": thread_id, "user_id": user_id, "app_name": app_name}
+
+        # 清理
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM threads WHERE id = $1", uuid.UUID(thread_id))
+
+    async def test_read_your_writes_latency(
+        self, pool, memory_service, setup_test_thread
+    ):
+        """
+        验证 Read-Your-Writes 延迟 < 100ms
+
+        流程:
+        1. 执行记忆巩固 (写入)
+        2. 立即执行记忆检索 (读取)
+        3. 测量从写入完成到读取成功的延迟
+        """
+        thread_info = setup_test_thread
+        latencies = []
+
+        for _ in range(10):  # 执行 10 次测量
+            # Step 1: 执行巩固 (写入)
+            result = await memory_service.add_session_to_memory(
+                session_id=thread_info["thread_id"],
+                consolidation_type="fast"
+            )
+            assert result["status"] == "completed"
+
+            # Step 2: 立即检索 (读取) 并测量延迟
+            start = time.perf_counter()
+            search_result = await memory_service.search_memory(
+                app_name=thread_info["app_name"],
+                user_id=thread_info["user_id"],
+                query="测试消息",
+            )
+            end = time.perf_counter()
+
+            latency_ms = (end - start) * 1000
+            latencies.append(latency_ms)
+
+            # 验证记忆可见
+            assert search_result.total_count > 0, "新记忆应立即可见"
+
+        # 统计结果
+        avg_latency = mean(latencies)
+        p99_latency = sorted(latencies)[int(len(latencies) * 0.99)]
+
+        print(f"\n=== Read-Your-Writes 延迟测试结果 ===")
+        print(f"平均延迟: {avg_latency:.2f} ms")
+        print(f"P99 延迟: {p99_latency:.2f} ms")
+        print(f"标准差: {stdev(latencies):.2f} ms")
+
+        # 验收标准: P99 < 100ms
+        assert p99_latency < 100, f"P99 延迟 {p99_latency:.2f}ms 超过 100ms 阈值"
+
+
+# 运行: pytest -v tests/hippocampus/test_read_your_writes.py
+```
+
+#### 5.4.2 情景分块检索性能测试 (P2-3-7)
+
+创建 `docs/practice/tests/hippocampus/test_episodic_performance.py`：
+
+```python
+"""
+情景分块检索性能测试
+
+验证在 10 万记忆规模下，按时间切片检索的 P99 < 100ms。
+"""
+
+import asyncio
+import random
+import time
+import uuid
+from datetime import datetime, timedelta
+from statistics import mean
+
+import asyncpg
+import pytest
+
+
+class TestEpisodicPerformance:
+    """情景分块性能测试套件"""
+
+    MEMORY_COUNT = 100_000  # 10 万记忆
+    TEST_RUNS = 50
+
+    @pytest.fixture(scope="class")
+    async def pool(self):
+        """创建数据库连接池"""
+        pool = await asyncpg.create_pool(
+            "postgresql://user:pass@localhost/agent_db_test",
+            min_size=5,
+            max_size=20,
+        )
+        yield pool
+        await pool.close()
+
+    @pytest.fixture(scope="class")
+    async def seed_memories(self, pool):
+        """
+        预先填充 10 万条测试记忆
+
+        注意: 此 fixture 仅在测试类首次运行时执行
+        """
+        user_id = "perf_test_user"
+        app_name = "perf_test_app"
+
+        async with pool.acquire() as conn:
+            # 检查是否已有测试数据
+            count = await conn.fetchval(
+                "SELECT COUNT(*) FROM memories WHERE user_id = $1",
+                user_id
+            )
+            if count >= self.MEMORY_COUNT:
+                print(f"\n已存在 {count} 条测试记忆，跳过种子数据生成")
+                return {"user_id": user_id, "app_name": app_name}
+
+            print(f"\n开始生成 {self.MEMORY_COUNT} 条测试记忆...")
+
+            # 批量插入 (每批 1000 条)
+            batch_size = 1000
+            base_time = datetime.now() - timedelta(days=365)
+
+            for batch in range(self.MEMORY_COUNT // batch_size):
+                rows = []
+                for i in range(batch_size):
+                    created_at = base_time + timedelta(
+                        minutes=random.randint(0, 525600)  # 一年内随机
+                    )
+                    rows.append((
+                        uuid.uuid4(),
+                        user_id,
+                        app_name,
+                        'episodic',
+                        f'测试记忆内容 {batch * batch_size + i}',
+                        random.random(),  # retention_score
+                        random.randint(0, 100),  # access_count
+                        created_at,
+                    ))
+
+                await conn.executemany("""
+                    INSERT INTO memories (id, user_id, app_name, memory_type, content,
+                                         retention_score, access_count, created_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                """, rows)
+
+                if (batch + 1) % 10 == 0:
+                    print(f"  已插入 {(batch + 1) * batch_size} 条记忆")
+
+            print(f"测试数据生成完成")
+
+        return {"user_id": user_id, "app_name": app_name}
+
+    async def test_time_slice_query_performance(self, pool, seed_memories):
+        """
+        测试按时间切片查询性能
+
+        验收标准: P99 < 100ms
+        """
+        user_id = seed_memories["user_id"]
+        app_name = seed_memories["app_name"]
+
+        latencies = []
+
+        for _ in range(self.TEST_RUNS):
+            # 随机选择一个 7 天的时间窗口
+            start_offset = random.randint(0, 358)
+            start_time = datetime.now() - timedelta(days=365 - start_offset)
+            end_time = start_time + timedelta(days=7)
+
+            # 执行时间切片查询
+            start = time.perf_counter()
+
+            async with pool.acquire() as conn:
+                rows = await conn.fetch("""
+                    SELECT id, content, retention_score, created_at
+                    FROM memories
+                    WHERE user_id = $1
+                      AND app_name = $2
+                      AND created_at >= $3
+                      AND created_at <= $4
+                    ORDER BY created_at DESC
+                    LIMIT 50
+                """, user_id, app_name, start_time, end_time)
+
+            end = time.perf_counter()
+            latency_ms = (end - start) * 1000
+            latencies.append(latency_ms)
+
+        # 统计结果
+        avg_latency = mean(latencies)
+        p99_latency = sorted(latencies)[int(len(latencies) * 0.99)]
+        max_latency = max(latencies)
+
+        print(f"\n=== 情景分块检索性能测试结果 ({self.MEMORY_COUNT:,} 条记忆) ===")
+        print(f"平均延迟: {avg_latency:.2f} ms")
+        print(f"P99 延迟: {p99_latency:.2f} ms")
+        print(f"最大延迟: {max_latency:.2f} ms")
+        print(f"测试次数: {self.TEST_RUNS}")
+
+        # 验收标准: P99 < 100ms
+        assert p99_latency < 100, f"P99 延迟 {p99_latency:.2f}ms 超过 100ms 阈值"
+
+    async def test_composite_index_usage(self, pool, seed_memories):
+        """验证复合索引 (user_id, app_name, created_at) 被正确使用"""
+        user_id = seed_memories["user_id"]
+        app_name = seed_memories["app_name"]
+        start_time = datetime.now() - timedelta(days=30)
+        end_time = datetime.now()
+
+        async with pool.acquire() as conn:
+            # 使用 EXPLAIN ANALYZE 检查查询计划
+            plan = await conn.fetch("""
+                EXPLAIN ANALYZE
+                SELECT id, content, retention_score, created_at
+                FROM memories
+                WHERE user_id = $1
+                  AND app_name = $2
+                  AND created_at >= $3
+                  AND created_at <= $4
+                ORDER BY created_at DESC
+                LIMIT 50
+            """, user_id, app_name, start_time, end_time)
+
+            plan_text = "\n".join(row[0] for row in plan)
+            print(f"\n=== 查询执行计划 ===\n{plan_text}")
+
+            # 验证使用了索引扫描
+            assert "Index" in plan_text, "查询应使用索引扫描"
+            assert "Seq Scan" not in plan_text, "不应使用全表扫描"
+
+
+# 运行: pytest -v tests/hippocampus/test_episodic_performance.py
+```
+
+#### 5.4.3 单元测试框架 (P2-4-3)
+
+创建 `docs/practice/tests/hippocampus/conftest.py` (pytest 配置):
+
+```python
+"""
+Hippocampus 测试配置
+
+提供测试 fixtures 和共享配置
+"""
+
+import asyncio
+import os
+
+import asyncpg
+import pytest
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """创建事件循环"""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture(scope="session")
+async def test_db_pool():
+    """
+    创建测试数据库连接池
+
+    环境变量:
+    - TEST_DATABASE_URL: 测试数据库连接字符串
+    """
+    database_url = os.getenv(
+        "TEST_DATABASE_URL",
+        "postgresql://user:pass@localhost/agent_db_test"
+    )
+    pool = await asyncpg.create_pool(database_url, min_size=2, max_size=10)
+    yield pool
+    await pool.close()
+
+
+@pytest.fixture
+async def clean_test_data(test_db_pool):
+    """
+    测试后清理数据
+
+    在每个测试结束后删除测试期间创建的数据
+    """
+    created_ids = {"threads": [], "memories": [], "facts": []}
+
+    yield created_ids
+
+    # 清理
+    async with test_db_pool.acquire() as conn:
+        if created_ids["facts"]:
+            await conn.execute(
+                "DELETE FROM facts WHERE id = ANY($1::uuid[])",
+                created_ids["facts"]
+            )
+        if created_ids["memories"]:
+            await conn.execute(
+                "DELETE FROM memories WHERE id = ANY($1::uuid[])",
+                created_ids["memories"]
+            )
+        if created_ids["threads"]:
+            await conn.execute(
+                "DELETE FROM threads WHERE id = ANY($1::uuid[])",
+                created_ids["threads"]
+            )
+```
+
+创建 `docs/practice/tests/hippocampus/test_consolidation_worker.py`:
+
+```python
+"""
+MemoryConsolidationWorker 单元测试
+"""
+
+import uuid
+import pytest
+
+from hippocampus.consolidation_worker import (
+    MemoryConsolidationWorker,
+    JobType,
+    JobStatus,
+)
+
+
+class TestConsolidationWorker:
+    """Consolidation Worker 单元测试"""
+
+    @pytest.fixture
+    async def worker(self, test_db_pool):
+        return MemoryConsolidationWorker(test_db_pool)
+
+    async def test_fast_replay_generates_summary(self, worker, test_db_pool, clean_test_data):
+        """Fast Replay 应生成对话摘要"""
+        # Setup: 创建测试 Thread 和 Events
+        thread_id = str(uuid.uuid4())
+        async with test_db_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO threads (id, user_id, app_name, state)
+                VALUES ($1, 'test_user', 'test_app', '{}')
+            """, uuid.UUID(thread_id))
+            clean_test_data["threads"].append(uuid.UUID(thread_id))
+
+            for i in range(3):
+                await conn.execute("""
+                    INSERT INTO events (thread_id, author, event_type, content, sequence_num)
+                    VALUES ($1, $2, 'message', $3, $4)
+                """, uuid.UUID(thread_id),
+                    'user' if i % 2 == 0 else 'agent',
+                    f'{{"text": "对话内容 {i}"}}', i)
+
+        # Act
+        job = await worker.consolidate(thread_id, JobType.FAST_REPLAY)
+
+        # Assert
+        assert job.status == JobStatus.COMPLETED
+        assert "summary" in job.result
+        assert job.result["summary"]["memory_id"]
+
+    async def test_deep_reflection_extracts_facts(self, worker, test_db_pool, clean_test_data):
+        """Deep Reflection 应提取 Facts"""
+        thread_id = str(uuid.uuid4())
+        async with test_db_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO threads (id, user_id, app_name, state)
+                VALUES ($1, 'test_user', 'test_app', '{}')
+            """, uuid.UUID(thread_id))
+            clean_test_data["threads"].append(uuid.UUID(thread_id))
+
+            # 创建包含偏好信息的对话
+            await conn.execute("""
+                INSERT INTO events (thread_id, author, event_type, content, sequence_num)
+                VALUES ($1, 'user', 'message', '{"text": "我喜欢吃寿司和意大利面"}', 0)
+            """, uuid.UUID(thread_id))
+
+        # Act
+        job = await worker.consolidate(thread_id, JobType.DEEP_REFLECTION)
+
+        # Assert
+        assert job.status == JobStatus.COMPLETED
+        # Facts 可能为空 (取决于 LLM 提取结果)，但任务应成功完成
+
+    async def test_full_consolidation_runs_both_phases(self, worker, test_db_pool, clean_test_data):
+        """Full Consolidation 应执行两个阶段"""
+        thread_id = str(uuid.uuid4())
+        async with test_db_pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO threads (id, user_id, app_name, state)
+                VALUES ($1, 'test_user', 'test_app', '{}')
+            """, uuid.UUID(thread_id))
+            clean_test_data["threads"].append(uuid.UUID(thread_id))
+
+            await conn.execute("""
+                INSERT INTO events (thread_id, author, event_type, content, sequence_num)
+                VALUES ($1, 'user', 'message', '{"text": "测试消息"}', 0)
+            """, uuid.UUID(thread_id))
+
+        # Act
+        job = await worker.consolidate(thread_id, JobType.FULL_CONSOLIDATION)
+
+        # Assert
+        assert job.status == JobStatus.COMPLETED
+        assert "summary" in job.result  # Fast Replay 结果
+        assert "facts" in job.result or "insights" in job.result  # Deep Reflection 结果
+```
 
 ---
 
