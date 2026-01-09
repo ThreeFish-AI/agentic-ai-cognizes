@@ -249,11 +249,11 @@ tags:
 
 ## 4. 交付物汇总
 
-| 阶段        | 交付物模块            | 文件                                           | 代码                                                              | 状态      |
-| :---------- | :-------------------- | :--------------------------------------------- | :---------------------------------------------------------------- | :-------- |
-| **Phase 1** | **Foundation**        |                                                | `docs/practice/schema/agent_schema.sql` (Unified Schema)          | 🔲 待开始 |
-|             | **The Pulse**         | `docs/practice/010-the-pulse.md`               | `docs/practice/engine/pulse/transaction_manager.py`               | 🔲 待开始 |
-| **Phase 2** | **The Hippocampus**   | `docs/practice/020-the-hippocampus.md`         | `docs/practice/engine/hippocampus/consolidation_worker.py`        | 🔲 待开始 |
-| **Phase 3** | **The Perception**    | `docs/practice/030-the-perception.md`          | `docs/practice/engine/perception/hybrid_search.sql`               | 🔲 待开始 |
-| **Phase 4** | **The Realm of Mind** | `docs/practice/040-the-realm-of-mind.md`       | `docs/practice/adapters/adk_postgres/` (Python Package)           | 🔲 待开始 |
-| **Phase 5** | **Integrated Demo**   | `docs/practice/050-final-validation-report.md` | `docs/practice/demos/e2e_travel_agent/` (Replicating Google Demo) | 🔲 待开始 |
+| 阶段        | 交付物模块            | 文件                                     | 代码                                                              | 状态      |
+| :---------- | :-------------------- | :--------------------------------------- | :---------------------------------------------------------------- | :-------- |
+| **Phase 1** | **Foundation**        |                                          | `docs/practice/schema/agent_schema.sql` (Unified Schema)          | 🔲 待开始 |
+|             | **The Pulse**         | `docs/practice/010-the-pulse.md`         | `docs/practice/engine/pulse/transaction_manager.py`               | 🔲 待开始 |
+| **Phase 2** | **The Hippocampus**   | `docs/practice/020-the-hippocampus.md`   | `docs/practice/engine/hippocampus/consolidation_worker.py`        | 🔲 待开始 |
+| **Phase 3** | **The Perception**    | `docs/practice/030-the-perception.md`    | `docs/practice/engine/perception/hybrid_search.sql`               | 🔲 待开始 |
+| **Phase 4** | **The Realm of Mind** | `docs/practice/040-the-realm-of-mind.md` | `docs/practice/adapters/adk_postgres/` (Python Package)           | 🔲 待开始 |
+| **Phase 5** | **Integrated Demo**   | `docs/practice/050-integrated-demo.md`   | `docs/practice/demos/e2e_travel_agent/` (Replicating Google Demo) | 🔲 待开始 |
