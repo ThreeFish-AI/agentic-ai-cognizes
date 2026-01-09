@@ -342,6 +342,106 @@ sequenceDiagram
 | **Semantic Search**   | 基于向量相似度检索相关记忆              | 复用 Phase 3 的 hybrid_search() |
 | **User Isolation**    | 不同用户的 Memory 严格隔离              | WHERE user_id = $user_id        |
 
+#### 2.4.3 InMemorySessionService 源码分析 (P4-1-3)
+
+> [!NOTE]
+>
+> **源码位置**: `google/adk-python/src/google/adk/sessions/in_memory_session_service.py`
+
+```python
+# 关键数据结构分析 (简化版)
+class InMemorySessionService(BaseSessionService):
+    """
+    核心设计模式:
+    1. 使用 dict 嵌套存储: {app_name: {user_id: {session_id: Session}}}
+    2. 深拷贝隔离: 每次返回 Session 的深拷贝，防止外部修改
+    3. 状态快照: append_event 后立即更新内存状态
+    """
+
+    def __init__(self):
+        # 三层嵌套字典: app_name -> user_id -> session_id -> Session
+        self._sessions: dict[str, dict[str, dict[str, Session]]] = {}
+
+    async def create_session(self, *, app_name, user_id, state=None, session_id=None):
+        session_id = session_id or str(uuid.uuid4())
+        session = Session(
+            id=session_id,
+            app_name=app_name,
+            user_id=user_id,
+            state=dict(state or {}),  # 深拷贝初始状态
+            events=[],
+            last_update_time=time.time()
+        )
+        # 确保嵌套结构存在
+        self._sessions.setdefault(app_name, {}).setdefault(user_id, {})[session_id] = session
+        return copy.deepcopy(session)  # 返回深拷贝
+
+    async def get_session(self, *, app_name, user_id, session_id, config=None):
+        session = self._sessions.get(app_name, {}).get(user_id, {}).get(session_id)
+        if not session:
+            return None
+        result = copy.deepcopy(session)
+        # 应用 GetSessionConfig
+        if config:
+            if config.num_recent_events:
+                result.events = result.events[-config.num_recent_events:]
+            if config.after_timestamp:
+                result.events = [e for e in result.events if e.timestamp > config.after_timestamp]
+        return result
+```
+
+**PostgreSQL 实现对标要点**:
+
+| InMemory 行为  | PostgreSQL 实现                                           |
+| :------------- | :-------------------------------------------------------- |
+| 嵌套 dict 存储 | `threads` 表 + 组合主键 `(app_name, user_id, session_id)` |
+| 深拷贝隔离     | 每次查询返回独立 Row 对象                                 |
+| 状态快照       | 事务内 `UPDATE threads SET state = $new`                  |
+| Event 过滤     | `WHERE seq > $after_seq LIMIT $num_recent`                |
+
+#### 2.4.4 InMemoryMemoryService 源码分析 (P4-1-4)
+
+```python
+# 关键设计模式分析
+class InMemoryMemoryService(BaseMemoryService):
+    """
+    核心设计:
+    1. 简化实现: 仅存储 Session 的文本摘要
+    2. 无真实向量: search_memory 使用字符串匹配
+    3. 命名空间隔离: {app_name: {user_id: [MemoryEntry]}}
+    """
+
+    def __init__(self):
+        self._memories: dict[str, dict[str, list[MemoryEntry]]] = {}
+
+    async def add_session_to_memory(self, session: Session):
+        # 简化: 将所有 Event 内容合并为单条记忆
+        content = " ".join([str(e.content) for e in session.events])
+        entry = MemoryEntry(
+            id=str(uuid.uuid4()),
+            content=content,
+            session_id=session.id,
+            created_at=datetime.now()
+        )
+        self._memories.setdefault(session.app_name, {}) \
+                      .setdefault(session.user_id, []).append(entry)
+
+    async def search_memory(self, *, app_name, user_id, query):
+        memories = self._memories.get(app_name, {}).get(user_id, [])
+        # 简化: 字符串包含匹配 (无真实向量搜索)
+        matched = [m for m in memories if query.lower() in m.content.lower()]
+        return SearchMemoryResponse(memories=matched)
+```
+
+**PostgreSQL 实现增强点**:
+
+| InMemory 局限 | PostgreSQL 增强                                |
+| :------------ | :--------------------------------------------- |
+| 无向量搜索    | PGVector `<=>` 操作符进行真实语义搜索          |
+| 无记忆巩固    | 调用 Phase 2 `consolidation_worker` 提取 Facts |
+| 无遗忘机制    | `retention_score` 权重衰减 + 定期清理          |
+| 无混合检索    | `hybrid_search` 融合语义+关键词+元数据         |
+
 ---
 
 ## 3. 架构设计：Mind Schema 扩展
@@ -551,6 +651,74 @@ docs/practice/adapters/adk_postgres/
     ├── test_session_service.py
     ├── test_memory_service.py
     └── test_tool_registry.py
+```
+
+**pyproject.toml 模板** (P4-2-1 核心交付物):
+
+```toml
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "adk-postgres"
+version = "0.1.0"
+description = "PostgreSQL-based Session and Memory services for Google ADK"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+    { name = "Your Team", email = "team@example.com" }
+]
+keywords = ["adk", "postgres", "agent", "llm", "memory"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "asyncpg>=0.29.0",           # PostgreSQL 异步驱动
+    "google-adk>=0.5.0",         # Google ADK 核心
+    "pydantic>=2.0.0",           # 数据验证
+    "opentelemetry-api>=1.20.0", # OpenTelemetry API
+    "opentelemetry-sdk>=1.20.0", # OpenTelemetry SDK
+    "opentelemetry-exporter-otlp>=1.20.0",  # OTLP 导出
+    "microsandbox>=0.2.0",       # microVM 沙箱
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+]
+
+[project.urls]
+Documentation = "https://github.com/your-org/adk-postgres#readme"
+Source = "https://github.com/your-org/adk-postgres"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/adk_postgres"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --cov=adk_postgres --cov-report=term-missing"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
 ```
 
 #### 4.1.3 核心实现代码
@@ -1291,6 +1459,405 @@ class AgentExecutor:
 | P4-3-3  | 跑通 ADK 官方 Interface Compliance Tests | 官方测试通过         |
 | P4-3-4  | 编写 E2E 集成测试                        | 完整对话流程测试通过 |
 
+#### 4.5.1 SessionService 单元测试 (P4-3-1)
+
+创建 `tests/test_session_service.py`:
+
+```python
+"""
+PostgresSessionService 单元测试
+覆盖 ADK BaseSessionService 接口所有方法
+"""
+
+import pytest
+import asyncio
+from datetime import datetime
+from adk_postgres.session_service import PostgresSessionService, Session, Event
+
+# pytest-asyncio 配置
+pytestmark = pytest.mark.asyncio
+
+
+class TestPostgresSessionService:
+    """SessionService 单元测试套件"""
+
+    @pytest.fixture
+    async def service(self, db_pool):
+        """创建测试服务实例"""
+        return PostgresSessionService(pool=db_pool)
+
+    @pytest.fixture
+    async def db_pool(self):
+        """创建测试数据库连接池"""
+        import asyncpg
+        pool = await asyncpg.create_pool(
+            "postgresql://test:test@localhost:5432/test_db",
+            min_size=1, max_size=5
+        )
+        yield pool
+        await pool.close()
+
+    # ========== create_session 测试 ==========
+
+    async def test_create_session_basic(self, service):
+        """测试基础会话创建"""
+        session = await service.create_session(
+            app_name="test_app",
+            user_id="user_001"
+        )
+        assert session.id is not None
+        assert session.app_name == "test_app"
+        assert session.user_id == "user_001"
+        assert session.state == {}
+        assert session.events == []
+
+    async def test_create_session_with_initial_state(self, service):
+        """测试带初始状态的会话创建"""
+        initial_state = {"user:language": "zh-CN", "app:theme": "dark"}
+        session = await service.create_session(
+            app_name="test_app",
+            user_id="user_002",
+            state=initial_state
+        )
+        assert session.state["user:language"] == "zh-CN"
+        assert session.state["app:theme"] == "dark"
+
+    async def test_create_session_with_custom_id(self, service):
+        """测试自定义会话 ID"""
+        custom_id = "custom-session-123"
+        session = await service.create_session(
+            app_name="test_app",
+            user_id="user_003",
+            session_id=custom_id
+        )
+        assert session.id == custom_id
+
+    # ========== get_session 测试 ==========
+
+    async def test_get_session_exists(self, service):
+        """测试获取已存在的会话"""
+        created = await service.create_session(
+            app_name="test_app", user_id="user_004"
+        )
+        retrieved = await service.get_session(
+            app_name="test_app",
+            user_id="user_004",
+            session_id=created.id
+        )
+        assert retrieved is not None
+        assert retrieved.id == created.id
+
+    async def test_get_session_not_found(self, service):
+        """测试获取不存在的会话"""
+        session = await service.get_session(
+            app_name="test_app",
+            user_id="user_005",
+            session_id="non-existent-id"
+        )
+        assert session is None
+
+    async def test_get_session_with_config(self, service):
+        """测试带配置的会话获取 (分页)"""
+        from adk_postgres.session_service import GetSessionConfig
+
+        session = await service.create_session(
+            app_name="test_app", user_id="user_006"
+        )
+        # 添加多个事件
+        for i in range(10):
+            await service.append_event(session, Event(
+                id=f"event_{i}", author="user", content={"msg": f"hello {i}"}
+            ))
+
+        # 仅获取最后 3 条事件
+        config = GetSessionConfig(num_recent_events=3)
+        result = await service.get_session(
+            app_name="test_app",
+            user_id="user_006",
+            session_id=session.id,
+            config=config
+        )
+        assert len(result.events) == 3
+
+    # ========== list_sessions 测试 ==========
+
+    async def test_list_sessions_by_user(self, service):
+        """测试列出用户的所有会话"""
+        # 创建多个会话
+        for i in range(3):
+            await service.create_session(
+                app_name="test_app", user_id="user_007"
+            )
+        response = await service.list_sessions(
+            app_name="test_app", user_id="user_007"
+        )
+        assert len(response.sessions) >= 3
+
+    async def test_list_sessions_all_users(self, service):
+        """测试列出所有用户会话 (admin)"""
+        response = await service.list_sessions(
+            app_name="test_app", user_id=None
+        )
+        assert isinstance(response.sessions, list)
+
+    # ========== delete_session 测试 ==========
+
+    async def test_delete_session(self, service):
+        """测试删除会话"""
+        session = await service.create_session(
+            app_name="test_app", user_id="user_008"
+        )
+        await service.delete_session(
+            app_name="test_app",
+            user_id="user_008",
+            session_id=session.id
+        )
+        # 验证已删除
+        deleted = await service.get_session(
+            app_name="test_app",
+            user_id="user_008",
+            session_id=session.id
+        )
+        assert deleted is None
+
+    # ========== State 前缀处理测试 ==========
+
+    async def test_state_prefix_user_scope(self, service):
+        """测试 user: 前缀 - 跨会话持久"""
+        session1 = await service.create_session(
+            app_name="test_app", user_id="user_009"
+        )
+        # 设置 user 级别状态
+        await service.append_event(session1, Event(
+            id="e1", author="agent",
+            actions={"state_delta": {"user:preference": "dark_mode"}}
+        ))
+        # 新会话应继承 user: 状态
+        session2 = await service.create_session(
+            app_name="test_app", user_id="user_009"
+        )
+        assert session2.state.get("user:preference") == "dark_mode"
+
+    async def test_state_prefix_temp_not_persisted(self, service):
+        """测试 temp: 前缀 - 不持久化"""
+        session = await service.create_session(
+            app_name="test_app", user_id="user_010"
+        )
+        await service.append_event(session, Event(
+            id="e1", author="agent",
+            actions={"state_delta": {"temp:cache": "value", "app:config": "saved"}}
+        ))
+        # temp: 不应被持久化
+        reloaded = await service.get_session(
+            app_name="test_app",
+            user_id="user_010",
+            session_id=session.id
+        )
+        assert "temp:cache" not in reloaded.state
+        assert reloaded.state.get("app:config") == "saved"
+```
+
+#### 4.5.2 ADK LlmAgent 集成示例 (P4-2-23)
+
+> [!IMPORTANT]
+>
+> **核心验收**: 验证 `PostgresSessionService` 与 ADK `LlmAgent` + `Runner` 的完整协同。
+
+```python
+"""
+ADK Runner 集成示例
+演示 PostgresSessionService 与 Google ADK LlmAgent 的协同工作
+"""
+
+import asyncio
+from google.adk.agents import LlmAgent
+from google.adk.runners import Runner
+from google.genai import types
+
+from adk_postgres.session_service import PostgresSessionService
+from adk_postgres.memory_service import PostgresMemoryService
+
+
+async def run_agent_with_postgres():
+    """使用 PostgreSQL 后端运行 ADK Agent"""
+
+    # 1. 初始化 PostgreSQL 服务
+    import asyncpg
+    pool = await asyncpg.create_pool("postgresql://user:pass@localhost/agent_db")
+
+    session_service = PostgresSessionService(pool=pool)
+    memory_service = PostgresMemoryService(pool=pool)
+
+    # 2. 定义 Agent
+    agent = LlmAgent(
+        name="travel_assistant",
+        model="gemini-2.0-flash",
+        instruction="""
+        You are a helpful travel assistant.
+        Remember user preferences from past conversations.
+        Use the search_flights tool to find flights.
+        """,
+        tools=[search_flights],  # 注册 Function Tool
+    )
+
+    # 3. 创建 Runner (核心集成点)
+    runner = Runner(
+        agent=agent,
+        app_name="travel_app",
+        session_service=session_service,   # 关键: 注入 PostgreSQL Session
+        memory_service=memory_service,      # 关键: 注入 PostgreSQL Memory
+    )
+
+    # 4. 创建会话并执行
+    session = await session_service.create_session(
+        app_name="travel_app",
+        user_id="user_123",
+        state={"user:language": "zh-CN"}  # 初始用户偏好
+    )
+
+    # 5. 运行 Agent (InvocationContext 自动管理)
+    user_message = types.Content(
+        role="user",
+        parts=[types.Part(text="帮我查一下明天北京到上海的航班")]
+    )
+
+    async for event in runner.run_async(
+        session_id=session.id,
+        user_id="user_123",
+        new_message=user_message
+    ):
+        # 处理流式事件
+        if event.is_final_response():
+            print(f"Agent 回复: {event.text}")
+        elif event.get_function_calls():
+            print(f"工具调用: {event.get_function_calls()}")
+
+    # 6. 验证状态持久化
+    updated_session = await session_service.get_session(
+        app_name="travel_app",
+        user_id="user_123",
+        session_id=session.id
+    )
+    print(f"会话事件数: {len(updated_session.events)}")
+    print(f"会话状态: {updated_session.state}")
+
+    # 7. 可选: 将会话存入长期记忆
+    await memory_service.add_session_to_memory(updated_session)
+
+    await pool.close()
+
+
+# Function Tool 示例
+def search_flights(origin: str, destination: str, date: str) -> dict:
+    """搜索航班的工具函数"""
+    return {
+        "flights": [
+            {"number": "CA1234", "departure": "08:00", "price": 680},
+            {"number": "MU5678", "departure": "10:30", "price": 720},
+        ]
+    }
+
+
+if __name__ == "__main__":
+    asyncio.run(run_agent_with_postgres())
+```
+
+#### 4.5.3 E2E 集成测试 (P4-3-4)
+
+```python
+"""
+E2E 集成测试 - 完整对话流程
+验证 Session -> Agent -> Tool -> Memory 全链路
+"""
+
+import pytest
+from adk_postgres.session_service import PostgresSessionService
+from adk_postgres.memory_service import PostgresMemoryService
+from adk_postgres.tool_registry import ToolRegistry
+
+pytestmark = pytest.mark.asyncio
+
+
+class TestE2EIntegration:
+    """端到端集成测试"""
+
+    async def test_complete_conversation_flow(self, db_pool):
+        """测试完整对话流程"""
+        session_svc = PostgresSessionService(pool=db_pool)
+        memory_svc = PostgresMemoryService(pool=db_pool)
+        tool_registry = ToolRegistry(pool=db_pool, app_name="test_app")
+
+        # 1. 创建会话
+        session = await session_svc.create_session(
+            app_name="test_app", user_id="e2e_user"
+        )
+
+        # 2. 注册工具
+        await tool_registry.register_tool(
+            name="calculator",
+            func=lambda x, y: x + y,
+            openapi_schema={"type": "function", "name": "calculator"}
+        )
+
+        # 3. 模拟多轮对话
+        for turn in range(3):
+            # 用户输入
+            await session_svc.append_event(session, {
+                "id": f"user_{turn}",
+                "author": "user",
+                "content": {"text": f"Turn {turn} message"}
+            })
+            # Agent 响应
+            await session_svc.append_event(session, {
+                "id": f"agent_{turn}",
+                "author": "agent",
+                "content": {"text": f"Response to turn {turn}"},
+                "actions": {"state_delta": {f"app:turn_{turn}": True}}
+            })
+
+        # 4. 验证事件记录
+        final_session = await session_svc.get_session(
+            app_name="test_app",
+            user_id="e2e_user",
+            session_id=session.id
+        )
+        assert len(final_session.events) == 6  # 3轮 * 2
+
+        # 5. 存入长期记忆
+        await memory_svc.add_session_to_memory(final_session)
+
+        # 6. 验证记忆可搜索
+        memories = await memory_svc.search_memory(
+            app_name="test_app",
+            user_id="e2e_user",
+            query="Turn 2 message"
+        )
+        assert len(memories.memories) > 0
+
+    async def test_cross_session_memory_recall(self, db_pool):
+        """测试跨会话记忆召回"""
+        session_svc = PostgresSessionService(pool=db_pool)
+        memory_svc = PostgresMemoryService(pool=db_pool)
+
+        # 会话 1: 记录偏好
+        session1 = await session_svc.create_session(
+            app_name="test_app", user_id="memory_user"
+        )
+        await session_svc.append_event(session1, {
+            "id": "pref_1", "author": "user",
+            "content": {"text": "I prefer window seats on flights"}
+        })
+        await memory_svc.add_session_to_memory(session1)
+
+        # 会话 2: 验证记忆召回
+        memories = await memory_svc.search_memory(
+            app_name="test_app",
+            user_id="memory_user",
+            query="flight seat preference"
+        )
+        assert any("window" in m.content.lower() for m in memories.memories)
+```
+
 ---
 
 ### 4.6 Step 6: OpenTelemetry 集成
@@ -1517,7 +2084,155 @@ class TracingManager:
 - **OCI 兼容**：支持标准容器镜像
 - **MCP 原生集成**：内置 MCP Server，可直接与 AI Agent 对接
 
-#### 4.7.3 核心实现
+#### 4.7.3 SandboxRunner 抽象接口 (P4-4-6)
+
+> [!NOTE]
+>
+> **设计原则**: 定义统一的沙箱接口，支持多种后端实现 (microsandbox/Docker/WebAssembly)。
+
+创建 `adk_postgres/sandbox/base.py`:
+
+```python
+"""
+SandboxRunner 抽象基类
+支持多种沙箱后端的统一接口
+"""
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
+
+
+class SandboxBackend(Enum):
+    """沙箱后端类型"""
+    MICROSANDBOX = "microsandbox"  # 推荐: microVM 隔离
+    DOCKER = "docker"              # 备选: 容器隔离
+    WASM = "wasm"                   # 轻量: WebAssembly
+
+
+@dataclass
+class SandboxConfig:
+    """沙箱配置 - 通用参数"""
+    name: str = "agent-sandbox"
+    image: str = "python:3.11-slim"
+    memory_mb: int = 256
+    cpu_cores: float = 0.5
+    timeout_seconds: int = 30
+    network_enabled: bool = False
+    allow_file_access: bool = False
+
+
+@dataclass
+class SandboxResult:
+    """沙箱执行结果"""
+    success: bool
+    stdout: str
+    stderr: str
+    exit_code: int
+    execution_time_ms: float
+    metadata: dict = None  # 额外信息 (如资源使用)
+
+
+class BaseSandboxRunner(ABC):
+    """
+    沙箱执行器抽象基类
+
+    使用方式:
+        runner = MicrosandboxRunner(config)
+        result = await runner.execute("print('Hello!')")
+    """
+
+    def __init__(self, config: SandboxConfig | None = None):
+        self._config = config or SandboxConfig()
+
+    @property
+    @abstractmethod
+    def backend(self) -> SandboxBackend:
+        """返回后端类型"""
+        pass
+
+    @abstractmethod
+    async def execute(self, code: str) -> SandboxResult:
+        """
+        执行代码
+
+        Args:
+            code: 要执行的代码字符串
+
+        Returns:
+            SandboxResult: 执行结果
+        """
+        pass
+
+    @abstractmethod
+    async def execute_file(self, file_path: str) -> SandboxResult:
+        """执行文件"""
+        pass
+
+    async def execute_safe(self, code: str) -> SandboxResult:
+        """
+        带预检查的安全执行
+
+        在执行前进行静态分析，拦截危险代码模式
+        """
+        danger_patterns = [
+            'os.system', 'subprocess', '__import__',
+            'eval(', 'exec(', 'open(',
+            'import socket', 'import requests',
+        ]
+        for pattern in danger_patterns:
+            if pattern in code:
+                return SandboxResult(
+                    success=False,
+                    stdout="",
+                    stderr=f"Security violation: '{pattern}' is not allowed",
+                    exit_code=-2,
+                    execution_time_ms=0
+                )
+        return await self.execute(code)
+
+    async def health_check(self) -> bool:
+        """检查沙箱服务是否可用"""
+        try:
+            result = await self.execute("print('health')")
+            return result.success and "health" in result.stdout
+        except Exception:
+            return False
+
+    async def cleanup(self) -> None:
+        """清理资源 (子类可覆写)"""
+        pass
+```
+
+**工厂函数**:
+
+```python
+def create_sandbox_runner(
+    backend: SandboxBackend = SandboxBackend.MICROSANDBOX,
+    config: SandboxConfig | None = None
+) -> BaseSandboxRunner:
+    """
+    创建沙箱执行器的工厂函数
+
+    Args:
+        backend: 沙箱后端类型
+        config: 可选配置
+
+    Returns:
+        BaseSandboxRunner 实现
+    """
+    if backend == SandboxBackend.MICROSANDBOX:
+        from .microsandbox_runner import MicrosandboxRunner
+        return MicrosandboxRunner(config)
+    elif backend == SandboxBackend.DOCKER:
+        from .docker_runner import DockerSandboxRunner
+        return DockerSandboxRunner(config)
+    else:
+        raise ValueError(f"Unsupported backend: {backend}")
+```
+
+#### 4.7.4 核心实现
 
 **安装 microsandbox**:
 
@@ -1685,6 +2400,232 @@ docker run -d --name jaeger \
 | Session CRUD 延迟  | P99 < 50ms  | 压力测试 |
 | Memory Search 延迟 | P99 < 100ms | 压力测试 |
 | 沙箱启动时间       | < 2s        | 基准测试 |
+
+### 5.3 详细验收流程 (P4-5-1 ~ P4-5-4)
+
+#### 5.3.1 验收前置条件
+
+```bash
+# 1. 环境准备
+export DATABASE_URL="postgresql://user:pass@localhost:5432/agent_db"
+export GOOGLE_API_KEY="your-gemini-api-key"
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+
+# 2. 启动依赖服务
+docker-compose up -d postgres jaeger microsandbox
+
+# 3. 初始化数据库
+psql $DATABASE_URL -f docs/practice/schema/agent_schema.sql
+psql $DATABASE_URL -f docs/practice/schema/mind_schema.sql
+
+# 4. 安装 adk-postgres
+cd docs/practice/adapters/adk_postgres
+pip install -e ".[dev]"
+```
+
+#### 5.3.2 逐项验收检查清单
+
+> [!IMPORTANT]
+>
+> 逐项执行以下验收检查，全部通过后方可进入 Phase 5。
+
+**SessionService 验收 (P4-2-2 ~ P4-2-8)**
+
+|  #  | 验收项                     | 验收命令                                                                       | 预期结果 | 状态 |
+| :-: | :------------------------- | :----------------------------------------------------------------------------- | :------- | :--: |
+|  1  | create_session 基础创建    | `pytest tests/test_session_service.py::test_create_session_basic`              | PASSED   |  ⬜  |
+|  2  | create_session 带初始状态  | `pytest tests/test_session_service.py::test_create_session_with_initial_state` | PASSED   |  ⬜  |
+|  3  | get_session 存在的会话     | `pytest tests/test_session_service.py::test_get_session_exists`                | PASSED   |  ⬜  |
+|  4  | get_session 带分页配置     | `pytest tests/test_session_service.py::test_get_session_with_config`           | PASSED   |  ⬜  |
+|  5  | list_sessions 列出用户会话 | `pytest tests/test_session_service.py::test_list_sessions_by_user`             | PASSED   |  ⬜  |
+|  6  | delete_session 删除验证    | `pytest tests/test_session_service.py::test_delete_session`                    | PASSED   |  ⬜  |
+|  7  | user: 前缀跨会话持久       | `pytest tests/test_session_service.py::test_state_prefix_user_scope`           | PASSED   |  ⬜  |
+|  8  | temp: 前缀不持久化         | `pytest tests/test_session_service.py::test_state_prefix_temp_not_persisted`   | PASSED   |  ⬜  |
+
+**MemoryService 验收 (P4-2-9 ~ P4-2-12)**
+
+|  #  | 验收项                 | 验收命令                                                     | 预期结果 | 状态 |
+| :-: | :--------------------- | :----------------------------------------------------------- | :------- | :--: |
+|  9  | add_session_to_memory  | `pytest tests/test_memory_service.py::test_add_session`      | PASSED   |  ⬜  |
+| 10  | search_memory 语义检索 | `pytest tests/test_memory_service.py::test_search_memory`    | PASSED   |  ⬜  |
+| 11  | list_memories 列出记忆 | `pytest tests/test_memory_service.py::test_list_memories`    | PASSED   |  ⬜  |
+| 12  | 跨会话记忆召回         | `pytest tests/test_e2e.py::test_cross_session_memory_recall` | PASSED   |  ⬜  |
+
+**Tool Registry 验收 (P4-2-13 ~ P4-2-18)**
+
+|  #  | 验收项                       | 验收命令                                                       | 预期结果   | 状态 |
+| :-: | :--------------------------- | :------------------------------------------------------------- | :--------- | :--: |
+| 13  | register_tool 注册工具       | `pytest tests/test_tool_registry.py::test_register_tool`       | PASSED     |  ⬜  |
+| 14  | get_available_tools 获取列表 | `pytest tests/test_tool_registry.py::test_get_available_tools` | PASSED     |  ⬜  |
+| 15  | invoke_tool 调用与统计       | `pytest tests/test_tool_registry.py::test_invoke_tool`         | PASSED     |  ⬜  |
+| 16  | 热更新 (无需重启)            | 运行时注册新工具，验证立即可用                                 | 工具可调用 |  ⬜  |
+
+**OpenTelemetry 验收 (P4-4-1 ~ P4-4-4)**
+
+|  #  | 验收项                  | 验收命令                       | 预期结果              | 状态 |
+| :-: | :---------------------- | :----------------------------- | :-------------------- | :--: |
+| 17  | Trace 导出到 PostgreSQL | 执行完整对话，查询 `traces` 表 | 有记录                |  ⬜  |
+| 18  | Trace 导出到 Jaeger     | 访问 `http://localhost:16686`  | Trace 可见            |  ⬜  |
+| 19  | Span 层级正确           | Jaeger 查看 Span 树            | Parent-Child 关系正确 |  ⬜  |
+
+**安全沙箱验收 (P4-4-5 ~ P4-4-10)**
+
+|  #  | 验收项       | 验收命令                                                         | 预期结果       | 状态 |
+| :-: | :----------- | :--------------------------------------------------------------- | :------------- | :--: |
+| 20  | 正常代码执行 | `await sandbox.execute("print('hello')")`                        | stdout='hello' |  ⬜  |
+| 21  | 恶意代码拦截 | `await sandbox.execute_safe("import os; os.system('rm -rf /')")` | BLOCKED        |  ⬜  |
+| 22  | 超时控制     | `await sandbox.execute("while True: pass")`                      | TIMEOUT        |  ⬜  |
+| 23  | 网络隔离     | `await sandbox.execute("import requests; requests.get('...')")`  | FAILED         |  ⬜  |
+
+#### 5.3.3 ADK 集成验收
+
+```python
+# adk_integration_test.py - ADK 集成验收脚本
+"""
+验收目标: 验证 adk-postgres 与 Google ADK LlmAgent 的完整集成
+"""
+
+import asyncio
+from google.adk.agents import LlmAgent
+from google.adk.runners import Runner
+from adk_postgres import PostgresSessionService, PostgresMemoryService
+
+async def verify_adk_integration():
+    """ADK 集成验收"""
+    import asyncpg
+    pool = await asyncpg.create_pool(os.environ["DATABASE_URL"])
+
+    # 1. 创建服务
+    session_svc = PostgresSessionService(pool=pool)
+    memory_svc = PostgresMemoryService(pool=pool)
+
+    # 2. 创建 Agent
+    agent = LlmAgent(
+        name="test_agent",
+        model="gemini-2.0-flash",
+        instruction="You are a helpful assistant.",
+    )
+
+    # 3. 创建 Runner 并注入 PostgreSQL 服务
+    runner = Runner(
+        agent=agent,
+        app_name="integration_test",
+        session_service=session_svc,
+        memory_service=memory_svc,
+    )
+
+    # 4. 执行对话
+    session = await session_svc.create_session(
+        app_name="integration_test",
+        user_id="verifier"
+    )
+
+    async for event in runner.run_async(
+        session_id=session.id,
+        user_id="verifier",
+        new_message="Hello, how are you?"
+    ):
+        if event.is_final_response():
+            assert event.text is not None, "Agent 应返回响应"
+            print(f"✅ ADK 集成验收通过: {event.text[:50]}...")
+            break
+
+    await pool.close()
+
+if __name__ == "__main__":
+    asyncio.run(verify_adk_integration())
+```
+
+#### 5.3.4 性能压测流程
+
+```bash
+# 1. SessionService 压力测试 (100 并发, 1000 请求)
+locust -f tests/performance/locustfile.py \
+  --users 100 --spawn-rate 10 --run-time 60s \
+  --host $DATABASE_URL \
+  --html report_session.html
+
+# 2. 验收标准
+# - P99 Latency < 50ms
+# - Error Rate < 0.1%
+# - Throughput > 500 RPS
+```
+
+#### 5.3.5 验收报告模板
+
+```markdown
+# Phase 4 验收报告
+
+## 验收信息
+
+- **验收日期**: YYYY-MM-DD
+- **验收人**: [Name]
+- **Git Commit**: [hash]
+
+## 功能验收结果
+
+| 模块           | 通过项 | 总项数 | 通过率 |
+| :------------- | -----: | -----: | -----: |
+| SessionService |      X |      8 |     X% |
+| MemoryService  |      X |      4 |     X% |
+| Tool Registry  |      X |      4 |     X% |
+| OpenTelemetry  |      X |      3 |     X% |
+| 安全沙箱       |      X |      4 |     X% |
+| **总计**       |  **X** | **23** | **X%** |
+
+## 性能验收结果
+
+| 指标              | 目标   | 实测 | 状态  |
+| :---------------- | :----- | :--- | :---: |
+| Session CRUD P99  | <50ms  | Xms  | ✅/❌ |
+| Memory Search P99 | <100ms | Xms  | ✅/❌ |
+| 沙箱启动时间      | <2s    | Xs   | ✅/❌ |
+
+## ADK 集成验收
+
+- [ ] LlmAgent 正常响应
+- [ ] Session 状态正确持久化
+- [ ] Memory 搜索返回相关结果
+- [ ] Trace 完整记录
+
+## 遗留问题
+
+1. [描述问题及处理计划]
+
+## 验收结论
+
+- [ ] **通过**: 全部验收项达标，可进入 Phase 5
+- [ ] **有条件通过**: 存在非阻塞问题，跟踪处理
+- [ ] **不通过**: 存在阻塞问题，需修复后重新验收
+```
+
+#### 5.3.6 回归测试指引
+
+> [!NOTE]
+>
+> 后续代码变更后，执行以下回归测试确保未引入回归。
+
+```bash
+# 完整回归测试套件
+pytest tests/ -v --cov=adk_postgres --cov-report=html
+
+# 快速冒烟测试 (CI 用)
+pytest tests/ -v -m "smoke" --maxfail=3
+
+# 生成测试报告
+pytest tests/ --html=regression_report.html --self-contained-html
+```
+
+**pytest.ini 标记配置**:
+
+```ini
+[pytest]
+markers =
+    smoke: 冒烟测试 (快速验证核心功能)
+    integration: 集成测试 (需要数据库)
+    performance: 性能测试 (需要较长时间)
+    security: 安全测试 (沙箱相关)
+```
 
 ---
 
