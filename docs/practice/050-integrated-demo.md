@@ -997,6 +997,304 @@ def create_travel_agent() -> LlmAgent:
     return agent
 ```
 
+**步骤 2.3.5：实现工具模块**
+
+> [!NOTE]
+>
+> 以下工具实现为骨架代码，用于 Demo 验证。实际业务场景中需对接真实 API。与 [030-the-perception.md](./030-the-perception.md) 中的 `hybrid_search` 函数集成。
+
+**航班查询工具** `src/tools/flight_search.py`：
+
+```python
+"""
+航班查询工具 - 模拟实现
+"""
+
+from datetime import datetime, timedelta
+import random
+
+async def search_flights(
+    origin: str,
+    destination: str,
+    departure_date: str,
+    passengers: int = 1
+) -> list[dict]:
+    """
+    搜索航班信息
+
+    Args:
+        origin: 出发地城市代码 (如 PVG)
+        destination: 目的地城市代码 (如 DPS)
+        departure_date: 出发日期 (YYYY-MM-DD)
+        passengers: 乘客数量
+
+    Returns:
+        航班列表
+    """
+    # 模拟航班数据
+    airlines = ["国航", "东航", "南航", "新航", "国泰"]
+    flights = []
+
+    for i in range(3):
+        dep_time = datetime.strptime(departure_date, "%Y-%m-%d") + timedelta(hours=8 + i * 3)
+        flights.append({
+            "flight_no": f"{random.choice(['CA', 'MU', 'CZ', 'SQ', 'CX'])}{random.randint(100, 999)}",
+            "airline": random.choice(airlines),
+            "origin": origin,
+            "destination": destination,
+            "departure_time": dep_time.strftime("%Y-%m-%d %H:%M"),
+            "arrival_time": (dep_time + timedelta(hours=random.randint(3, 8))).strftime("%Y-%m-%d %H:%M"),
+            "price": random.randint(1500, 5000) * passengers,
+            "currency": "CNY",
+            "seats_available": random.randint(5, 50)
+        })
+
+    return flights
+```
+
+**酒店预订工具** `src/tools/hotel_booking.py`：
+
+```python
+"""
+酒店预订工具 - 模拟实现
+"""
+
+from datetime import datetime
+import random
+import uuid
+
+# 模拟酒店数据库
+MOCK_HOTELS = {
+    "DPS": [  # 巴厘岛
+        {"name": "巴厘岛四季度假村", "star": 5, "base_price": 2800},
+        {"name": "阿雅娜度假村", "star": 5, "base_price": 2200},
+        {"name": "巴厘岛洲际酒店", "star": 5, "base_price": 1800},
+    ],
+    "BKK": [  # 曼谷
+        {"name": "曼谷半岛酒店", "star": 5, "base_price": 1500},
+        {"name": "曼谷悦榕庄", "star": 5, "base_price": 2000},
+    ]
+}
+
+async def search_hotels(
+    destination: str,
+    checkin_date: str,
+    checkout_date: str,
+    guests: int = 2
+) -> list[dict]:
+    """搜索酒店"""
+    hotels = MOCK_HOTELS.get(destination.upper(), MOCK_HOTELS.get("DPS", []))
+    results = []
+
+    for hotel in hotels:
+        results.append({
+            "hotel_id": str(uuid.uuid4())[:8],
+            "name": hotel["name"],
+            "star_rating": hotel["star"],
+            "price_per_night": hotel["base_price"] + random.randint(-200, 200),
+            "currency": "CNY",
+            "checkin": checkin_date,
+            "checkout": checkout_date,
+            "guests": guests,
+            "amenities": ["WiFi", "泳池", "早餐", "SPA"],
+            "available_rooms": random.randint(1, 10)
+        })
+
+    return results
+
+async def book_hotel(
+    hotel_id: str,
+    guest_name: str,
+    checkin_date: str,
+    checkout_date: str
+) -> dict:
+    """预订酒店"""
+    return {
+        "confirmation_code": f"HTL-{uuid.uuid4().hex[:8].upper()}",
+        "hotel_id": hotel_id,
+        "guest_name": guest_name,
+        "checkin": checkin_date,
+        "checkout": checkout_date,
+        "status": "CONFIRMED",
+        "message": "预订成功！确认邮件已发送。"
+    }
+```
+
+**目的地推荐工具** `src/tools/destination_search.py`（集成 Perception 层）：
+
+```python
+"""
+目的地推荐工具 - 集成 Perception 层的混合检索能力
+
+参考：docs/practice/030-the-perception.md - hybrid_search_function.sql
+"""
+
+from typing import Optional
+import asyncpg
+
+# 目的地静态知识（实际场景从 RAG 知识库检索）
+DESTINATIONS = [
+    {"name": "巴厘岛", "tags": ["海岛", "度假", "潜水", "SPA"], "climate": "热带"},
+    {"name": "普吉岛", "tags": ["海岛", "沙滩", "夜生活"], "climate": "热带"},
+    {"name": "京都", "tags": ["文化", "古迹", "樱花", "美食"], "climate": "温带"},
+    {"name": "瑞士", "tags": ["滑雪", "雪山", "徒步", "自然"], "climate": "高山"},
+    {"name": "马尔代夫", "tags": ["海岛", "蜜月", "潜水", "奢华"], "climate": "热带"},
+]
+
+async def recommend_destinations(
+    preferences: str,
+    pool: Optional[asyncpg.Pool] = None
+) -> list[dict]:
+    """
+    基于用户偏好推荐目的地
+
+    如果提供 pool，使用 Perception 层的混合检索；
+    否则使用简单关键词匹配。
+    """
+    if pool:
+        # 使用 Perception 层的 hybrid_search (参考 030-the-perception.md)
+        results = await pool.fetch("""
+            SELECT * FROM hybrid_search_destinations(
+                query_text := $1,
+                query_embedding := $2,
+                limit_count := 5
+            )
+        """, preferences, await _get_embedding(preferences))
+        return [dict(r) for r in results]
+
+    # 简化版：关键词匹配
+    keywords = preferences.lower().split()
+    scored = []
+
+    for dest in DESTINATIONS:
+        score = sum(1 for tag in dest["tags"] if any(kw in tag.lower() for kw in keywords))
+        if score > 0:
+            scored.append({**dest, "relevance_score": score})
+
+    scored.sort(key=lambda x: x["relevance_score"], reverse=True)
+    return scored[:5]
+
+async def _get_embedding(text: str) -> list[float]:
+    """获取文本 Embedding（占位，实际调用 Gemini API）"""
+    # 实际实现参考 services.py 中的 embed_text 函数
+    return [0.0] * 768  # 占位向量
+```
+
+**步骤 2.3.6：创建测试数据脚本**
+
+创建 `scripts/seed_data.py`：
+
+```python
+"""
+测试数据初始化脚本
+"""
+
+import asyncio
+import asyncpg
+import json
+from pathlib import Path
+
+# 目的地测试数据
+DESTINATIONS_DATA = [
+    {
+        "id": "dest_001",
+        "name": "巴厘岛",
+        "country": "印度尼西亚",
+        "description": "印度尼西亚著名海岛度假胜地，以美丽沙滩、水上活动和文化体验闻名。",
+        "tags": ["海岛", "度假", "潜水", "SPA", "蜜月"],
+        "climate": "热带",
+        "best_season": "4月-10月",
+        "avg_cost_per_day": 800
+    },
+    {
+        "id": "dest_002",
+        "name": "京都",
+        "country": "日本",
+        "description": "日本古都，保留大量历史寺庙和传统文化，是体验日本文化的最佳目的地。",
+        "tags": ["文化", "古迹", "樱花", "美食", "温泉"],
+        "climate": "温带",
+        "best_season": "3月-5月, 10月-11月",
+        "avg_cost_per_day": 1200
+    },
+    {
+        "id": "dest_003",
+        "name": "瑞士少女峰",
+        "country": "瑞士",
+        "description": "欧洲屋脊，阿尔卑斯山脉最壮观的山峰之一，滑雪和徒步天堂。",
+        "tags": ["滑雪", "雪山", "徒步", "自然", "火车"],
+        "climate": "高山",
+        "best_season": "12月-3月(滑雪), 6月-9月(徒步)",
+        "avg_cost_per_day": 2000
+    }
+]
+
+# 用户偏好测试数据
+USER_PREFERENCES = [
+    {"user_id": "demo_user", "preference": "I don't like spicy food", "category": "food"},
+    {"user_id": "demo_user", "preference": "I prefer beach vacations", "category": "travel"},
+    {"user_id": "demo_user", "preference": "Budget is around 10000 CNY", "category": "budget"},
+]
+
+async def seed_destinations(pool: asyncpg.Pool):
+    """插入目的地数据"""
+    print("🌍 Seeding destinations...")
+    for dest in DESTINATIONS_DATA:
+        await pool.execute("""
+            INSERT INTO destinations (id, name, country, description, tags, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                description = EXCLUDED.description
+        """, dest["id"], dest["name"], dest["country"],
+            dest["description"], dest["tags"],
+            json.dumps({"climate": dest["climate"], "best_season": dest["best_season"]})
+        )
+    print(f"  ✅ Inserted {len(DESTINATIONS_DATA)} destinations")
+
+async def seed_user_preferences(pool: asyncpg.Pool):
+    """插入用户偏好数据"""
+    print("👤 Seeding user preferences...")
+    for pref in USER_PREFERENCES:
+        await pool.execute("""
+            INSERT INTO user_preferences (user_id, preference, category)
+            VALUES ($1, $2, $3)
+            ON CONFLICT DO NOTHING
+        """, pref["user_id"], pref["preference"], pref["category"])
+    print(f"  ✅ Inserted {len(USER_PREFERENCES)} preferences")
+
+async def main():
+    import os
+    database_url = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/agent_db")
+
+    print("🚀 Starting data seeding...")
+    pool = await asyncpg.create_pool(database_url)
+
+    try:
+        await seed_destinations(pool)
+        await seed_user_preferences(pool)
+        print("✅ Data seeding completed!")
+    finally:
+        await pool.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**运行数据初始化：**
+
+```bash
+# 初始化测试数据
+python scripts/seed_data.py
+
+# 预期输出:
+# 🚀 Starting data seeding...
+# 🌍 Seeding destinations...
+#   ✅ Inserted 3 destinations
+# 👤 Seeding user preferences...
+#   ✅ Inserted 3 preferences
+# ✅ Data seeding completed!
+```
+
 **步骤 2.4：创建 Streamlit 前端**
 
 创建 `src/app.py`：
@@ -1232,6 +1530,10 @@ streamlit run src/app.py
 
 #### 4.3.2 🫀 The Pulse 验收
 
+> [!NOTE]
+>
+> **前序参考**：[010-the-pulse.md](./010-the-pulse.md) · 核心验证点：原子状态流转 ([1.3.1](./010-the-pulse.md#131-原子状态流转))、OCC 并发控制 ([1.3.2](./010-the-pulse.md#132-乐观并发控制))、实时事件流 ([1.3.3](./010-the-pulse.md#133-实时事件流))
+
 **KPI**: 并发一致性 (OCC) —— 多 Agent 竞争下的数据正确性。
 
 创建 `tests/test_pulse.py`：
@@ -1409,6 +1711,10 @@ class TestPulseValidation:
 
 #### 4.3.3 🧠 The Hippocampus 验收
 
+> [!NOTE]
+>
+> **前序参考**：[020-the-hippocampus.md](./020-the-hippocampus.md) · 核心验证点：记忆巩固 Worker ([2.2](./020-the-hippocampus.md#22-memory-consolidation-worker))、艾宾浩斯衰减 ([2.3](./020-the-hippocampus.md#23-biological-retention))、Context Window ([2.3.3](./020-the-hippocampus.md#233-context-window-组装))
+
 **KPI**: 记忆新鲜度 (Freshness) —— 从 "发生" 到 "可回忆" 的时延。
 
 创建 `tests/test_hippocampus.py`：
@@ -1536,6 +1842,10 @@ class TestHippocampusValidation:
 ```
 
 #### 4.3.4 👁️ The Perception 验收
+
+> [!NOTE]
+>
+> **前序参考**：[030-the-perception.md](./030-the-perception.md) · 核心验证点：融合检索 SQL ([3.1](./030-the-perception.md#31-fusion-retrieval))、RRF 算法 ([3.1.2](./030-the-perception.md#312-rrf-融合算法))、L1 Reranking ([3.2.2](./030-the-perception.md#322-l1-reranking))
 
 **KPI**: 检索精度 (Recall@10 with Filters) —— 高过滤比下的召回率。
 
@@ -1669,6 +1979,10 @@ class TestPerceptionValidation:
 ```
 
 #### 4.3.5 🔮 The Realm of Mind 验收
+
+> [!NOTE]
+>
+> **前序参考**：[040-the-realm-of-mind.md](./040-the-realm-of-mind.md) · 核心验证点：ADK Adapter ([4.2](./040-the-realm-of-mind.md#42-postgresql-adapter-开发))、OpenTelemetry Tracing ([4.4.1](./040-the-realm-of-mind.md#441-opentelemetry-集成))、Sandbox ([4.4.2](./040-the-realm-of-mind.md#442-sandboxed-execution))
 
 **KPI**: 可调试性 (Debuggability) —— 能否精准定位推理死循环或幻觉。
 
