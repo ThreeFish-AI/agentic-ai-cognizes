@@ -1,13 +1,13 @@
 ---
-id: agui
+id: ag-ui
 sidebar_position: 7
-title: AG-UI 协议深度调研
+title: AG-UI 协议调研
 last_update:
   author: Aurelius Huang
   created_at: 2026-01-10
   updated_at: 2026-01-10
-  version: 1.0
-  status: Published
+  version: 1.1
+  status: Pending Review
 tags:
   - AG-UI
   - Agent Protocol
@@ -649,9 +649,122 @@ case EventType.STATE_DELTA: {
 
 ---
 
-## 7. 中间件模式
+## 7. 序列化与持久化机制
 
-### 7.1 中间件概念
+AG-UI 提供了完整的事件流序列化支持，实现历史恢复、分支和压缩<sup>[[14]](#ref14)</sup>。
+
+### 7.1 核心概念
+
+> 就像 Git 管理代码版本一样，AG-UI 的序列化机制让你可以"保存"、"回溯"和"分支"对话历史。
+
+| 概念                     | 描述                                          | 类比                    |
+| ------------------------ | --------------------------------------------- | ----------------------- |
+| **Stream Serialization** | 将完整事件历史转换为可移植格式（如 JSON）存储 | Git commit 保存代码快照 |
+| **Event Compaction**     | 将冗余流压缩为快照，保留语义                  | Git squash 合并提交     |
+| **Run Lineage**          | 使用 `parentRunId` 追踪对话分支               | Git branch 创建分支     |
+
+### 7.2 RunStartedEvent 扩展
+
+```typescript
+type RunStartedEvent = BaseEvent & {
+  type: EventType.RUN_STARTED;
+  threadId: string;
+  runId: string;
+  /** 用于分支/时间旅行的父运行 ID */
+  parentRunId?: string;
+  /** 本次运行的精确 Agent 输入（可省略已在历史中的消息） */
+  input?: AgentInput;
+};
+```
+
+### 7.3 Event Compaction（事件压缩）
+
+`compactEvents` 函数将冗余事件流压缩为精简形式<sup>[[15]](#ref15)</sup>：
+
+```typescript
+function compactEvents(events: BaseEvent[]): BaseEvent[];
+```
+
+**压缩规则**：
+
+| 事件类型       | 压缩策略                                                               |
+| -------------- | ---------------------------------------------------------------------- |
+| **消息流**     | `TEXT_MESSAGE_START → *CONTENT → END` 合并为单个快照，拼接所有 `delta` |
+| **工具调用**   | `TOOL_CALL_START → *ARGS → END` 合并，拼接参数片段                     |
+| **状态更新**   | 连续 `STATE_DELTA` 合并为最终 `STATE_SNAPSHOT`                         |
+| **输入规范化** | 从 `RunStarted.input.messages` 中移除已存在于历史的消息                |
+
+**压缩示例**：
+
+```typescript
+// 压缩前：冗余的流式事件
+[
+  { type: "TEXT_MESSAGE_START", messageId: "m1", role: "assistant" },
+  { type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "Hello" },
+  { type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: " " },
+  { type: "CUSTOM", name: "thinking" },
+  { type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "world" },
+  { type: "TEXT_MESSAGE_END", messageId: "m1" },
+]
+
+// 压缩后：精简的快照
+[
+  { type: "TEXT_MESSAGE_START", messageId: "m1", role: "assistant" },
+  { type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "Hello world" },
+  { type: "TEXT_MESSAGE_END", messageId: "m1" },
+  { type: "CUSTOM", name: "thinking" },  // 交错事件移到末尾
+]
+```
+
+### 7.4 分支与时间旅行
+
+通过 `parentRunId` 实现 Git 式的对话分支<sup>[[14]](#ref14)</sup>：
+
+```mermaid
+gitGraph
+    commit id: "run1: Tell me about Paris"
+    branch alternative
+    checkout alternative
+    commit id: "run2: Actually, tell me about London"
+    checkout main
+    commit id: "run3: Continue Paris discussion"
+```
+
+**分支示例**：
+
+```typescript
+// 原始运行
+{
+  type: "RUN_STARTED",
+  threadId: "thread1",
+  runId: "run1",
+  input: { messages: ["Tell me about Paris"] }
+}
+
+// 从 run1 分支
+{
+  type: "RUN_STARTED",
+  threadId: "thread1",
+  runId: "run2",
+  parentRunId: "run1",  // 关键：指向父运行
+  input: { messages: ["Actually, tell me about London instead"] }
+}
+```
+
+**使用场景**：
+
+| 场景           | 描述                     |
+| -------------- | ------------------------ |
+| **持久化历史** | 存储更少帧，保留完整语义 |
+| **分析导出**   | 准备快照用于数据分析     |
+| **调试/测试**  | 减少输出中的噪音         |
+| **时间旅行**   | 回溯到任意历史点重新开始 |
+
+---
+
+## 8. 中间件模式
+
+### 8.1 中间件概念
 
 AG-UI 中间件是事件管道中的拦截器，可用于<sup>[[8]](#ref8)</sup>：
 
@@ -663,7 +776,7 @@ AG-UI 中间件是事件管道中的拦截器，可用于<sup>[[8]](#ref8)</sup>
 | **错误处理**   | 实现自定义错误恢复策略   |
 | **监控执行**   | 添加日志、指标或调试功能 |
 
-### 7.2 中间件链
+### 8.2 中间件链
 
 ```typescript
 import { AbstractAgent } from "@ag-ui/client";
@@ -694,7 +807,7 @@ flowchart LR
     style F fill:#4ade80,color:#000
 ```
 
-### 7.3 函数式中间件
+### 8.3 函数式中间件
 
 ```typescript
 import { MiddlewareFunction } from "@ag-ui/client";
@@ -714,7 +827,7 @@ const prefixMiddleware: MiddlewareFunction = (input, next) => {
 agent.use(prefixMiddleware);
 ```
 
-### 7.4 类式中间件
+### 8.4 类式中间件
 
 ```typescript
 import { Middleware } from "@ag-ui/client";
@@ -748,7 +861,7 @@ class MetricsMiddleware extends Middleware {
 agent.use(new MetricsMiddleware(metricsService));
 ```
 
-### 7.5 内置中间件
+### 8.5 内置中间件
 
 AG-UI 提供开箱即用的中间件<sup>[[8]](#ref8)</sup>：
 
@@ -759,18 +872,18 @@ AG-UI 提供开箱即用的中间件<sup>[[8]](#ref8)</sup>：
 
 ---
 
-## 8. 生态集成矩阵
+## 9. 生态集成矩阵
 
 AG-UI 拥有丰富的框架集成生态<sup>[[1]](#ref1)</sup>：
 
-### 8.1 官方合作伙伴
+### 9.1 官方合作伙伴
 
 | 框架          | 类型        | 文档                                            | Demo                                                                  |
 | ------------- | ----------- | ----------------------------------------------- | --------------------------------------------------------------------- |
 | **LangGraph** | Partnership | [Docs](https://docs.copilotkit.ai/langgraph/)   | [Demo](https://dojo.ag-ui.com/langgraph-fastapi/feature/shared_state) |
 | **CrewAI**    | Partnership | [Docs](https://docs.copilotkit.ai/crewai-flows) | [Demo](https://dojo.ag-ui.com/crewai/feature/shared_state)            |
 
-### 8.2 第一方集成
+### 9.2 第一方集成
 
 | 框架                          | 提供方     | 文档                                                         | Demo                                                                                 |
 | ----------------------------- | ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
@@ -784,14 +897,14 @@ AG-UI 拥有丰富的框架集成生态<sup>[[1]](#ref1)</sup>：
 | **AG2**                       | AG2        | [Docs](https://docs.copilotkit.ai/ag2/)                      | -                                                                                    |
 | **AWS Bedrock Agents**        | AWS        | -                                                            | -                                                                                    |
 
-### 8.3 社区集成
+### 9.3 社区集成
 
 | 框架                  | 状态      |
 | --------------------- | --------- |
 | **OpenAI Agent SDK**  | Community |
 | **Cloudflare Agents** | Community |
 
-### 8.4 多语言 SDK
+### 9.4 多语言 SDK
 
 | SDK           | 语言       | 状态          |
 | ------------- | ---------- | ------------- |
@@ -805,7 +918,7 @@ AG-UI 拥有丰富的框架集成生态<sup>[[1]](#ref1)</sup>：
 | .NET SDK      | C#         | 🔄 PR Open    |
 | Nim SDK       | Nim        | 🔄 PR Open    |
 
-### 8.5 客户端
+### 9.5 客户端
 
 | 客户端               | 平台      | 文档                                                                          |
 | -------------------- | --------- | ----------------------------------------------------------------------------- |
@@ -815,11 +928,11 @@ AG-UI 拥有丰富的框架集成生态<sup>[[1]](#ref1)</sup>：
 
 ---
 
-## 9. Draft Proposals 前瞻
+## 10. Draft Proposals 前瞻
 
 AG-UI 正在积极演进，以下是主要的 Draft Proposals<sup>[[9]](#ref9)</sup>：
 
-### 9.1 Generative User Interfaces
+### 10.1 Generative User Interfaces
 
 **状态**：Draft
 
@@ -885,7 +998,7 @@ flowchart LR
 - 交互式工作流
 - 自适应界面
 
-### 9.2 Interrupt-Aware Run Lifecycle
+### 10.2 Interrupt-Aware Run Lifecycle
 
 **状态**：Draft
 
@@ -936,19 +1049,154 @@ type RunAgentInput = {
 - 多步骤向导
 - 错误恢复
 
-### 9.3 其他 Draft Proposals
+### 10.3 Reasoning（推理可见性）
 
-| Proposal                 | 描述                                   | 状态  |
-| ------------------------ | -------------------------------------- | ----- |
-| **Reasoning**            | LLM 推理可见性与加密内容连续性支持     | Draft |
-| **Multi-modal Messages** | 多模态输入消息支持（图像、音频、文件） | Draft |
-| **Meta Events**          | 独立于 Agent 运行的注解和信号          | Draft |
+**状态**：Draft
+
+**核心思想**：支持 LLM 推理过程的可视化和续传<sup>[[16]](#ref16)</sup>。
+
+**6 个新事件类型**：
+
+```typescript
+// 推理开始
+type ReasoningStartEvent = BaseEvent & {
+  type: EventType.REASONING_START;
+  messageId: string;
+  encryptedContent?: string; // 可选加密内容（用于隐私保护）
+};
+
+// 推理消息开始
+type ReasoningMessageStartEvent = BaseEvent & {
+  type: EventType.REASONING_MESSAGE_START;
+  messageId: string;
+  role: "assistant";
+};
+
+// 推理内容流式传输
+type ReasoningMessageContentEvent = BaseEvent & {
+  type: EventType.REASONING_MESSAGE_CONTENT;
+  messageId: string;
+  delta: string; // 非空字符串
+};
+
+// 推理消息结束
+type ReasoningMessageEndEvent = BaseEvent & {
+  type: EventType.REASONING_MESSAGE_END;
+  messageId: string;
+};
+
+// 推理消息 Chunk（便捷事件）
+type ReasoningMessageChunkEvent = BaseEvent & {
+  type: EventType.REASONING_MESSAGE_CHUNK;
+  messageId?: string;
+  delta?: string;
+};
+
+// 推理结束
+type ReasoningEndEvent = BaseEvent & {
+  type: EventType.REASONING_END;
+  messageId: string;
+};
+```
+
+**应用场景**：
+
+| 场景             | 描述                     |
+| ---------------- | ------------------------ |
+| **思维链可视化** | 向用户展示 AI 的推理过程 |
+| **推理摘要**     | 生成推理过程的精简摘要   |
+| **状态续传**     | 跨请求保持推理上下文     |
+| **合规与隐私**   | 加密敏感推理内容         |
+
+### 10.4 Multi-modal Messages（多模态消息）
+
+**状态**：Draft
+
+**核心思想**：支持图像、音频、文件等多模态输入<sup>[[17]](#ref17)</sup>。
+
+**InputContent 类型扩展**：
+
+```typescript
+interface TextInputContent {
+  type: "text";
+  text: string;
+}
+
+interface BinaryInputContent {
+  type: "binary";
+  mimeType: string; // 如 "image/jpeg", "audio/wav", "application/pdf"
+  id?: string; // 预上传内容的引用 ID
+  url?: string; // 远程 URL
+  data?: string; // Base64 编码数据
+  filename?: string; // 文件名
+}
+
+type InputContent = TextInputContent | BinaryInputContent;
+```
+
+**内容交付方式**：
+
+| 方式              | 字段   | 适用场景              |
+| ----------------- | ------ | --------------------- |
+| **Inline Data**   | `data` | 小文件（Base64 编码） |
+| **URL Reference** | `url`  | 大文件、CDN 托管      |
+| **ID Reference**  | `id`   | 预上传内容引用        |
+
+**实现示例**：
+
+```json
+// 图像 + 文本
+{
+  "id": "msg-002",
+  "role": "user",
+  "content": [
+    { "type": "text", "text": "What's in this image?" },
+    {
+      "type": "binary",
+      "mimeType": "image/jpeg",
+      "data": "base64-encoded-image-data..."
+    }
+  ]
+}
+
+// 多图片对比
+{
+  "id": "msg-003",
+  "role": "user",
+  "content": [
+    { "type": "text", "text": "What are the differences between these images?" },
+    { "type": "binary", "mimeType": "image/png", "url": "https://example.com/image1.png" },
+    { "type": "binary", "mimeType": "image/png", "url": "https://example.com/image2.png" }
+  ]
+}
+
+// 文档分析
+{
+  "id": "msg-005",
+  "role": "user",
+  "content": [
+    { "type": "text", "text": "Summarize the key points from this PDF" },
+    {
+      "type": "binary",
+      "mimeType": "application/pdf",
+      "filename": "quarterly-report.pdf",
+      "url": "https://example.com/reports/q4-2024.pdf"
+    }
+  ]
+}
+```
+
+### 10.5 其他 Draft Proposals
+
+| Proposal        | 描述                          | 状态  |
+| --------------- | ----------------------------- | ----- |
+| **Meta Events** | 独立于 Agent 运行的注解和信号 | Draft |
 
 ---
 
-## 10. 集成与应用 Demo 实施指引
+## 11. 集成与应用 Demo 实施指引
 
-### 10.1 快速开始：自动化脚手架
+### 11.1 快速开始：自动化脚手架
 
 使用官方 CLI 快速创建 AG-UI 应用<sup>[[12]](#ref12)</sup>：
 
@@ -963,15 +1211,15 @@ npm run dev
 # http://localhost:3000/copilotkit
 ```
 
-### 10.2 基础集成 Demo（TypeScript）
+### 11.2 基础集成 Demo（TypeScript）
 
-#### 10.2.1 安装依赖
+#### 11.2.1 安装依赖
 
 ```bash
 npm install @ag-ui/client @ag-ui/core rxjs
 ```
 
-#### 10.2.2 创建 HttpAgent 客户端
+#### 11.2.2 创建 HttpAgent 客户端
 
 ```typescript
 import { HttpAgent } from "@ag-ui/client";
@@ -1037,9 +1285,152 @@ agent
   });
 ```
 
-### 10.3 LangGraph 集成示例
+### 11.3 完整 OpenAI Server 实现（Python）
 
-#### 10.3.1 后端 Agent（Python + FastAPI）
+这是官方推荐的服务端实现模式<sup>[[18]](#ref18)</sup>：
+
+```python
+import os
+import uuid
+import uvicorn
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from ag_ui.core import (
+    RunAgentInput,
+    EventType,
+    RunStartedEvent,
+    RunFinishedEvent,
+    RunErrorEvent,
+)
+from ag_ui.encoder import EventEncoder
+from openai import OpenAI
+
+app = FastAPI(title="AG-UI OpenAI Server")
+
+# 初始化 OpenAI 客户端（使用环境变量 OPENAI_API_KEY）
+client = OpenAI()
+
+@app.post("/")
+async def agentic_chat_endpoint(input_data: RunAgentInput, request: Request):
+    """AG-UI 兼容的 OpenAI 聊天端点"""
+
+    # 获取客户端期望的编码格式
+    accept_header = request.headers.get("accept")
+    encoder = EventEncoder(accept=accept_header)
+
+    async def event_generator():
+        try:
+            # 1. 发射 RUN_STARTED 事件
+            yield encoder.encode(
+                RunStartedEvent(
+                    type=EventType.RUN_STARTED,
+                    thread_id=input_data.thread_id,
+                    run_id=input_data.run_id
+                )
+            )
+
+            # 2. 调用 OpenAI API（启用流式传输）
+            stream = client.chat.completions.create(
+                model="gpt-4o",
+                stream=True,
+                # 转换 AG-UI 工具格式为 OpenAI 格式
+                tools=[
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description,
+                            "parameters": tool.parameters,
+                        }
+                    }
+                    for tool in input_data.tools
+                ] if input_data.tools else None,
+                # 转换 AG-UI 消息为 OpenAI 消息格式
+                messages=[
+                    {
+                        "role": message.role,
+                        "content": message.content or "",
+                        # 包含工具调用（如果是 assistant 消息）
+                        **({"tool_calls": message.tool_calls}
+                           if message.role == "assistant"
+                           and hasattr(message, 'tool_calls')
+                           and message.tool_calls else {}),
+                        # 包含工具调用 ID（如果是 tool 消息）
+                        **({"tool_call_id": message.tool_call_id}
+                           if message.role == "tool"
+                           and hasattr(message, 'tool_call_id') else {}),
+                    }
+                    for message in input_data.messages
+                ],
+            )
+
+            message_id = str(uuid.uuid4())
+
+            # 3. 流式转发 OpenAI 响应
+            for chunk in stream:
+                # 处理文本内容
+                if chunk.choices[0].delta.content:
+                    yield encoder.encode({
+                        "type": EventType.TEXT_MESSAGE_CHUNK,
+                        "message_id": message_id,
+                        "delta": chunk.choices[0].delta.content,
+                    })
+                # 处理工具调用
+                elif chunk.choices[0].delta.tool_calls:
+                    tool_call = chunk.choices[0].delta.tool_calls[0]
+                    yield encoder.encode({
+                        "type": EventType.TOOL_CALL_CHUNK,
+                        "tool_call_id": tool_call.id,
+                        "tool_call_name": tool_call.function.name if tool_call.function else None,
+                        "parent_message_id": message_id,
+                        "delta": tool_call.function.arguments if tool_call.function else None,
+                    })
+
+            # 4. 发射 RUN_FINISHED 事件
+            yield encoder.encode(
+                RunFinishedEvent(
+                    type=EventType.RUN_FINISHED,
+                    thread_id=input_data.thread_id,
+                    run_id=input_data.run_id
+                )
+            )
+
+        except Exception as error:
+            # 5. 发射 RUN_ERROR 事件
+            yield encoder.encode(
+                RunErrorEvent(
+                    type=EventType.RUN_ERROR,
+                    message=str(error)
+                )
+            )
+
+    return StreamingResponse(
+        event_generator(),
+        media_type=encoder.get_content_type()
+    )
+
+def main():
+    """启动 uvicorn 服务器"""
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("example_server:app", host="0.0.0.0", port=port, reload=True)
+
+if __name__ == "__main__":
+    main()
+```
+
+**实现要点**：
+
+| 步骤 | 事件                                     | 说明                        |
+| ---- | ---------------------------------------- | --------------------------- |
+| 1    | `RUN_STARTED`                            | 标记 Agent 运行开始         |
+| 2    | 调用 LLM                                 | 使用 `stream=True` 启用流式 |
+| 3    | `TEXT_MESSAGE_CHUNK` / `TOOL_CALL_CHUNK` | 流式转发每个 chunk          |
+| 4    | `RUN_FINISHED`                           | 标记成功完成                |
+| 5    | `RUN_ERROR`                              | 处理异常情况                |
+
+### 11.4 LangGraph 集成示例
+
+#### 11.4.1 后端 Agent（Python + FastAPI）
 
 ```python
 from fastapi import FastAPI
@@ -1077,7 +1468,7 @@ async def run_agent(request: dict):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 ```
 
-#### 10.3.2 前端集成（React + CopilotKit）
+#### 11.4.2 前端集成（React + CopilotKit）
 
 ```tsx
 import { CopilotKit, useCopilotAction } from "@copilotkit/react-core";
@@ -1114,9 +1505,9 @@ function MyChat() {
 }
 ```
 
-### 10.4 Google ADK 集成示例
+### 11.5 Google ADK 集成示例
 
-#### 10.4.1 ADK Agent + AG-UI 中间件
+#### 11.5.1 ADK Agent + AG-UI 中间件
 
 ```python
 from google.adk import Agent, Tool
@@ -1147,7 +1538,7 @@ async def run_agent(request: dict):
     return await middleware.handle(request)
 ```
 
-### 10.5 自定义中间件示例
+### 11.6 自定义中间件示例
 
 ```typescript
 import { Middleware, RunAgentInput, AbstractAgent } from "@ag-ui/client";
@@ -1213,9 +1604,9 @@ agent.use(
 
 ---
 
-## 11. 可行性分析与最佳实践
+## 12. 可行性分析与最佳实践
 
-### 11.1 适用性评估
+### 12.1 适用性评估
 
 | 场景                       | 适用度     | 说明          |
 | -------------------------- | ---------- | ------------- |
@@ -1225,7 +1616,7 @@ agent.use(
 | **静态问答**               | ⭐⭐       | 过度设计      |
 | **批处理任务**             | ⭐         | 非目标场景    |
 
-### 11.2 性能考量
+### 12.2 性能考量
 
 | 方面         | 建议                                                  |
 | ------------ | ----------------------------------------------------- |
@@ -1234,7 +1625,7 @@ agent.use(
 | **中间件链** | 保持中间件链精简，避免性能瓶颈                        |
 | **工具数量** | 控制前端工具数量，避免 LLM 上下文膨胀                 |
 
-### 11.3 安全最佳实践
+### 12.3 安全最佳实践
 
 | 实践             | 说明                                |
 | ---------------- | ----------------------------------- |
@@ -1245,9 +1636,9 @@ agent.use(
 
 ---
 
-## 12. 总结与展望
+## 13. 总结与展望
 
-### 12.1 核心价值
+### 13.1 核心价值
 
 AG-UI 填补了 Agentic 协议栈在用户交互层的关键空白：
 
@@ -1255,7 +1646,7 @@ AG-UI 填补了 Agentic 协议栈在用户交互层的关键空白：
 MCP (工具)  +  A2A (协作)  +  AG-UI (用户)  =  完整 Agentic 架构
 ```
 
-### 12.2 关键特性回顾
+### 13.2 关键特性回顾
 
 | 特性                  | 价值                   |
 | --------------------- | ---------------------- |
@@ -1266,7 +1657,7 @@ MCP (工具)  +  A2A (协作)  +  AG-UI (用户)  =  完整 Agentic 架构
 | **中间件**            | 可扩展事件管道         |
 | **丰富生态**          | 15+ 框架、8+ 语言 SDK  |
 
-### 12.3 未来演进
+### 13.3 未来演进
 
 AG-UI 正在朝以下方向演进：
 
@@ -1304,3 +1695,13 @@ AG-UI 正在朝以下方向演进：
 <a id="ref12"></a>[12] CopilotKit, "Build Applications - Quickstart," _AG-UI Documentation_, 2025. [Online]. Available: https://docs.ag-ui.com/quickstart/applications
 
 <a id="ref13"></a>[13] AG-UI Protocol, "ag-ui-protocol/ag-ui," _GitHub Repository_, 2025. [Online]. Available: https://github.com/ag-ui-protocol/ag-ui
+
+<a id="ref14"></a>[14] CopilotKit, "Serialization," _AG-UI Documentation_, 2025. [Online]. Available: https://docs.ag-ui.com/concepts/serialization
+
+<a id="ref15"></a>[15] CopilotKit, "Stream Compaction," _AG-UI Documentation_, 2025. [Online]. Available: https://docs.ag-ui.com/sdk/js/client/compaction
+
+<a id="ref16"></a>[16] CopilotKit, "Reasoning," _AG-UI Documentation_, 2025. [Online]. Available: https://docs.ag-ui.com/drafts/reasoning
+
+<a id="ref17"></a>[17] CopilotKit, "Multi-modal Messages," _AG-UI Documentation_, 2025. [Online]. Available: https://docs.ag-ui.com/drafts/multimodal-messages
+
+<a id="ref18"></a>[18] CopilotKit, "Server Implementation," _AG-UI Documentation_, 2025. [Online]. Available: https://docs.ag-ui.com/quickstart/server
