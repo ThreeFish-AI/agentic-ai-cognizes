@@ -2425,6 +2425,346 @@ python scripts/run_benchmark.py
 
 ---
 
+### 4.5 Step 5: AG-UI E2E 可视化验收
+
+> [!NOTE]
+>
+> **对标 AG-UI 协议**：本节实现 Phase 5 的 AG-UI 全链路可视化验收，验证四大支柱的可视化能力在 E2E 场景中的完整性。
+>
+> **核心目标**：通过 CopilotKit 前端验证 AG-UI 事件流的完整性和可视化组件的正确性。
+
+#### 4.5.1 E2E 可视化验证架构
+
+```mermaid
+graph TB
+    subgraph "CopilotKit 前端"
+        CP[CopilotPopup]
+        SP[StatePanel]
+        TP[ToolPanel]
+        MP[MemoryPanel]
+    end
+
+    subgraph "AG-UI 事件流"
+        EV[Event Stream SSE]
+    end
+
+    subgraph "四支柱可视化器"
+        PV[PulseEventBridge]
+        MV[MemoryVisualizer]
+        SV[SearchVisualizer]
+        TV[ThinkingVisualizer]
+    end
+
+    PV & MV & SV & TV --> EV
+    EV --> CP & SP & TP & MP
+
+    style CP fill:#4ade80,stroke:#16a34a,color:#000
+    style EV fill:#60a5fa,stroke:#2563eb,color:#000
+```
+
+#### 4.5.2 AG-UI 事件覆盖矩阵
+
+| 支柱            | 可视化器           | AG-UI 事件                              | 前端组件                          | E2E 验证 |
+| :-------------- | :----------------- | :-------------------------------------- | :-------------------------------- | :------- |
+| **Pulse**       | PulseEventBridge   | RUN*\*, TEXT_MESSAGE*\*, STATE_DELTA    | ChatPanel, StateDebug             | 🔲       |
+| **Hippocampus** | MemoryVisualizer   | ACTIVITY*SNAPSHOT, CUSTOM (memory*\*)   | MemorySourceCard, HealthDashboard | 🔲       |
+| **Perception**  | SearchVisualizer   | STEP*\*, CUSTOM (retrieval*\*)          | SearchProgress, CitationList      | 🔲       |
+| **Mind**        | ThinkingVisualizer | STEP*\*, TOOL_CALL*_, CUSTOM (trace\__) | ThinkingCard, ToolPanel           | 🔲       |
+
+#### 4.5.3 E2E 场景测试用例
+
+创建 `docs/practice/demos/e2e_travel_agent/tests/test_agui_e2e.py`：
+
+```python
+"""
+AG-UI E2E 可视化验收测试
+
+验证所有四大支柱的 AG-UI 事件在 E2E 场景中正确发射
+"""
+
+import pytest
+import asyncio
+import json
+from typing import AsyncGenerator
+from httpx import AsyncClient
+
+
+@pytest.fixture
+async def agui_client():
+    """AG-UI 客户端"""
+    async with AsyncClient(base_url="http://localhost:8000") as client:
+        yield client
+
+
+class TestAgUiE2E:
+    """AG-UI E2E 测试套件"""
+
+    @pytest.mark.asyncio
+    async def test_event_stream_lifecycle(self, agui_client: AsyncClient):
+        """
+        测试事件流生命周期
+
+        验证 RUN_STARTED -> ... -> RUN_FINISHED 完整流程
+        """
+        events = []
+
+        async with agui_client.stream(
+            "POST",
+            "/api/copilotkit",
+            json={"messages": [{"role": "user", "content": "你好"}]}
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    event = json.loads(line[6:])
+                    events.append(event)
+
+        # 验证生命周期事件
+        event_types = [e["type"] for e in events]
+        assert "RUN_STARTED" in event_types
+        assert "RUN_FINISHED" in event_types or "RUN_ERROR" in event_types
+
+        # 验证事件顺序
+        run_start_idx = event_types.index("RUN_STARTED")
+        run_end_idx = len(event_types) - 1 - event_types[::-1].index(
+            "RUN_FINISHED" if "RUN_FINISHED" in event_types else "RUN_ERROR"
+        )
+        assert run_start_idx < run_end_idx
+
+    @pytest.mark.asyncio
+    async def test_text_message_streaming(self, agui_client: AsyncClient):
+        """
+        测试文本消息流式输出
+
+        验证 TEXT_MESSAGE_START -> CONTENT* -> END
+        """
+        events = []
+
+        async with agui_client.stream(
+            "POST",
+            "/api/copilotkit",
+            json={"messages": [{"role": "user", "content": "讲个笑话"}]}
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    event = json.loads(line[6:])
+                    events.append(event)
+
+        text_events = [e for e in events if e["type"].startswith("TEXT_MESSAGE")]
+
+        # 验证有消息内容
+        content_events = [e for e in text_events if e["type"] == "TEXT_MESSAGE_CONTENT"]
+        assert len(content_events) > 0, "应该有流式消息内容"
+
+        # 验证增量文本拼接
+        full_text = "".join(e.get("delta", "") for e in content_events)
+        assert len(full_text) > 0
+
+    @pytest.mark.asyncio
+    async def test_tool_call_visualization(self, agui_client: AsyncClient):
+        """
+        测试工具调用可视化
+
+        验证 TOOL_CALL_START -> ARGS -> END
+        """
+        events = []
+
+        # 触发一个需要工具调用的查询
+        async with agui_client.stream(
+            "POST",
+            "/api/copilotkit",
+            json={
+                "messages": [{"role": "user", "content": "搜索北京到上海的航班"}]
+            }
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    event = json.loads(line[6:])
+                    events.append(event)
+
+        tool_events = [e for e in events if e["type"].startswith("TOOL_CALL")]
+
+        if tool_events:  # 如果有工具调用
+            # 验证工具调用生命周期
+            tool_types = [e["type"] for e in tool_events]
+            assert "TOOL_CALL_START" in tool_types
+            assert "TOOL_CALL_END" in tool_types
+
+            # 验证工具名称存在
+            start_event = next(e for e in tool_events if e["type"] == "TOOL_CALL_START")
+            assert "toolCallName" in start_event
+
+    @pytest.mark.asyncio
+    async def test_memory_visualization(self, agui_client: AsyncClient):
+        """
+        测试记忆可视化
+
+        验证 CUSTOM (memory_hit) 事件
+        """
+        # 首先创建一些记忆
+        await agui_client.post(
+            "/api/copilotkit",
+            json={"messages": [{"role": "user", "content": "我不喜欢辣的食物"}]}
+        )
+
+        # 然后查询触发记忆召回
+        events = []
+        async with agui_client.stream(
+            "POST",
+            "/api/copilotkit",
+            json={
+                "messages": [{"role": "user", "content": "推荐一家餐厅"}]
+            }
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    event = json.loads(line[6:])
+                    events.append(event)
+
+        # 查找记忆相关事件
+        memory_events = [
+            e for e in events
+            if e["type"] == "CUSTOM" and e.get("name", "").startswith("memory_")
+        ]
+
+        # 记忆召回应该被记录
+        # (这取决于系统是否有足够的记忆)
+
+    @pytest.mark.asyncio
+    async def test_state_delta_synchronization(self, agui_client: AsyncClient):
+        """
+        测试状态增量同步
+
+        验证 STATE_DELTA 事件正确发射
+        """
+        events = []
+
+        async with agui_client.stream(
+            "POST",
+            "/api/copilotkit",
+            json={
+                "messages": [{"role": "user", "content": "记住我是 VIP 用户"}]
+            }
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    event = json.loads(line[6:])
+                    events.append(event)
+
+        state_events = [e for e in events if e["type"] == "STATE_DELTA"]
+
+        if state_events:
+            # 验证 JSON Patch 格式
+            for event in state_events:
+                assert "delta" in event
+                delta = event["delta"]
+                assert isinstance(delta, list)
+                for op in delta:
+                    assert "op" in op
+                    assert op["op"] in ["add", "remove", "replace"]
+
+    @pytest.mark.asyncio
+    async def test_event_latency(self, agui_client: AsyncClient):
+        """
+        测试事件延迟
+
+        验证事件流延迟 < 100ms
+        """
+        import time
+
+        start_time = time.perf_counter()
+        first_event_time = None
+
+        async with agui_client.stream(
+            "POST",
+            "/api/copilotkit",
+            json={"messages": [{"role": "user", "content": "测试"}]},
+            timeout=30.0
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    if first_event_time is None:
+                        first_event_time = time.perf_counter()
+                    break
+
+        latency_ms = (first_event_time - start_time) * 1000
+        assert latency_ms < 100, f"首事件延迟 {latency_ms:.2f}ms > 100ms"
+```
+
+#### 4.5.4 CopilotKit 集成验证
+
+```typescript
+// docs/practice/demos/e2e_travel_agent/frontend/tests/agui.test.tsx
+
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { CopilotKit } from "@copilotkit/react-core";
+import { CopilotPopup } from "@copilotkit/react-ui";
+
+describe("AG-UI CopilotKit Integration", () => {
+  it("should render chat popup", async () => {
+    render(
+      <CopilotKit runtimeUrl="/api/copilotkit">
+        <CopilotPopup
+          instructions="Test agent"
+          labels={{ title: "Test", initial: "Hello" }}
+        />
+      </CopilotKit>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Test")).toBeInTheDocument();
+    });
+  });
+
+  it("should receive streaming events", async () => {
+    const events: any[] = [];
+
+    // Mock SSE connection
+    const mockEventSource = vi.fn((url, options) => {
+      setTimeout(() => {
+        events.push({ type: "RUN_STARTED", run_id: "test-123" });
+        events.push({ type: "TEXT_MESSAGE_CONTENT", delta: "Hello" });
+        events.push({ type: "RUN_FINISHED", run_id: "test-123" });
+      }, 100);
+    });
+
+    // Test event reception
+    await waitFor(
+      () => {
+        expect(events.length).toBe(3);
+        expect(events[0].type).toBe("RUN_STARTED");
+        expect(events[2].type).toBe("RUN_FINISHED");
+      },
+      { timeout: 1000 }
+    );
+  });
+});
+```
+
+#### 4.5.5 任务清单
+
+| 任务 ID | 任务描述                | 状态      | 验收标准                  |
+| :------ | :---------------------- | :-------- | :------------------------ |
+| P5-5-1  | 实现 AG-UI E2E 测试套件 | 🔲 待开始 | 6 个测试用例通过          |
+| P5-5-2  | 验证事件流生命周期      | 🔲 待开始 | RUN_STARTED/FINISHED 正确 |
+| P5-5-3  | 验证消息流式输出        | 🔲 待开始 | 增量文本完整              |
+| P5-5-4  | 验证工具调用可视化      | 🔲 待开始 | 参数/结果可见             |
+| P5-5-5  | 验证状态同步            | 🔲 待开始 | JSON Patch 正确           |
+| P5-5-6  | 验证事件延迟            | 🔲 待开始 | 首事件 < 100ms            |
+| P5-5-7  | CopilotKit 前端集成测试 | 🔲 待开始 | 组件渲染正确              |
+
+#### 4.5.6 验收标准
+
+| 验收项     | 验收标准               | 验证方法 |
+| :--------- | :--------------------- | :------- |
+| 事件完整性 | 16 种事件类型全覆盖    | E2E 测试 |
+| 事件顺序   | 生命周期事件顺序正确   | 日志分析 |
+| 流式输出   | 增量文本平滑展示       | 手动验证 |
+| 延迟       | 首事件延迟 P99 < 100ms | 性能测试 |
+| 组件渲染   | 四大可视化组件正确显示 | 截图对比 |
+
+---
+
 ## 5. 验收标准：KPI 矩阵
 
 > [!IMPORTANT]

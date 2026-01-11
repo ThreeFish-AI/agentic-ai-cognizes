@@ -2721,6 +2721,374 @@ async def copilotkit_endpoint(request: Request) -> StreamingResponse:
     )
 ```
 
+### 4.10 Step 10: 思维链可视化调试
+
+> [!NOTE]
+>
+> **对标 AG-UI 协议**：本节实现 The Realm of Mind 与 AG-UI 可视化层的深度集成，提供 Agent 思维链、工具调用和决策过程的实时可视化调试能力。
+>
+> **核心目标**：将 Glass-Box Runtime 的透明可观测性通过 AG-UI 事件呈现到前端。
+
+#### 4.10.1 思维链可视化架构
+
+```mermaid
+graph TB
+    subgraph "Realm of Mind 执行层"
+        AE[AgentExecutor]
+        TR[Tool Registry]
+        OT[OpenTelemetry]
+    end
+
+    subgraph "可视化接口层"
+        TV[ThinkingVisualizer]
+        TC[ToolCallVisualizer]
+        TD[TraceDebugger]
+    end
+
+    subgraph "AG-UI 事件"
+        STEP[STEP_STARTED/FINISHED]
+        TOOL[TOOL_CALL_*]
+        CUST[CUSTOM Events]
+    end
+
+    AE -->|思维步骤| TV
+    TR -->|工具调用| TC
+    OT -->|追踪数据| TD
+
+    TV --> STEP
+    TC --> TOOL
+    TD --> CUST
+
+    style TV fill:#f472b6,stroke:#db2777,color:#000
+    style TC fill:#60a5fa,stroke:#2563eb,color:#000
+    style TD fill:#4ade80,stroke:#16a34a,color:#000
+```
+
+#### 4.10.2 AG-UI 事件映射表 (Mind 层)
+
+| Mind 功能         | 触发条件                        | AG-UI 事件类型        | 展示组件     |
+| :---------------- | :------------------------------ | :-------------------- | :----------- |
+| 思维步骤开始      | AgentExecutor 进入 Thought 阶段 | `STEP_STARTED`        | 思维卡片     |
+| 思维步骤完成      | Thought 输出生成                | `STEP_FINISHED`       | 思维内容展示 |
+| 工具调用开始      | Tool Registry 调用工具          | `TOOL_CALL_START`     | 工具调用面板 |
+| 工具参数流式      | 参数生成中                      | `TOOL_CALL_ARGS`      | 参数展示     |
+| 工具调用完成      | 工具返回结果                    | `TOOL_CALL_END`       | 结果展示     |
+| 推理链追踪        | OpenTelemetry Span 完成         | `CUSTOM (trace_span)` | Trace 时间线 |
+| Human-in-the-Loop | confirmAction 触发              | 前端工具回调          | 审批对话框   |
+
+#### 4.10.3 ThinkingVisualizer 实现
+
+创建 `docs/practice/engine/mind/thinking_visualizer.py`：
+
+```python
+"""
+Mind ThinkingVisualizer: 思维链可视化接口
+
+职责:
+1. 提供 Agent 思维过程的实时可视化
+2. 展示工具调用的参数和结果
+3. 集成 OpenTelemetry Trace 可视化
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from typing import Any, Optional
+from datetime import datetime
+from enum import Enum
+
+
+class MindEventType(str, Enum):
+    """Mind 层 AG-UI 事件类型"""
+    THINKING_STEP = "thinking_step"
+    TOOL_EXECUTION = "tool_execution"
+    TRACE_SPAN = "trace_span"
+    DECISION_POINT = "decision_point"
+
+
+@dataclass
+class ThinkingStep:
+    """思维步骤"""
+    step_id: str
+    step_type: str  # thought, action, observation
+    content: str
+    reasoning: Optional[str] = None
+    confidence: float = 1.0
+    timestamp: float = field(default_factory=lambda: datetime.now().timestamp())
+
+
+@dataclass
+class ToolExecution:
+    """工具执行"""
+    tool_call_id: str
+    tool_name: str
+    args: dict
+    result: Optional[Any] = None
+    status: str = "pending"  # pending, running, completed, failed
+    latency_ms: float = 0.0
+
+
+@dataclass
+class TraceSpan:
+    """追踪 Span"""
+    span_id: str
+    parent_span_id: Optional[str]
+    operation_name: str
+    start_time: float
+    end_time: Optional[float] = None
+    attributes: dict = field(default_factory=dict)
+    status: str = "running"
+
+
+class ThinkingVisualizer:
+    """思维链可视化器"""
+
+    def __init__(self, event_emitter=None):
+        """
+        Args:
+            event_emitter: AG-UI 事件发射器
+        """
+        self._event_emitter = event_emitter
+        self._current_steps: list[ThinkingStep] = []
+        self._tool_executions: dict[str, ToolExecution] = {}
+
+    async def emit_thinking_started(
+        self,
+        run_id: str,
+        step: ThinkingStep
+    ) -> None:
+        """
+        发射思维步骤开始事件
+
+        Args:
+            run_id: 当前运行 ID
+            step: 思维步骤
+        """
+        self._current_steps.append(step)
+
+        if self._event_emitter:
+            await self._event_emitter.emit_step_started(
+                run_id=run_id,
+                step_name=f"thinking_{step.step_type}",
+                data={
+                    "stepId": step.step_id,
+                    "stepType": step.step_type,
+                    "stepIndex": len(self._current_steps)
+                }
+            )
+
+    async def emit_thinking_content(
+        self,
+        run_id: str,
+        step_id: str,
+        content_delta: str
+    ) -> None:
+        """
+        发射思维内容增量事件 (流式)
+
+        Args:
+            run_id: 当前运行 ID
+            step_id: 步骤 ID
+            content_delta: 内容增量
+        """
+        if self._event_emitter:
+            await self._event_emitter.emit_custom(
+                run_id=run_id,
+                event_name=MindEventType.THINKING_STEP.value,
+                data={
+                    "stepId": step_id,
+                    "delta": content_delta
+                }
+            )
+
+    async def emit_thinking_finished(
+        self,
+        run_id: str,
+        step: ThinkingStep
+    ) -> None:
+        """
+        发射思维步骤完成事件
+
+        Args:
+            run_id: 当前运行 ID
+            step: 思维步骤
+        """
+        if self._event_emitter:
+            await self._event_emitter.emit_step_finished(
+                run_id=run_id,
+                step_name=f"thinking_{step.step_type}",
+                data={
+                    "stepId": step.step_id,
+                    "content": step.content[:500],  # 截断长内容
+                    "reasoning": step.reasoning,
+                    "confidence": step.confidence
+                }
+            )
+
+    async def emit_tool_call_start(
+        self,
+        run_id: str,
+        execution: ToolExecution
+    ) -> None:
+        """
+        发射工具调用开始事件
+
+        Args:
+            run_id: 当前运行 ID
+            execution: 工具执行
+        """
+        self._tool_executions[execution.tool_call_id] = execution
+        execution.status = "running"
+
+        if self._event_emitter:
+            await self._event_emitter.emit_tool_call_start(
+                run_id=run_id,
+                tool_call_id=execution.tool_call_id,
+                tool_call_name=execution.tool_name
+            )
+
+    async def emit_tool_call_args(
+        self,
+        run_id: str,
+        tool_call_id: str,
+        args_delta: str
+    ) -> None:
+        """
+        发射工具参数增量事件 (流式)
+
+        Args:
+            run_id: 当前运行 ID
+            tool_call_id: 工具调用 ID
+            args_delta: 参数增量
+        """
+        if self._event_emitter:
+            await self._event_emitter.emit_tool_call_args(
+                run_id=run_id,
+                tool_call_id=tool_call_id,
+                delta=args_delta
+            )
+
+    async def emit_tool_call_end(
+        self,
+        run_id: str,
+        tool_call_id: str,
+        result: Any,
+        latency_ms: float
+    ) -> None:
+        """
+        发射工具调用完成事件
+
+        Args:
+            run_id: 当前运行 ID
+            tool_call_id: 工具调用 ID
+            result: 执行结果
+            latency_ms: 延迟
+        """
+        if tool_call_id in self._tool_executions:
+            execution = self._tool_executions[tool_call_id]
+            execution.result = result
+            execution.status = "completed"
+            execution.latency_ms = latency_ms
+
+        if self._event_emitter:
+            await self._event_emitter.emit_tool_call_end(
+                run_id=run_id,
+                tool_call_id=tool_call_id,
+                result=str(result)[:1000]  # 截断长结果
+            )
+
+    async def emit_trace_span(
+        self,
+        run_id: str,
+        span: TraceSpan
+    ) -> None:
+        """
+        发射追踪 Span 事件
+
+        用于在前端展示 OpenTelemetry Trace
+
+        Args:
+            run_id: 当前运行 ID
+            span: 追踪 Span
+        """
+        if self._event_emitter:
+            await self._event_emitter.emit_custom(
+                run_id=run_id,
+                event_name=MindEventType.TRACE_SPAN.value,
+                data={
+                    "spanId": span.span_id,
+                    "parentSpanId": span.parent_span_id,
+                    "operationName": span.operation_name,
+                    "startTime": span.start_time,
+                    "endTime": span.end_time,
+                    "durationMs": (
+                        (span.end_time - span.start_time) * 1000
+                        if span.end_time else None
+                    ),
+                    "attributes": span.attributes,
+                    "status": span.status
+                }
+            )
+
+    def get_thinking_summary(self) -> dict:
+        """
+        获取思维过程摘要
+
+        Returns:
+            思维摘要
+        """
+        return {
+            "totalSteps": len(self._current_steps),
+            "steps": [
+                {
+                    "id": s.step_id,
+                    "type": s.step_type,
+                    "preview": s.content[:100] if s.content else ""
+                }
+                for s in self._current_steps
+            ],
+            "toolCalls": [
+                {
+                    "id": e.tool_call_id,
+                    "name": e.tool_name,
+                    "status": e.status,
+                    "latencyMs": e.latency_ms
+                }
+                for e in self._tool_executions.values()
+            ]
+        }
+```
+
+#### 4.10.4 前端展示组件规范
+
+| 组件名称             | 数据源                  | 展示内容                     |
+| :------------------- | :---------------------- | :--------------------------- |
+| `ThinkingStepCard`   | STEP_STARTED/FINISHED   | 思维类型图标、内容、置信度   |
+| `ToolCallPanel`      | TOOL*CALL*\*            | 工具名称、参数、结果、延迟   |
+| `TraceTimeline`      | CUSTOM (trace_span)     | Span 层级树、时间线          |
+| `DecisionFlowChart`  | CUSTOM (decision_point) | 决策分支可视化               |
+| `HitlApprovalDialog` | 前端工具回调            | 确认按钮、输入框、超时倒计时 |
+
+#### 4.10.5 任务清单 (补充)
+
+| 任务 ID | 任务描述                     | 状态      | 验收标准         |
+| :------ | :--------------------------- | :-------- | :--------------- |
+| P4-5-11 | 实现 `ThinkingVisualizer` 类 | 🔲 待开始 | 4 种事件类型支持 |
+| P4-5-12 | 实现思维步骤事件发射         | 🔲 待开始 | 思维链完整可见   |
+| P4-5-13 | 实现工具调用可视化           | 🔲 待开始 | 参数/结果可展示  |
+| P4-5-14 | 集成 OpenTelemetry Trace     | 🔲 待开始 | Span 可追溯      |
+| P4-5-15 | 编写可视化接口测试           | 🔲 待开始 | 覆盖率 > 80%     |
+
+#### 4.10.6 验收标准 (补充)
+
+| 验收项   | 验收标准                            | 验证方法    |
+| :------- | :---------------------------------- | :---------- |
+| 思维链   | 实时展示 Thought/Action/Observation | 集成测试    |
+| 工具调用 | 参数流式展示、结果完整展示          | E2E 测试    |
+| Trace    | OpenTelemetry Span 可视化           | Jaeger 对比 |
+| HITL     | 审批对话框正确弹出                  | 手动测试    |
+
 ---
 
 ## 5. 验收标准
