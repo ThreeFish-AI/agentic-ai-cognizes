@@ -1830,6 +1830,388 @@ class TestNotifyLatency:
 
 ---
 
+### 4.5 Step 5: AG-UI 事件桥接层
+
+> [!NOTE]
+>
+> **对标 AG-UI 协议**：本节实现 The Pulse 与 AG-UI 可视化层的事件桥接，确保所有会话状态变更、事件流都能实时推送到前端进行可视化展示。
+>
+> **参考资源**：
+>
+> - [AG-UI 协议调研](../research/070-ag-ui.md)
+> - [AG-UI 官方文档](https://docs.ag-ui.com/)
+
+#### 4.5.1 事件桥接架构
+
+```mermaid
+graph TB
+    subgraph "The Pulse 存储层"
+        TH[threads 表]
+        EV[events 表]
+        RN[runs 表]
+    end
+
+    subgraph "事件桥接层"
+        PNL[PgNotifyListener]
+        EB[EventBridge]
+        SER[SSE/WebSocket 端点]
+    end
+
+    subgraph "AG-UI 前端"
+        CK[CopilotKit]
+        UI[可视化面板]
+    end
+
+    EV -->|NOTIFY| PNL
+    TH -->|状态变更| PNL
+    PNL --> EB
+    EB -->|AG-UI Events| SER
+    SER -->|Event Stream| CK
+    CK --> UI
+
+    style EB fill:#4ade80,stroke:#16a34a,color:#000
+```
+
+#### 4.5.2 AG-UI 事件映射表
+
+| Pulse 事件源              | 触发条件     | AG-UI 事件类型         | 事件数据              |
+| :------------------------ | :----------- | :--------------------- | :-------------------- |
+| `runs` INSERT             | 新建执行链路 | `RUN_STARTED`          | `{run_id, thread_id}` |
+| `runs` UPDATE (complete)  | 执行完成     | `RUN_FINISHED`         | `{run_id, status}`    |
+| `events` INSERT (message) | 新消息创建   | `TEXT_MESSAGE_START`   | `{message_id}`        |
+| `events` INSERT (content) | 消息内容追加 | `TEXT_MESSAGE_CONTENT` | `{delta}`             |
+| `threads.state` UPDATE    | 状态变更     | `STATE_DELTA`          | `{json_patch}`        |
+| `events` INSERT (tool)    | 工具调用     | `TOOL_CALL_START`      | `{tool_name, args}`   |
+
+#### 4.5.3 EventBridge 实现
+
+创建 `docs/practice/engine/pulse/event_bridge.py`：
+
+```python
+"""
+Pulse EventBridge: 将 PostgreSQL 事件转换为 AG-UI 标准事件
+
+职责:
+1. 监听 PostgreSQL NOTIFY 事件
+2. 转换为 AG-UI 标准事件格式
+3. 通过 SSE/WebSocket 推送到前端
+"""
+
+from __future__ import annotations
+
+import json
+import asyncio
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, AsyncGenerator
+from datetime import datetime
+
+
+class AgUiEventType(str, Enum):
+    """AG-UI 标准事件类型"""
+    RUN_STARTED = "RUN_STARTED"
+    RUN_FINISHED = "RUN_FINISHED"
+    RUN_ERROR = "RUN_ERROR"
+    STEP_STARTED = "STEP_STARTED"
+    STEP_FINISHED = "STEP_FINISHED"
+    TEXT_MESSAGE_START = "TEXT_MESSAGE_START"
+    TEXT_MESSAGE_CONTENT = "TEXT_MESSAGE_CONTENT"
+    TEXT_MESSAGE_END = "TEXT_MESSAGE_END"
+    TOOL_CALL_START = "TOOL_CALL_START"
+    TOOL_CALL_ARGS = "TOOL_CALL_ARGS"
+    TOOL_CALL_END = "TOOL_CALL_END"
+    STATE_SNAPSHOT = "STATE_SNAPSHOT"
+    STATE_DELTA = "STATE_DELTA"
+    MESSAGES_SNAPSHOT = "MESSAGES_SNAPSHOT"
+    RAW = "RAW"
+    CUSTOM = "CUSTOM"
+
+
+@dataclass
+class AgUiEvent:
+    """AG-UI 标准事件"""
+    type: AgUiEventType
+    run_id: str
+    timestamp: float = field(default_factory=lambda: datetime.now().timestamp())
+    data: dict = field(default_factory=dict)
+
+    def to_sse(self) -> str:
+        """转换为 SSE 格式"""
+        payload = {
+            "type": self.type.value,
+            "runId": self.run_id,
+            "timestamp": self.timestamp,
+            **self.data
+        }
+        return f"data: {json.dumps(payload)}\n\n"
+
+
+class PulseEventBridge:
+    """
+    Pulse 事件桥接器
+
+    将 PostgreSQL 事件转换为 AG-UI 标准事件
+    """
+
+    def __init__(self, pg_listener):
+        """
+        Args:
+            pg_listener: PgNotifyListener 实例
+        """
+        self._pg_listener = pg_listener
+        self._subscribers: dict[str, list[asyncio.Queue]] = {}  # run_id -> queues
+        self._running = False
+
+    async def start(self) -> None:
+        """启动事件桥接"""
+        self._running = True
+
+        # 注册 PostgreSQL 监听器回调
+        await self._pg_listener.subscribe(
+            channel="event_stream",
+            callback=self._handle_pg_event
+        )
+
+    async def stop(self) -> None:
+        """停止事件桥接"""
+        self._running = False
+        await self._pg_listener.unsubscribe("event_stream")
+
+    async def subscribe(self, run_id: str) -> AsyncGenerator[AgUiEvent, None]:
+        """
+        订阅指定 run_id 的事件流
+
+        Yields:
+            AgUiEvent: AG-UI 标准事件
+        """
+        queue: asyncio.Queue = asyncio.Queue()
+
+        if run_id not in self._subscribers:
+            self._subscribers[run_id] = []
+        self._subscribers[run_id].append(queue)
+
+        try:
+            while self._running:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield event
+
+                    # 如果是完成事件，结束订阅
+                    if event.type in (AgUiEventType.RUN_FINISHED, AgUiEventType.RUN_ERROR):
+                        break
+                except asyncio.TimeoutError:
+                    # 发送心跳
+                    yield AgUiEvent(
+                        type=AgUiEventType.CUSTOM,
+                        run_id=run_id,
+                        data={"name": "heartbeat"}
+                    )
+        finally:
+            self._subscribers[run_id].remove(queue)
+            if not self._subscribers[run_id]:
+                del self._subscribers[run_id]
+
+    async def _handle_pg_event(self, channel: str, payload: str) -> None:
+        """处理 PostgreSQL 事件并转换为 AG-UI 事件"""
+        try:
+            data = json.loads(payload)
+            event = self._convert_to_agui_event(data)
+
+            if event and event.run_id in self._subscribers:
+                for queue in self._subscribers[event.run_id]:
+                    await queue.put(event)
+        except json.JSONDecodeError:
+            pass
+
+    def _convert_to_agui_event(self, pg_data: dict) -> AgUiEvent | None:
+        """
+        将 PostgreSQL 事件数据转换为 AG-UI 事件
+
+        Args:
+            pg_data: PostgreSQL NOTIFY 载荷
+
+        Returns:
+            AG-UI 事件或 None
+        """
+        table = pg_data.get("table")
+        operation = pg_data.get("operation")
+        row_data = pg_data.get("data", {})
+
+        run_id = row_data.get("run_id") or row_data.get("id")
+        if not run_id:
+            return None
+
+        # 根据表和操作类型映射事件
+        if table == "runs":
+            if operation == "INSERT":
+                return AgUiEvent(
+                    type=AgUiEventType.RUN_STARTED,
+                    run_id=run_id,
+                    data={"threadId": row_data.get("thread_id")}
+                )
+            elif operation == "UPDATE":
+                status = row_data.get("status")
+                if status == "completed":
+                    return AgUiEvent(
+                        type=AgUiEventType.RUN_FINISHED,
+                        run_id=run_id,
+                        data={"status": status}
+                    )
+                elif status == "failed":
+                    return AgUiEvent(
+                        type=AgUiEventType.RUN_ERROR,
+                        run_id=run_id,
+                        data={"error": row_data.get("error")}
+                    )
+
+        elif table == "events":
+            event_type = row_data.get("event_type")
+            if event_type == "message":
+                return AgUiEvent(
+                    type=AgUiEventType.TEXT_MESSAGE_CONTENT,
+                    run_id=run_id,
+                    data={
+                        "messageId": row_data.get("id"),
+                        "delta": row_data.get("content", {}).get("text", "")
+                    }
+                )
+            elif event_type == "tool_call":
+                return AgUiEvent(
+                    type=AgUiEventType.TOOL_CALL_START,
+                    run_id=run_id,
+                    data={
+                        "toolCallId": row_data.get("id"),
+                        "toolCallName": row_data.get("content", {}).get("tool_name")
+                    }
+                )
+
+        elif table == "threads":
+            if operation == "UPDATE" and "state" in row_data:
+                return AgUiEvent(
+                    type=AgUiEventType.STATE_DELTA,
+                    run_id=run_id,
+                    data={"delta": row_data.get("state_delta", [])}
+                )
+
+        return None
+
+
+# FastAPI 端点示例
+async def create_sse_endpoint(bridge: PulseEventBridge, run_id: str):
+    """
+    创建 SSE 事件流端点
+
+    Usage:
+        @app.get("/api/runs/{run_id}/events")
+        async def stream_events(run_id: str):
+            return StreamingResponse(
+                create_sse_endpoint(bridge, run_id),
+                media_type="text/event-stream"
+            )
+    """
+    async for event in bridge.subscribe(run_id):
+        yield event.to_sse()
+```
+
+#### 4.5.4 状态调试面板数据接口
+
+```python
+# docs/practice/engine/pulse/state_debug.py
+"""状态调试面板数据接口"""
+
+from dataclasses import dataclass
+from typing import Any
+import json
+
+
+@dataclass
+class StateDebugInfo:
+    """状态调试信息"""
+    thread_id: str
+    current_state: dict[str, Any]
+    state_history: list[dict]  # 最近 N 次状态变更
+    prefix_breakdown: dict[str, dict]  # 按前缀分组的状态
+
+
+class StateDebugService:
+    """状态调试服务"""
+
+    def __init__(self, pool):
+        self._pool = pool
+
+    async def get_debug_info(self, thread_id: str) -> StateDebugInfo:
+        """获取线程的调试信息"""
+        async with self._pool.acquire() as conn:
+            # 获取当前状态
+            thread = await conn.fetchrow(
+                "SELECT state FROM threads WHERE id = $1",
+                thread_id
+            )
+
+            # 获取状态变更历史
+            history = await conn.fetch("""
+                SELECT
+                    created_at,
+                    content->'state_delta' as delta
+                FROM events
+                WHERE thread_id = $1
+                  AND content ? 'state_delta'
+                ORDER BY created_at DESC
+                LIMIT 20
+            """, thread_id)
+
+            current_state = json.loads(thread["state"]) if thread else {}
+
+            # 按前缀分组
+            prefix_breakdown = {
+                "session": {},
+                "user": {},
+                "app": {},
+                "temp": {}
+            }
+
+            for key, value in current_state.items():
+                if key.startswith("user:"):
+                    prefix_breakdown["user"][key[5:]] = value
+                elif key.startswith("app:"):
+                    prefix_breakdown["app"][key[4:]] = value
+                elif key.startswith("temp:"):
+                    prefix_breakdown["temp"][key[5:]] = value
+                else:
+                    prefix_breakdown["session"][key] = value
+
+            return StateDebugInfo(
+                thread_id=thread_id,
+                current_state=current_state,
+                state_history=[
+                    {"time": str(h["created_at"]), "delta": json.loads(h["delta"])}
+                    for h in history
+                ],
+                prefix_breakdown=prefix_breakdown
+            )
+```
+
+#### 4.5.5 任务清单
+
+| 任务 ID | 任务描述                   | 状态      | 验收标准                |
+| :------ | :------------------------- | :-------- | :---------------------- |
+| P1-5-1  | 实现 `PulseEventBridge` 类 | 🔲 待开始 | PostgreSQL 事件正确转换 |
+| P1-5-2  | 实现 AG-UI 事件映射逻辑    | 🔲 待开始 | 6 种事件类型覆盖        |
+| P1-5-3  | 实现 SSE 端点              | 🔲 待开始 | 事件流延迟 < 100ms      |
+| P1-5-4  | 实现 StateDebugService     | 🔲 待开始 | 调试信息完整            |
+| P1-5-5  | 编写事件桥接单元测试       | 🔲 待开始 | 覆盖率 > 80%            |
+
+#### 4.5.6 验收标准
+
+| 验收项   | 验收标准                                 | 验证方法 |
+| :------- | :--------------------------------------- | :------- |
+| 事件转换 | PostgreSQL 6 类事件正确映射到 AG-UI 事件 | 单元测试 |
+| 延迟     | 事件从 DB 到前端延迟 < 100ms (P99)       | 性能测试 |
+| 可靠性   | 事件不丢失，顺序正确                     | 压力测试 |
+| 调试面板 | 状态分组正确，历史可追溯                 | 集成测试 |
+
+---
+
 ## 5. 验收标准
 
 ### 5.1 功能验收矩阵
