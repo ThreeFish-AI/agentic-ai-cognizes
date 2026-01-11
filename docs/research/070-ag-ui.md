@@ -15,8 +15,8 @@ tags:
   - CopilotKit
 ---
 
-# AG-UI：Agent-User Interaction 协议深度调研报告
-
+> [!NOTE]
+>
 > **核心定位**：AG-UI 是连接 AI Agent 与用户界面的"最后一公里"协议，填补了 MCP（Agent-工具连接）和 A2A（Agent 间通信）在用户交互层的空白。
 
 ## 1. 协议概述与定位
