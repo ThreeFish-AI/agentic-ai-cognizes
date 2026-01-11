@@ -784,6 +784,89 @@ async def test_baseline():
 
 **验收标准**：基线版本能正常响应用户查询，完成基本对话流程。
 
+#### 4.1.5 AG-UI 前端技术选型
+
+> [!NOTE]
+>
+> **对标 Roadmap 5.1**: 使用 AG-UI + CopilotKit 替代 Streamlit 作为前端交互层，实现标准化的 Agent-User 实时交互。
+
+**前端技术方案对比**：
+
+| 方案              | 技术栈               | 优势                         | 劣势                 | 适用场景    |
+| :---------------- | :------------------- | :--------------------------- | :------------------- | :---------- |
+| **方案 A**        | Streamlit            | 快速原型、Python 原生        | 非标准协议、无法扩展 | 简单验证    |
+| **方案 B (推荐)** | AG-UI + CopilotKit   | 标准化协议、可扩展、生态丰富 | 需 React 开发能力    | 生产级 Demo |
+| **方案 C**        | AG-UI + 自定义 React | 完全定制、最大灵活性         | 开发成本高           | 深度集成    |
+
+**推荐策略**：使用 **方案 B** 作为 E2E Demo 的前端实现。
+
+**CopilotKit 项目初始化**：
+
+```bash
+# 创建 Next.js + CopilotKit 项目
+npx create-next-app@latest travel-agent-ui --typescript --tailwind --app
+cd travel-agent-ui
+
+# 安装 CopilotKit 依赖
+npm install @copilotkit/react-core @copilotkit/react-ui @copilotkit/runtime
+```
+
+**CopilotKit 配置示例** (`app/page.tsx`)：
+
+```typescript
+"use client";
+import { CopilotKit } from "@copilotkit/react-core";
+import { CopilotPopup } from "@copilotkit/react-ui";
+import "@copilotkit/react-ui/styles.css";
+
+export default function Home() {
+  return (
+    <CopilotKit runtimeUrl="/api/copilotkit">
+      <main className="min-h-screen p-8">
+        <h1 className="text-2xl font-bold mb-4">Travel Agent Demo</h1>
+        <p>使用 AG-UI 协议的 E2E Demo</p>
+      </main>
+      <CopilotPopup
+        instructions="You are a helpful travel assistant."
+        labels={{
+          title: "Travel Agent",
+          initial: "我能帮您规划旅行！",
+        }}
+      />
+    </CopilotKit>
+  );
+}
+```
+
+**AG-UI 服务端路由** (`app/api/copilotkit/route.ts`)：
+
+```typescript
+import {
+  CopilotRuntime,
+  OpenAIAdapter,
+  copilotRuntimeNextJSAppRouterEndpoint,
+} from "@copilotkit/runtime";
+
+// 连接到我们的 Python AG-UI 后端
+const AGUI_BACKEND_URL =
+  process.env.AGUI_BACKEND_URL || "http://localhost:8000";
+
+export const POST = async (req: Request) => {
+  // 转发请求到 Python AG-UI 服务端
+  const body = await req.json();
+
+  const response = await fetch(`${AGUI_BACKEND_URL}/api/copilotkit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  return new Response(response.body, {
+    headers: { "Content-Type": "text/event-stream" },
+  });
+};
+```
+
 ---
 
 ### 4.2 Step 2: 后端替换集成

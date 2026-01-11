@@ -17,7 +17,7 @@ tags:
 
 > [!NOTE]
 >
-> **基于调研**: [context-engineering](../research/010-context-engineering.md) | [agent-runtime-frameworks](../research/020-agent-runtime-frameworks.md) | [vector-search-algorithm](../research/030-vector-search-algorithm.md) | [vector-databases](../research/032-vector-databases.md)
+> **基于调研**: [context-engineering](../research/010-context-engineering.md) | [agent-runtime-frameworks](../research/020-agent-runtime-frameworks.md) | [vector-search-algorithm](../research/030-vector-search-algorithm.md) | [vector-databases](../research/032-vector-databases.md) | [ag-ui](../research/070-ag-ui.md)
 
 ## 1. 验证目标
 
@@ -228,6 +228,13 @@ tags:
 - [ ] **4.3: Glass-Box Observability (白盒可观测)**
   - **OpenTelemetry Tracing**: 在 Adapter 层埋点，记录 `Chain start/end`, `Tool call/return`。
   - **Visualization**: 部署 Jaeger 或使用 Honeycomb，验证能完整还原 "User Input -> Reasoning -> Action -> Final Answer" 的全链路 Trace。
+- [ ] **4.4: AG-UI 协议集成 (前端交互层)**
+  - **Research**: 阅读 AG-UI 协议文档，理解 16 种标准事件类型与状态管理机制。
+    - 参考文档: [AG-UI 协议调研](../research/070-ag-ui.md)
+    - 官方文档: [AG-UI Docs](https://docs.ag-ui.com/)
+  - **Event Alignment**: 实现 AG-UI 事件与 The Pulse 事件流的对齐 (`RUN_STARTED/FINISHED` → `runs` 表, `TEXT_MESSAGE_*` → `events` 表)。
+  - **Frontend Tools**: 集成前端定义工具 (Frontend-Defined Tools) 到 Tool Registry，支持 Human-in-the-Loop 审批流程。
+  - **State Sync**: 实现 `STATE_SNAPSHOT/DELTA` 与 `threads.state` 的 JSON Patch 同步。
 
 ### Phase 5：Integrated Demo & Final Validation (综合集成验证)
 
@@ -237,10 +244,12 @@ tags:
 
 - [ ] **5.1: E2E Scenario Replication (全场景复刻)**
   - **Subject**: 选取 Google Cloud ADK 官方仓库中的 `Travel Agent` 或 `E-commerce Support` 示例。
-  - **Action**: 保持前端 (Streamlit/React) 与 Prompt 不变，仅替换 Backend (`Session/Memory/Search`) 为 `adk-postgres` 实现。
+  - **Action**: 使用 **AG-UI + CopilotKit** 替代 Streamlit 作为前端交互层，保持 Agent Prompt 不变，仅替换 Backend (`Session/Memory/Search`) 为 `adk-postgres` 实现。
+  - **AG-UI Integration**: 集成 CopilotKit React 客户端，实现标准化的 Agent-User 实时交互。
   - **Success Criteria**:
     - **Functionality**: 所有 Use Cases (订票、查询、修改) 运行无误。
     - **Performance**: P99 响应延迟与 Google 原生方案差异 < 100ms。
+    - **AG-UI Events**: 16 种标准事件正确发射，前端实时接收。
 - [ ] **5.2: Holistic Validation (四支柱联合验收)**
   - **Pulse**: 验证在高并发多轮对话中，Session 状态 (State) 无脏读或丢失。
   - **Hippocampus**: 验证跨会话偏好记忆（"I hate spicy food"）准确被 `Hippocampus` 自动召回。
@@ -249,11 +258,12 @@ tags:
 
 ## 4. 交付物汇总
 
-| 阶段        | 交付物模块            | 文件                                     | 代码                                                              | 状态      |
-| :---------- | :-------------------- | :--------------------------------------- | :---------------------------------------------------------------- | :-------- |
-| **Phase 1** | **Foundation**        |                                          | `docs/practice/schema/agent_schema.sql` (Unified Schema)          | 🔲 待开始 |
-|             | **The Pulse**         | `docs/practice/010-the-pulse.md`         | `docs/practice/engine/pulse/transaction_manager.py`               | 🔲 待开始 |
-| **Phase 2** | **The Hippocampus**   | `docs/practice/020-the-hippocampus.md`   | `docs/practice/engine/hippocampus/consolidation_worker.py`        | 🔲 待开始 |
-| **Phase 3** | **The Perception**    | `docs/practice/030-the-perception.md`    | `docs/practice/engine/perception/hybrid_search.sql`               | 🔲 待开始 |
-| **Phase 4** | **The Realm of Mind** | `docs/practice/040-the-realm-of-mind.md` | `docs/practice/adapters/adk_postgres/` (Python Package)           | 🔲 待开始 |
-| **Phase 5** | **Integrated Demo**   | `docs/practice/050-integrated-demo.md`   | `docs/practice/demos/e2e_travel_agent/` (Replicating Google Demo) | 🔲 待开始 |
+| 阶段        | 交付物模块            | 文件                                     | 代码                                                         | 状态      |
+| :---------- | :-------------------- | :--------------------------------------- | :----------------------------------------------------------- | :-------- |
+| **Phase 1** | **Foundation**        |                                          | `docs/practice/schema/agent_schema.sql` (Unified Schema)     | 🔲 待开始 |
+|             | **The Pulse**         | `docs/practice/010-the-pulse.md`         | `docs/practice/engine/pulse/transaction_manager.py`          | 🔲 待开始 |
+| **Phase 2** | **The Hippocampus**   | `docs/practice/020-the-hippocampus.md`   | `docs/practice/engine/hippocampus/consolidation_worker.py`   | 🔲 待开始 |
+| **Phase 3** | **The Perception**    | `docs/practice/030-the-perception.md`    | `docs/practice/engine/perception/hybrid_search.sql`          | 🔲 待开始 |
+| **Phase 4** | **The Realm of Mind** | `docs/practice/040-the-realm-of-mind.md` | `docs/practice/adapters/adk_postgres/` (Python Package)      | 🔲 待开始 |
+|             | **AG-UI 集成**        |                                          | `docs/practice/engine/agui/` (事件发射、前端工具)            | 🔲 待开始 |
+| **Phase 5** | **Integrated Demo**   | `docs/practice/050-integrated-demo.md`   | `docs/practice/demos/e2e_travel_agent/` (AG-UI + CopilotKit) | 🔲 待开始 |

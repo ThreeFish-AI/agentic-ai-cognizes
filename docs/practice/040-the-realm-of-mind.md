@@ -121,20 +121,23 @@ graph TB
 | Glass-Box Tracing    | P4-4-1 ~ P4-4-4   | [4.6 OpenTelemetry 集成](#46-step-6-opentelemetry-集成)              |
 | Sandboxed Execution  | P4-4-5 ~ P4-4-10  | [4.7 安全沙箱](#47-step-7-sandboxed-execution-实现)                  |
 | 可视化验证           | P4-4-11 ~ P4-4-13 | [4.8 可视化验证](#48-step-8-可视化验证)                              |
-| 验收与文档           | P4-5-1 ~ P4-5-4   | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)              |
+| **AG-UI 协议集成**   | P4-5-1 ~ P4-5-10  | [4.9 AG-UI 协议集成](#49-step-9-ag-ui-协议集成)                      |
+| 验收与文档           | P4-6-1 ~ P4-6-4   | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)              |
 
 ### 1.4 工期规划
 
-| 阶段 | 任务模块           | 任务 ID           | 预估工期 | 交付物                        |
-| :--- | :----------------- | :---------------- | :------- | :---------------------------- |
-| 4.1  | ADK 调研           | P4-1-1 ~ P4-1-5   | 0.25 Day | 接口分析笔记 + 时序图         |
-| 4.2  | PostgresSession    | P4-2-1 ~ P4-2-8   | 0.5 Day  | `postgres_session_service.py` |
-| 4.3  | PostgresMemory     | P4-2-9 ~ P4-2-12  | 0.25 Day | `postgres_memory_service.py`  |
-| 4.4  | Tool Registry      | P4-2-13 ~ P4-2-18 | 0.25 Day | `tool_registry.py` + Schema   |
-| 4.5  | AgentExecutor      | P4-2-19 ~ P4-2-23 | 0.25 Day | `agent_executor.py`           |
-| 4.6  | OpenTelemetry 集成 | P4-4-1 ~ P4-4-4   | 0.25 Day | `tracing.py` + Jaeger 部署    |
-| 4.7  | 安全沙箱           | P4-4-5 ~ P4-4-10  | 0.25 Day | `sandbox_runner.py`           |
-| 4.8  | 测试与验收         | P4-3-1 ~ P4-5-4   | 0.5 Day  | 测试套件 + 技术文档           |
+| 阶段 | 任务模块           | 任务 ID           | 预估工期 | 交付物                          |
+| :--- | :----------------- | :---------------- | :------- | :------------------------------ |
+| 4.1  | ADK 调研           | P4-1-1 ~ P4-1-5   | 0.25 Day | 接口分析笔记 + 时序图           |
+| 4.2  | PostgresSession    | P4-2-1 ~ P4-2-8   | 0.5 Day  | `postgres_session_service.py`   |
+| 4.3  | PostgresMemory     | P4-2-9 ~ P4-2-12  | 0.25 Day | `postgres_memory_service.py`    |
+| 4.4  | Tool Registry      | P4-2-13 ~ P4-2-18 | 0.25 Day | `tool_registry.py` + Schema     |
+| 4.5  | AgentExecutor      | P4-2-19 ~ P4-2-23 | 0.25 Day | `agent_executor.py`             |
+| 4.6  | OpenTelemetry 集成 | P4-4-1 ~ P4-4-4   | 0.25 Day | `tracing.py` + Jaeger 部署      |
+| 4.7  | 安全沙箱           | P4-4-5 ~ P4-4-10  | 0.25 Day | `sandbox_runner.py`             |
+| 4.8  | 可视化验证         | P4-4-11 ~ P4-4-13 | 0.25 Day | Jaeger 可视化验证               |
+| 4.9  | AG-UI 协议集成     | P4-5-1 ~ P4-5-10  | 0.5 Day  | `event_emitter.py` + CopilotKit |
+| 4.10 | 测试与验收         | P4-6-1 ~ P4-6-4   | 0.5 Day  | 测试套件 + 技术文档             |
 
 ---
 
@@ -2375,6 +2378,347 @@ async def create_mcp_sandbox_tool():
 docker run -d --name jaeger \
   -p 16686:16686 -p 4317:4317 -p 4318:4318 \
   jaegertracing/all-in-one:latest
+```
+
+---
+
+### 4.9 Step 9: AG-UI 协议集成
+
+> [!NOTE]
+>
+> **对标 Roadmap 4.4**: AG-UI 作为 Agent-User 交互的标准化协议层，增强 The Realm of Mind 的前端交互能力。
+>
+> **参考资源**:
+>
+> - [AG-UI 协议调研](../research/070-ag-ui.md)
+> - [AG-UI 官方文档](https://docs.ag-ui.com/)
+
+#### 4.9.1 AG-UI 核心概念
+
+AG-UI 是连接 AI Agent 与用户界面的"**最后一公里**"协议，定义了 16 种标准事件类型：
+
+| 事件类别         | 事件类型                     | 描述         | Pulse 对标           |
+| :--------------- | :--------------------------- | :----------- | :------------------- |
+| **Lifecycle**    | `RUN_STARTED/FINISHED/ERROR` | 运行生命周期 | `runs` 表状态        |
+| **Text Message** | `TEXT_MESSAGE_*`             | 文本消息流   | `events` 表          |
+| **Tool Call**    | `TOOL_CALL_*`                | 工具调用     | `tool_executions` 表 |
+| **State**        | `STATE_SNAPSHOT/DELTA`       | 状态同步     | `threads.state`      |
+
+#### 4.9.2 任务清单
+
+| 任务 ID | 任务描述                     | 状态      | 验收标准           |
+| :------ | :--------------------------- | :-------- | :----------------- |
+| P4-5-1  | 阅读 AG-UI 官方文档          | 🔲 待开始 | 协议理解笔记       |
+| P4-5-2  | 分析事件类型与 Pulse 对齐    | 🔲 待开始 | 事件映射表         |
+| P4-5-3  | 分析前端定义工具机制         | 🔲 待开始 | 工具集成方案       |
+| P4-5-4  | 实现 `AgUiEventEmitter`      | 🔲 待开始 | 发射 16 种事件     |
+| P4-5-5  | 集成前端工具到 Tool Registry | 🔲 待开始 | 前端工具可热更新   |
+| P4-5-6  | 实现 STATE_DELTA 状态同步    | 🔲 待开始 | JSON Patch 正确    |
+| P4-5-7  | 实现 Human-in-the-Loop       | 🔲 待开始 | confirmAction 正常 |
+| P4-5-8  | 创建 CopilotKit React 项目   | 🔲 待开始 | 项目可运行         |
+| P4-5-9  | 配置 AG-UI 服务端点          | 🔲 待开始 | 连接成功           |
+| P4-5-10 | 实现自定义工具渲染器         | 🔲 待开始 | 工具 UI 正常       |
+
+#### 4.9.3 AgUiEventEmitter 实现
+
+创建 `docs/practice/engine/agui/event_emitter.py`：
+
+```python
+"""
+AG-UI 事件发射器
+将 Agent 执行事件转换为 AG-UI 标准事件格式
+"""
+
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import Any, Optional
+import json
+import time
+
+
+class EventType(str, Enum):
+    """AG-UI 16 种标准事件类型"""
+    # Lifecycle Events
+    RUN_STARTED = "RUN_STARTED"
+    RUN_FINISHED = "RUN_FINISHED"
+    RUN_ERROR = "RUN_ERROR"
+    STEP_STARTED = "STEP_STARTED"
+    STEP_FINISHED = "STEP_FINISHED"
+
+    # Text Message Events
+    TEXT_MESSAGE_START = "TEXT_MESSAGE_START"
+    TEXT_MESSAGE_CONTENT = "TEXT_MESSAGE_CONTENT"
+    TEXT_MESSAGE_END = "TEXT_MESSAGE_END"
+
+    # Tool Call Events
+    TOOL_CALL_START = "TOOL_CALL_START"
+    TOOL_CALL_ARGS = "TOOL_CALL_ARGS"
+    TOOL_CALL_END = "TOOL_CALL_END"
+
+    # State Management Events
+    STATE_SNAPSHOT = "STATE_SNAPSHOT"
+    STATE_DELTA = "STATE_DELTA"
+    MESSAGES_SNAPSHOT = "MESSAGES_SNAPSHOT"
+
+    # Special Events
+    RAW = "RAW"
+    CUSTOM = "CUSTOM"
+
+
+@dataclass
+class BaseEvent:
+    """AG-UI 基础事件"""
+    type: EventType
+    timestamp: float = field(default_factory=time.time)
+    run_id: Optional[str] = None
+
+
+@dataclass
+class RunStartedEvent(BaseEvent):
+    """运行开始事件"""
+    type: EventType = EventType.RUN_STARTED
+
+
+@dataclass
+class TextMessageContentEvent(BaseEvent):
+    """文本消息内容事件 (流式)"""
+    type: EventType = EventType.TEXT_MESSAGE_CONTENT
+    message_id: str = ""
+    delta: str = ""  # 增量文本内容
+
+
+@dataclass
+class ToolCallStartEvent(BaseEvent):
+    """工具调用开始事件"""
+    type: EventType = EventType.TOOL_CALL_START
+    tool_call_id: str = ""
+    tool_call_name: str = ""
+
+
+@dataclass
+class StateDeltaEvent(BaseEvent):
+    """状态增量事件"""
+    type: EventType = EventType.STATE_DELTA
+    delta: list = field(default_factory=list)  # JSON Patch 操作列表
+
+
+class AgUiEventEmitter:
+    """AG-UI 事件发射器"""
+
+    def __init__(self, run_id: str):
+        self.run_id = run_id
+        self._event_buffer: list[BaseEvent] = []
+
+    def emit_run_started(self) -> RunStartedEvent:
+        """发射运行开始事件"""
+        event = RunStartedEvent(run_id=self.run_id)
+        self._event_buffer.append(event)
+        return event
+
+    def emit_text_content(self, message_id: str, delta: str) -> TextMessageContentEvent:
+        """发射文本内容增量事件"""
+        event = TextMessageContentEvent(
+            run_id=self.run_id,
+            message_id=message_id,
+            delta=delta
+        )
+        self._event_buffer.append(event)
+        return event
+
+    def emit_tool_call_start(self, tool_call_id: str, name: str) -> ToolCallStartEvent:
+        """发射工具调用开始事件"""
+        event = ToolCallStartEvent(
+            run_id=self.run_id,
+            tool_call_id=tool_call_id,
+            tool_call_name=name
+        )
+        self._event_buffer.append(event)
+        return event
+
+    def emit_state_delta(self, delta_operations: list[dict]) -> StateDeltaEvent:
+        """发射状态增量事件 (JSON Patch)"""
+        event = StateDeltaEvent(
+            run_id=self.run_id,
+            delta=delta_operations
+        )
+        self._event_buffer.append(event)
+        return event
+
+    def to_sse(self) -> str:
+        """将事件缓冲区转换为 SSE 格式"""
+        lines = []
+        for event in self._event_buffer:
+            data = json.dumps({
+                "type": event.type.value,
+                "timestamp": event.timestamp,
+                "run_id": event.run_id,
+                **{k: v for k, v in event.__dict__.items()
+                   if k not in ("type", "timestamp", "run_id")}
+            })
+            lines.append(f"data: {data}\n\n")
+        return "".join(lines)
+```
+
+#### 4.9.4 前端工具集成
+
+扩展 Tool Registry 支持前端定义工具：
+
+```python
+# 在 tool_registry.py 中扩展
+
+@dataclass
+class FrontendTool:
+    """前端定义工具"""
+    name: str
+    description: str
+    parameters: dict  # JSON Schema
+    render_component: str  # React 组件名称
+    requires_confirmation: bool = False  # Human-in-the-Loop
+
+class ToolRegistry:
+    """扩展的工具注册表"""
+
+    def __init__(self, pool: asyncpg.Pool):
+        self._pool = pool
+        self._frontend_tools: dict[str, FrontendTool] = {}
+
+    async def register_frontend_tool(
+        self,
+        app_name: str,
+        tool: FrontendTool
+    ) -> None:
+        """注册前端定义工具"""
+        self._frontend_tools[f"{app_name}:{tool.name}"] = tool
+
+        # 同时持久化到数据库
+        await self._pool.execute("""
+            INSERT INTO tools (app_name, name, description, openapi_schema, permissions)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (app_name, name) DO UPDATE
+            SET description = EXCLUDED.description,
+                openapi_schema = EXCLUDED.openapi_schema,
+                updated_at = NOW()
+        """, app_name, tool.name, tool.description,
+            json.dumps(tool.parameters),
+            json.dumps({"requires_confirmation": tool.requires_confirmation}))
+
+    def get_frontend_tools(self, app_name: str) -> list[FrontendTool]:
+        """获取应用的前端工具列表"""
+        return [
+            tool for key, tool in self._frontend_tools.items()
+            if key.startswith(f"{app_name}:")
+        ]
+```
+
+#### 4.9.5 Human-in-the-Loop 实现
+
+```python
+# docs/practice/engine/agui/hitl.py
+"""Human-in-the-Loop 工具实现"""
+
+from dataclasses import dataclass
+from typing import Any
+import asyncio
+
+
+@dataclass
+class ConfirmationRequest:
+    """确认请求"""
+    action: str
+    importance: str  # low, medium, high, critical
+    timeout_seconds: int = 60
+
+
+class HumanInTheLoop:
+    """Human-in-the-Loop 管理器"""
+
+    def __init__(self):
+        self._pending_confirmations: dict[str, asyncio.Future] = {}
+
+    async def request_confirmation(
+        self,
+        request_id: str,
+        request: ConfirmationRequest
+    ) -> dict[str, Any]:
+        """
+        请求用户确认
+        返回: {"confirmed": bool, "user_input": str}
+        """
+        future = asyncio.Future()
+        self._pending_confirmations[request_id] = future
+
+        try:
+            result = await asyncio.wait_for(
+                future,
+                timeout=request.timeout_seconds
+            )
+            return result
+        except asyncio.TimeoutError:
+            return {"confirmed": False, "user_input": "timeout"}
+        finally:
+            self._pending_confirmations.pop(request_id, None)
+
+    def resolve_confirmation(
+        self,
+        request_id: str,
+        confirmed: bool,
+        user_input: str = ""
+    ) -> None:
+        """解决确认请求 (前端调用)"""
+        if request_id in self._pending_confirmations:
+            future = self._pending_confirmations[request_id]
+            if not future.done():
+                future.set_result({
+                    "confirmed": confirmed,
+                    "user_input": user_input
+                })
+```
+
+#### 4.9.6 CopilotKit 服务端集成
+
+创建 FastAPI 端点供 CopilotKit 客户端连接：
+
+```python
+# docs/practice/engine/agui/copilotkit_server.py
+"""CopilotKit AG-UI 服务端"""
+
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from typing import AsyncGenerator
+import json
+
+app = FastAPI()
+
+
+@app.post("/api/copilotkit")
+async def copilotkit_endpoint(request: Request) -> StreamingResponse:
+    """CopilotKit AG-UI 端点"""
+    body = await request.json()
+
+    # 获取消息和工具定义
+    messages = body.get("messages", [])
+    frontend_tools = body.get("tools", [])
+
+    async def generate_events() -> AsyncGenerator[str, None]:
+        from .event_emitter import AgUiEventEmitter, EventType
+        import uuid
+
+        run_id = str(uuid.uuid4())
+        emitter = AgUiEventEmitter(run_id)
+
+        # 发送运行开始事件
+        yield f"data: {json.dumps({'type': 'RUN_STARTED', 'run_id': run_id})}\n\n"
+
+        # 处理消息并生成响应
+        # ... (集成 ADK Agent 执行逻辑)
+
+        # 发送运行完成事件
+        yield f"data: {json.dumps({'type': 'RUN_FINISHED', 'run_id': run_id})}\n\n"
+
+    return StreamingResponse(
+        generate_events(),
+        media_type="text/event-stream"
+    )
 ```
 
 ---
