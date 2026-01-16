@@ -1,9 +1,21 @@
-# Agentic AI 平台 - 任务执行清单
+---
+id: task-checklist
+sidebar_position: 2
+title: Agentic AI 学术研究与工程应用平台 - 任务执行清单
+last_update:
+  author: Aurelius Huang
+  created_at: 2025-12-22
+  updated_at: 2025-12-23
+  version: 1.1
+  status: Reviewed
+tags:
+  - Task Checklist
+---
 
-> **版本**：v1.0  
-> **日期**：2025 年 12 月  
-> **状态**：Draft  
-> **基于**：[Implementation Plan v1.1](./001-implementation-plan.md)
+> [!IMPORTANT]
+>
+> **基于**：[Implementation Plan v1.1](./001-implementation-plan.md)  
+> **对齐**：[PRD & Architecture v1.1](./000-prd-architecture.md)
 
 ---
 
@@ -131,18 +143,21 @@ flowchart TD
 
 **目标**：基于 Google ADK 实现核心 Agent，完成内容处理流程
 
-| 子任务  | 描述              | 产出物                          | 验收标准             | 状态 |
-| ------- | ----------------- | ------------------------------- | -------------------- | ---- |
-| T1.2.1  | ADK 环境配置      | 依赖安装、认证配置              | API 调用成功         | ☐    |
-| T1.2.2  | Agent 目录结构    | `agents/adk/`                   | 符合设计规范         | ☐    |
-| T1.2.3  | Coordinator Agent | `coordinator.py`                | 流程编排正确         | ☐    |
-| T1.2.4  | Reader Agent      | `reader_agent.py`               | PDF 解析准确率 > 95% | ☐    |
-| T1.2.5  | Translation Agent | `translation_agent.py`          | 术语保留 100%        | ☐    |
-| T1.2.6  | Heartfelt Agent   | `heartfelt_agent.py`            | 生成结构化报告       | ☐    |
-| T1.2.7  | PDF 解析工具      | `tools/pdf_parser.py`           | PyMuPDF 集成         | ☐    |
-| T1.2.8  | Web 抓取工具      | `tools/web_scraper.py`          | URL 解析正确         | ☐    |
-| T1.2.9  | 内容处理工作流    | `workflows/content_pipeline.py` | 端到端可用           | ☐    |
-| T1.2.10 | Agent 单元测试    | `tests/unit/agents/`            | 覆盖率 > 70%         | ☐    |
+| 子任务  | 描述              | 产出物                          | 验收标准                  | 状态 |
+| ------- | ----------------- | ------------------------------- | ------------------------- | ---- |
+| T1.2.1  | ADK 环境配置      | 依赖安装、认证配置              | API 调用成功              | ☐    |
+| T1.2.2  | Agent 目录结构    | `agents/adk/`                   | 符合设计规范              | ☐    |
+| T1.2.3  | Coordinator Agent | `coordinator.py`                | 流程编排正确              | ☐    |
+| T1.2.4  | Reader Agent      | `reader_agent.py`               | PDF 解析准确率 > 95%      | ☐    |
+| T1.2.5  | Translation Agent | `translation_agent.py`          | 术语保留 100%，BLEU > 0.7 | ☐    |
+| T1.2.6  | Heartfelt Agent   | `heartfelt_agent.py`            | 生成结构化报告            | ☐    |
+| T1.2.7  | PDF 解析工具      | `tools/pdf_parser.py`           | PyMuPDF 集成              | ☐    |
+| T1.2.8  | Web 抓取工具      | `tools/web_scraper.py`          | URL 解析正确              | ☐    |
+| T1.2.9  | 内容处理工作流    | `workflows/content_pipeline.py` | 端到端可用                | ☐    |
+| T1.2.10 | Agent 单元测试    | `tests/unit/agents/`            | 覆盖率 > 70%              | ☐    |
+| T1.2.11 | Markdown 解析工具 | `tools/md_parser.py`            | markdown-it-py 集成       | ☐    |
+| T1.2.12 | arXiv API 工具    | `tools/arxiv_fetcher.py`        | arXiv API 调用成功        | ☐    |
+| T1.2.13 | DOCX 解析工具     | `tools/docx_parser.py`          | python-docx 集成          | ☐    |
 
 **验收标准**：
 
@@ -307,18 +322,21 @@ flowchart TD
 
 **目标**：集成 Cognee 框架，配置三存储架构
 
-| 子任务  | 描述                | 产出物                     | 验收标准            | 状态 |
-| ------- | ------------------- | -------------------------- | ------------------- | ---- |
-| T2.2.1  | Cognee 依赖安装     | `pyproject.toml`           | 版本 >= 0.1.17      | ☐    |
-| T2.2.2  | LLM 配置            | Anthropic 配置             | API 调用成功        | ☐    |
-| T2.2.3  | Embedding 配置      | OpenAI 配置                | 向量生成成功        | ☐    |
-| T2.2.4  | 图存储配置          | Neo4j 连接                 | cognee → Neo4j 成功 | ☐    |
-| T2.2.5  | Cognee 初始化       | `core/cognee_config.py`    | 无报错启动          | ☐    |
-| T2.2.6  | CogneeMemory 封装   | `core/memory.py`           | API 封装完成        | ☐    |
-| T2.2.7  | cognee.add 测试     | 添加文档测试               | 成功添加            | ☐    |
-| T2.2.8  | cognee.cognify 测试 | 构建图谱测试               | 成功构建            | ☐    |
-| T2.2.9  | cognee.search 测试  | 混合检索测试               | 返回相关结果        | ☐    |
-| T2.2.10 | OceanBase 适配器    | `core/cognee_oceanbase.py` | 向量存储透明        | ☐    |
+| 子任务  | 描述                   | 产出物                     | 验收标准            | 状态 |
+| ------- | ---------------------- | -------------------------- | ------------------- | ---- |
+| T2.2.1  | Cognee 依赖安装        | `pyproject.toml`           | 版本 >= 0.1.17      | ☐    |
+| T2.2.2  | LLM 配置               | Anthropic 配置             | API 调用成功        | ☐    |
+| T2.2.3  | Embedding 配置         | OpenAI 配置                | 向量生成成功        | ☐    |
+| T2.2.4  | 图存储配置             | Neo4j 连接                 | cognee → Neo4j 成功 | ☐    |
+| T2.2.5  | Cognee 初始化          | `core/cognee_config.py`    | 无报错启动          | ☐    |
+| T2.2.6  | CogneeMemory 封装      | `core/memory.py`           | API 封装完成        | ☐    |
+| T2.2.7  | cognee.add 测试        | 添加文档测试               | 成功添加            | ☐    |
+| T2.2.8  | cognee.cognify 测试    | 构建图谱测试               | 成功构建            | ☐    |
+| T2.2.9  | cognee.search 测试     | 混合检索测试               | 返回相关结果        | ☐    |
+| T2.2.10 | OceanBase 适配器       | `core/cognee_oceanbase.py` | 向量存储透明        | ☐    |
+| T2.2.11 | 适配器 BaseVectorStore | 继承实现                   | add/search/delete   | ☐    |
+| T2.2.12 | 适配器单元测试         | `tests/unit/cognee/`       | pytest 全部通过     | ☐    |
+| T2.2.13 | Cognee 透明集成验证    | 集成测试                   | cognee.search 正常  | ☐    |
 
 **验收标准**：
 
@@ -335,16 +353,18 @@ flowchart TD
 
 **目标**：实现内容到知识图谱的自动转换
 
-| 子任务 | 描述         | 产出物                | 验收标准       | 状态 |
-| ------ | ------------ | --------------------- | -------------- | ---- |
-| T2.3.1 | 实体类型定义 | 节点类型规范          | 6 类实体定义   | ☐    |
-| T2.3.2 | 关系类型定义 | 边类型规范            | 10 类关系定义  | ☐    |
-| T2.3.3 | 实体抽取器   | `entity_extractor.py` | LLM 抽取实现   | ☐    |
-| T2.3.4 | 关系识别器   | 关系抽取              | 准确率 > 75%   | ☐    |
-| T2.3.5 | 图谱写入服务 | Neo4j 写入            | 批量写入正常   | ☐    |
-| T2.3.6 | 向量嵌入服务 | 节点向量化            | 嵌入存储成功   | ☐    |
-| T2.3.7 | 图谱查询 API | Cypher 查询封装       | 查询接口可用   | ☐    |
-| T2.3.8 | 图谱数据导出 | get_graph_data        | 可视化数据格式 | ☐    |
+| 子任务  | 描述            | 产出物                | 验收标准                  | 状态 |
+| ------- | --------------- | --------------------- | ------------------------- | ---- |
+| T2.3.1  | 实体类型定义    | 节点类型规范          | 10 类实体定义(PRD 对齐)   | ☐    |
+| T2.3.2  | 关系类型定义    | 边类型规范            | 10 类关系定义(PRD 对齐)   | ☐    |
+| T2.3.3  | 实体抽取器      | `entity_extractor.py` | LLM 抽取实现              | ☐    |
+| T2.3.4  | 关系识别器      | 关系抽取              | 准确率 > 75%              | ☐    |
+| T2.3.5  | 图谱写入服务    | Neo4j 写入            | 批量写入正常              | ☐    |
+| T2.3.6  | 向量嵌入服务    | 节点向量化            | 嵌入存储成功              | ☐    |
+| T2.3.7  | 图谱查询 API    | Cypher 查询封装       | 查询接口可用              | ☐    |
+| T2.3.8  | 图谱数据导出    | get_graph_data        | 可视化数据格式            | ☐    |
+| T2.3.9  | Source 基类定义 | 节点模型              | Paper/Article/Doc/Repo    | ☐    |
+| T2.3.10 | 知识实体类定义  | 节点模型              | Author/Concept/Method/etc | ☐    |
 
 **验收标准**：
 
@@ -459,18 +479,20 @@ flowchart TD
 
 **目标**：建立基于 RAGAS 的检索与生成质量评估体系
 
-| 子任务  | 描述                   | 产出物          | 验收标准      | 状态 |
-| ------- | ---------------------- | --------------- | ------------- | ---- |
-| T3.2.1  | RAGAS 依赖安装         | `ragas` 包      | 版本 >= 0.1.0 | ☐    |
-| T3.2.2  | 评估数据集构建         | 100+ 测试用例   | 格式正确      | ☐    |
-| T3.2.3  | 自建问答对             | 论文库抽取      | 50+ 条        | ☐    |
-| T3.2.4  | 领域专属数据           | 人工标注        | 30+ 条        | ☐    |
-| T3.2.5  | 评估器实现             | `evaluation.py` | 四项指标计算  | ☐    |
-| T3.2.6  | Faithfulness 达标      | 忠实度评估      | > 85%         | ☐    |
-| T3.2.7  | Answer Relevancy 达标  | 相关性评估      | > 90%         | ☐    |
-| T3.2.8  | Context Precision 达标 | 精确度评估      | > 80%         | ☐    |
-| T3.2.9  | Context Recall 达标    | 召回率评估      | > 85%         | ☐    |
-| T3.2.10 | 评估报告生成           | 自动化报告      | 格式清晰      | ☐    |
+| 子任务  | 描述                   | 产出物           | 验收标准        | 状态 |
+| ------- | ---------------------- | ---------------- | --------------- | ---- |
+| T3.2.1  | RAGAS 依赖安装         | `ragas` 包       | 版本 >= 0.1.0   | ☐    |
+| T3.2.2  | 评估数据集框架         | JSON Schema 定义 | 符合 RAGAS 要求 | ☐    |
+| T3.2.3  | 自建问答对             | 论文库抽取       | 100+ 条         | ☐    |
+| T3.2.4  | 领域专属数据           | 人工标注         | 50+ 条          | ☐    |
+| T3.2.5  | 标准测试集引入         | MS MARCO/NQ 子集 | 500+ 条         | ☐    |
+| T3.2.6  | 评估器实现             | `evaluation.py`  | 四项指标计算    | ☐    |
+| T3.2.7  | Faithfulness 达标      | 忠实度评估       | > 85%           | ☐    |
+| T3.2.8  | Answer Relevancy 达标  | 相关性评估       | > 90%           | ☐    |
+| T3.2.9  | Context Precision 达标 | 精确度评估       | > 80%           | ☐    |
+| T3.2.10 | Context Recall 达标    | 召回率评估       | > 85%           | ☐    |
+| T3.2.11 | 评估报告生成           | 自动化报告       | 格式清晰        | ☐    |
+| T3.2.12 | CI 集成                | GitHub Actions   | 自动化评估      | ☐    |
 
 **验收标准**：
 
@@ -546,6 +568,8 @@ flowchart TD
 | T3.5.5 | Coordinator 注册 | 流程集成                 | Agent 可调度 | ☐    |
 | T3.5.6 | API 端点         | `/api/v1/architect`      | 接口可用     | ☐    |
 | T3.5.7 | 方案质量评估     | 人工评估                 | 匹配度 > 80% | ☐    |
+| T3.5.8 | 最佳实践整合     | BettaFish/Cognee 模式    | 工程模式验证 | ☐    |
+| T3.5.9 | 定制化输出       | PRD/代码骨架             | 多格式输出   | ☐    |
 
 **验收标准**：
 
@@ -777,6 +801,23 @@ flowchart TD
 | 混合检索 (三路)        | 端到端   | < 1s    |
 | 页面首屏               | LCP      | < 2s    |
 
+### 6.4 RAGAS 评估数据集
+
+| 编号  | 任务               | 产出物                     | 验收标准        |
+| ----- | ------------------ | -------------------------- | --------------- |
+| V-001 | 评估数据集格式定义 | JSON Schema                | 符合 RAGAS 要求 |
+| V-002 | 自建问答对收集     | 从已分析论文抽取           | 100+ 条         |
+| V-003 | 领域专属标注       | 人工 Ground Truth          | 50+ 条          |
+| V-004 | 评估脚本实现       | `evaluation/ragas_eval.py` | 四项指标计算    |
+
+### 6.5 翻译质量评估
+
+| 编号  | 任务           | 产出物                    | 验收标准       |
+| ----- | -------------- | ------------------------- | -------------- |
+| V-101 | BLEU 评估脚本  | `evaluation/bleu_eval.py` | sacrebleu 集成 |
+| V-102 | 参考翻译数据集 | 30+ 篇高质量翻译          | 人工翻译样本   |
+| V-103 | 翻译质量验证   | 评估报告                  | BLEU > 0.7     |
+
 ---
 
 ## 7. 进度追踪
@@ -794,11 +835,12 @@ pie title 任务完成进度
 
 | 阶段     | 任务总数 | 子任务数 | 已完成 | 进度   |
 | -------- | -------- | -------- | ------ | ------ |
-| Phase 1  | 5        | 50+      | 0      | 0%     |
-| Phase 2  | 4        | 35+      | 0      | 0%     |
-| Phase 3  | 6        | 50+      | 0      | 0%     |
-| Phase 4  | 4        | 30+      | 0      | 0%     |
-| **总计** | **19**   | **165+** | **0**  | **0%** |
+| Phase 1  | 5        | 54       | 0      | 0%     |
+| Phase 2  | 4        | 43       | 0      | 0%     |
+| Phase 3  | 6        | 58       | 0      | 0%     |
+| Phase 4  | 4        | 30       | 0      | 0%     |
+| 跨阶段   | -        | 11       | 0      | 0%     |
+| **总计** | **19**   | **196**  | **0**  | **0%** |
 
 ### 7.3 风险提示
 
@@ -831,7 +873,16 @@ pie title 任务完成进度
 | PRD & Architecture  | `docs/000-prd-architecture.md`               |
 | Implementation Plan | `docs/001-implementation-plan.md`            |
 | 认知增强调研        | `docs/research/000-cognitive-enhancement.md` |
+| Context Engineering | `docs/research/001-context-engineering.md`   |
 | Agent Frameworks    | `docs/research/002-agent-frameworks.md`      |
 | Cognee 调研         | `docs/research/003-cognee.md`                |
 | OceanBase 调研      | `docs/research/004-oceanbase.md`             |
 | Neo4j 调研          | `docs/research/005-neo4j.md`                 |
+| BettaFish 调研      | `docs/research/006-bettafish.md`             |
+
+### C. 变更记录
+
+| 版本 | 日期       | 变更内容                                          |
+| ---- | ---------- | ------------------------------------------------- |
+| v1.0 | 2025-12-22 | 初始版本                                          |
+| v1.1 | 2025-12-22 | 精细化优化版：新增 31 个子任务项，与 PRD 完全对齐 |

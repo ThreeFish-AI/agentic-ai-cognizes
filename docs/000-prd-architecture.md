@@ -1,25 +1,21 @@
-# 产品需求与概要设计（PRD & Architecture）
-
-> **Agentic AI 学术研究与工程应用方案定制**
->
-> **版本**：v1.1  
-> **日期**：2025 年 12 月  
-> **状态**：Review 完成  
-> **变更记录**：v1.1 - 增强引用系统、完善架构细节、优化可视化
-
+---
+id: prd-architecture
+sidebar_position: 0
+title: 产品需求与概要设计（PRD & Architecture）
+last_update:
+  author: Aurelius Huang
+  created_at: 2025-12-22
+  updated_at: 2025-12-23
+  version: 1.1
+  status: Reviewed
+tags:
+  - PRD
+  - Architecture
 ---
 
-## 目录
-
-1. [产品愿景](#1-产品愿景)
-2. [用户画像与场景](#2-用户画像与场景)
-3. [功能需求](#3-功能需求)
-4. [Agent 体系](#4-agent-体系)
-5. [认知增强体系](#5-认知增强体系)
-6. [数据架构](#6-数据架构)
-7. [技术架构](#7-技术架构)
-8. [质量保障](#8-质量保障)
-9. [参考文献](#9-参考文献)
+> [!IMPORTANT]
+>
+> **立意**：Agentic AI 学术研究与工程应用方案定制
 
 ---
 
@@ -918,7 +914,7 @@ flowchart LR
 | **前端**  | Next.js (App Router)         | 16.x         |
 |           | Zustand + immer              | 状态管理     |
 |           | TailwindCSS                  | 样式框架     |
-| **后端**  | FastAPI + asyncio            | Python 3.12  |
+| **后端**  | FastAPI + asyncio            | Python 3.14  |
 |           | Pydantic                     | 数据验证     |
 | **Agent** | Google ADK                   | 生产部署     |
 |           | Claude Agent SDK             | 原型开发     |
@@ -934,19 +930,13 @@ flowchart LR
 ```shell
 agentic-ai-cognizes/
 ├── cognizes/                   # 后端
+│   ├── main.py                 # 应用入口
 │   ├── api/                    # FastAPI 服务
-│   │   ├── main.py             # 应用入口
 │   │   ├── routes/             # API 路由
 │   │   └── services/           # 业务服务
 ├── ├── agents/                 # Agents 核心
 │   │   ├── adk/                # ADK Agent 实现
 │   │   └── claude/             # Claude Agent 实现
-│   │       ├── base.py                 # BaseAgent 基类
-│   │       ├── workflow_agent.py       # 流程编排
-│   │       ├── pdf_agent.py            # PDF 处理
-│   │       ├── translation_agent.py    # 翻译处理
-│   │       ├── heartfelt_agent.py      # 深度分析
-│   │       └── skills.py       # Skill 调用封装
 │   └── core/                   # 核心组件
 │       ├── models/             # Pydantic 模型
 │       ├── config.py           # 配置管理

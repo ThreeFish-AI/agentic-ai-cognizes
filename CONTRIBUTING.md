@@ -6,7 +6,7 @@ Thank you for your interest in contributing to our platform! This document provi
 
 ### Reporting Issues
 
-- Use the [GitHub Issues](https://github.com/ThreeFish-AI/agentic-ai-papers/issues) page
+- Use the [GitHub Issues](https://github.com/ThreeFish-AI/agentic-ai-cognizes/issues) page
 - Provide clear descriptions of the issue
 - Include steps to reproduce if it's a bug
 - Add relevant screenshots or logs
@@ -92,8 +92,8 @@ Thank you for your interest in contributing to our platform! This document provi
 1. Fork the repository
 2. Clone your fork:
    ```bash
-   git clone https://github.com/ThreeFish-AI/agentic-ai-papers.git
-   cd agentic-ai-papers
+   git clone https://github.com/ThreeFish-AI/agentic-ai-cognizes.git
+   cd agentic-ai-cognizes
    ```
 3. Create a virtual environment:
    ```bash

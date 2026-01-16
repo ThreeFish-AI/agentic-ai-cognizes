@@ -1,23 +1,20 @@
-# Agentic AI 学术研究与工程应用平台 - 实施计划方案
-
-> **版本**：v1.1
-> **日期**：2025 年 12 月  
-> **状态**：Review
-> **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)
-
+---
+id: implementation-plan
+sidebar_position: 1
+title: Agentic AI 学术研究与工程应用平台 - 实施计划方案
+last_update:
+  author: Aurelius Huang
+  created_at: 2025-12-22
+  updated_at: 2025-12-23
+  version: 1.1
+  status: Reviewed
+tags:
+  - Implementation Plan
 ---
 
-## 目录
-
-1. [项目概述](#1-项目概述)
-2. [实施规划](#2-实施规划)
-3. [阶段一：基础巩固](#3-阶段一基础巩固)
-4. [阶段二：智能增强](#4-阶段二智能增强)
-5. [阶段三：认知增强](#5-阶段三认知增强)
-6. [阶段四：生态完善](#6-阶段四生态完善)
-7. [验证与质量保障](#7-验证与质量保障)
-8. [风险与依赖管理](#8-风险与依赖管理)
-9. [附录](#9-附录)
+> [!IMPORTANT]
+>
+> **基于**：[PRD & Architecture v1.1](./000-prd-architecture.md)
 
 ---
 
@@ -128,9 +125,9 @@ flowchart TD
 
 ```shell
 cognizes/
+├── main.py                        # FastAPI 应用入口
 ├── api/
 │   ├── __init__.py
-│   ├── main.py                    # FastAPI 应用入口
 │   ├── routes/
 │   │   ├── sources.py             # 内容管理 API
 │   │   ├── tasks.py               # 任务管理 API
@@ -202,7 +199,7 @@ cognizes/agents/
 │       └── content_pipeline.py
 └── claude/                        # Claude SDK 实现 (Phase 2)
     ├── skills.py                  # Agent Skills 调用封装
-    └── cognitive_agent.py         # 认知增强 Agent
+    └── cognizes_agent.py          # 认知增强 Agent
 ```
 
 #### 3.3.2 Google ADK 依赖配置
@@ -1577,6 +1574,7 @@ async def forum_discussion(request: ForumRequest):
 #### 5.7.4 优先级说明
 
 > [!NOTE]
+>
 > 此任务为**可选增强功能**，建议在 Phase 3 核心任务完成后再实施。
 >
 > **推荐顺序**：多跳推理 → RAGAS 评估 → 记忆持久化 → 图谱可视化 → Solutions Architect → ForumEngine

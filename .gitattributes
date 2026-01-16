@@ -17,7 +17,8 @@ tsconfig.json !filter !diff !merge text
 # Specific large PDF file
 papers/source/llm-agents/阿里云[[:space:]]AI[[:space:]]应用架构白皮书.pdf filter=lfs diff=lfs merge=lfs -text
 papers/source/llm-agents/monitoring-monitorability.pdf filter=lfs diff=lfs merge=lfs -text
-docs/oceanbase/OceanBase-数据库-V4.5.0-生态集成.pdf filter=lfs diff=lfs merge=lfs -text
-docs/oceanbase/OceanBase[[:space:]]数据库-V4.5.0-参考指南/OceanBase-数据库-V4.5.0-参考指南--系统视图.pdf filter=lfs diff=lfs merge=lfs -text
-docs/oceanbase/OceanBase-数据库-V4.5.0-向量搜索.pdf filter=lfs diff=lfs merge=lfs -text
-docs/oceanbase/OceanBase-数据库-V4.5.0-管理数据库.pdf filter=lfs diff=lfs merge=lfs -text
+papers/source/llm-agents/2502.16111v1.pdf filter=lfs diff=lfs merge=lfs -text
+docs/.assets/oceanbase/OceanBase-数据库-V4.5.0-生态集成.pdf filter=lfs diff=lfs merge=lfs -text
+docs/.assets/oceanbase/OceanBase[[:space:]]数据库-V4.5.0-参考指南/OceanBase-数据库-V4.5.0-参考指南--系统视图.pdf filter=lfs diff=lfs merge=lfs -text
+docs/.assets/oceanbase/OceanBase-数据库-V4.5.0-向量搜索.pdf filter=lfs diff=lfs merge=lfs -text
+docs/.assets/oceanbase/OceanBase-数据库-V4.5.0-管理数据库.pdf filter=lfs diff=lfs merge=lfs -text

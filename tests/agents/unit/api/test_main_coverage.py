@@ -36,7 +36,7 @@ def test_app_routes():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "agentic-ai-papers-api"
+    assert data["service"] == "agentic-ai-cognizes-api"
     assert data["version"] == "1.0.0"
 
 
