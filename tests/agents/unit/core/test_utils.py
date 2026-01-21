@@ -370,9 +370,7 @@ class TestRetryOnFailure:
     @pytest.mark.asyncio
     async def test_retry_success_after_retries(self):
         """Test retry with success after failures."""
-        mock_func = AsyncMock(
-            side_effect=[Exception("Fail"), Exception("Fail"), "success"]
-        )
+        mock_func = AsyncMock(side_effect=[Exception("Fail"), Exception("Fail"), "success"])
 
         @retry_on_failure(max_retries=3, delay=0.01)
         async def test_func():
@@ -401,9 +399,7 @@ class TestRetryOnFailure:
     @patch("asyncio.sleep")
     async def test_retry_delay(self, mock_sleep):
         """Test retry delay with exponential backoff."""
-        mock_func = AsyncMock(
-            side_effect=[Exception("Fail"), Exception("Fail"), "success"]
-        )
+        mock_func = AsyncMock(side_effect=[Exception("Fail"), Exception("Fail"), "success"])
 
         @retry_on_failure(max_retries=3, delay=0.1)
         async def test_func():

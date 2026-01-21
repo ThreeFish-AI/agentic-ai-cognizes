@@ -282,9 +282,7 @@ class TestTasksRoutes:
 
         from agents.api.routes.tasks import cleanup_completed_tasks
 
-        mock_task_service.cleanup_completed_tasks.side_effect = Exception(
-            "Service error"
-        )
+        mock_task_service.cleanup_completed_tasks.side_effect = Exception("Service error")
 
         with pytest.raises(HTTPException, match="清理任务失败"):
             await cleanup_completed_tasks(24, mock_task_service)
@@ -329,12 +327,8 @@ class TestTasksRoutes:
                 if "DELETE" in route.methods:
                     task_id_delete = True
 
-        assert task_id_get, (
-            f"GET method not found for /{{task_id}}. Routes: {route_methods}"
-        )
-        assert task_id_delete, (
-            f"DELETE method not found for /{{task_id}}. Routes: {route_methods}"
-        )
+        assert task_id_get, f"GET method not found for /{{task_id}}. Routes: {route_methods}"
+        assert task_id_delete, f"DELETE method not found for /{{task_id}}. Routes: {route_methods}"
 
         assert "GET" in route_methods["/{task_id}/logs"]
         assert "DELETE" in route_methods["/cleanup"]

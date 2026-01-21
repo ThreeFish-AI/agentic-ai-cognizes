@@ -200,9 +200,7 @@ class TestTaskUpdate:
 
     def test_task_update_minimal(self):
         """Test TaskUpdate with minimal required fields."""
-        update = TaskUpdate(
-            type="task_update", task_id="task_123", timestamp="2024-01-15T14:35:00"
-        )
+        update = TaskUpdate(type="task_update", task_id="task_123", timestamp="2024-01-15T14:35:00")
         assert update.type == "task_update"
         assert update.task_id == "task_123"
         assert update.status is None
@@ -312,41 +310,31 @@ class TestWebSocketMessages:
 
     def test_subscribe_message(self):
         """Test SubscribeMessage model."""
-        subscribe = SubscribeMessage(
-            timestamp="2024-01-15T14:35:00", task_id="task_123"
-        )
+        subscribe = SubscribeMessage(timestamp="2024-01-15T14:35:00", task_id="task_123")
         assert subscribe.type == "subscribe"
         assert subscribe.task_id == "task_123"
 
     def test_unsubscribe_message(self):
         """Test UnsubscribeMessage model."""
-        unsubscribe = UnsubscribeMessage(
-            timestamp="2024-01-15T14:35:00", task_id="task_123"
-        )
+        unsubscribe = UnsubscribeMessage(timestamp="2024-01-15T14:35:00", task_id="task_123")
         assert unsubscribe.type == "unsubscribe"
         assert unsubscribe.task_id == "task_123"
 
     def test_subscription_confirmed(self):
         """Test SubscriptionConfirmed model."""
-        confirmed = SubscriptionConfirmed(
-            timestamp="2024-01-15T14:35:00", task_id="task_123"
-        )
+        confirmed = SubscriptionConfirmed(timestamp="2024-01-15T14:35:00", task_id="task_123")
         assert confirmed.type == "subscription_confirmed"
         assert confirmed.task_id == "task_123"
 
     def test_unsubscription_confirmed(self):
         """Test UnsubscriptionConfirmed model."""
-        confirmed = UnsubscriptionConfirmed(
-            timestamp="2024-01-15T14:35:00", task_id="task_123"
-        )
+        confirmed = UnsubscriptionConfirmed(timestamp="2024-01-15T14:35:00", task_id="task_123")
         assert confirmed.type == "unsubscription_confirmed"
         assert confirmed.task_id == "task_123"
 
     def test_websocket_message_base(self):
         """Test WebSocketMessage base model."""
-        message = WebSocketMessage(
-            type="custom_message", timestamp="2024-01-15T14:35:00"
-        )
+        message = WebSocketMessage(type="custom_message", timestamp="2024-01-15T14:35:00")
         assert message.type == "custom_message"
         assert message.timestamp == "2024-01-15T14:35:00"
 

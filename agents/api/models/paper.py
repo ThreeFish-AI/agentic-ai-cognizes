@@ -49,9 +49,7 @@ class PaperStatus(BaseModel):
 
     paper_id: str = Field(..., description="论文ID")
     status: str = Field(..., description="当前状态")
-    workflows: dict[str, dict[str, Any]] = Field(
-        default_factory=dict, description="各工作流状态"
-    )
+    workflows: dict[str, dict[str, Any]] = Field(default_factory=dict, description="各工作流状态")
     upload_time: str | None = Field(None, description="上传时间")
     updated_at: str | None = Field(None, description="更新时间")
     category: str | None = Field(None, description="论文分类")

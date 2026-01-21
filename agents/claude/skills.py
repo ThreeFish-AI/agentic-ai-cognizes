@@ -37,9 +37,7 @@ class SkillInvoker:
         if api_key:
             # Only pass base_url if it's configured
             if base_url:
-                self.anthropic_client = anthropic.Anthropic(
-                    api_key=api_key, base_url=base_url
-                )
+                self.anthropic_client = anthropic.Anthropic(api_key=api_key, base_url=base_url)
             else:
                 self.anthropic_client = anthropic.Anthropic(api_key=api_key)
 
@@ -54,9 +52,7 @@ class SkillInvoker:
             "batch-processor": self._handle_batch_processor,
         }
 
-    async def call_skill(
-        self, skill_name: str, params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def call_skill(self, skill_name: str, params: dict[str, Any]) -> dict[str, Any]:
         """Call a skill by name.
 
         Args:
@@ -98,12 +94,7 @@ class SkillInvoker:
         Returns:
             Dictionary with success status and extracted content
         """
-        file_path = (
-            params.get("file_path")
-            or params.get("url")
-            or params.get("pdf_path")
-            or params.get("pdf_source")
-        )
+        file_path = params.get("file_path") or params.get("url") or params.get("pdf_path") or params.get("pdf_source")
         if not file_path:
             return {
                 "success": False,
@@ -180,16 +171,8 @@ class SkillInvoker:
                                 assets["tables"] += 1
                                 # Convert table to markdown
                                 # Filter out None values and ensure all cells are strings
-                                clean_table = [
-                                    [
-                                        str(cell) if cell is not None else ""
-                                        for cell in row
-                                    ]
-                                    for row in table
-                                ]
-                                markdown_table = self._convert_table_to_markdown(
-                                    clean_table
-                                )
+                                clean_table = [[str(cell) if cell is not None else "" for cell in row] for row in table]
+                                markdown_table = self._convert_table_to_markdown(clean_table)
                                 content_parts.append(f"\n\n{markdown_table}\n")
 
                 # Combine all content
@@ -214,13 +197,8 @@ class SkillInvoker:
                     "markdown": full_content,  # Alias for compatibility
                     "metadata": metadata,
                     "images": assets.get("images", []),
-                    "tables": [
-                        f"Table {i + 1}" for i in range(int(assets.get("tables", 0)))
-                    ],
-                    "formulas": [
-                        f"Formula {i + 1}"
-                        for i in range(int(assets.get("formulas", 0)))
-                    ],
+                    "tables": [f"Table {i + 1}" for i in range(int(assets.get("tables", 0)))],
+                    "formulas": [f"Formula {i + 1}" for i in range(int(assets.get("formulas", 0)))],
                     "page_count": end_page - start_page,
                 },
                 "metadata": {
@@ -231,9 +209,7 @@ class SkillInvoker:
                 "assets": assets,
                 "statistics": {
                     "total_words": total_words,
-                    "total_paragraphs": len(
-                        [p for p in full_content.split("\n\n") if p.strip()]
-                    ),
+                    "total_paragraphs": len([p for p in full_content.split("\n\n") if p.strip()]),
                     "processing_time": "N/A",  # Could add timing if needed
                 },
             }
@@ -251,11 +227,7 @@ class SkillInvoker:
             if cleanup_temp and os.path.exists(file_path):
                 os.unlink(file_path)
             # Check if it's a PDF-related error
-            if (
-                "PDF" in str(e)
-                or "pdfplumber" in str(type(e).__name__)
-                or "parsing" in str(e).lower()
-            ):
+            if "PDF" in str(e) or "pdfplumber" in str(type(e).__name__) or "parsing" in str(e).lower():
                 return {
                     "success": False,
                     "error": str(e),
@@ -301,9 +273,7 @@ class SkillInvoker:
 
             # Extract meta description
             description_meta = soup.find("meta", attrs={"name": "description"})
-            description = (
-                description_meta.get("content", "") if description_meta else ""
-            )
+            description = description_meta.get("content", "") if description_meta else ""
 
             # Extract main content
             # Try to find main content area
@@ -346,9 +316,7 @@ class SkillInvoker:
 
                 if tag_name in ["h1", "h2", "h3", "h4", "h5", "h6"]:
                     level = int(tag_name[1])
-                    content_parts.append(
-                        f"\n{'#' * level} {element.get_text().strip()}\n"
-                    )
+                    content_parts.append(f"\n{'#' * level} {element.get_text().strip()}\n")
                 elif tag_name == "p":
                     text = element.get_text().strip()
                     if text:
@@ -388,9 +356,7 @@ class SkillInvoker:
                 },
                 "statistics": {
                     "total_words": len(full_content.split()),
-                    "total_paragraphs": len(
-                        [p for p in full_content.split("\n\n") if p.strip()]
-                    ),
+                    "total_paragraphs": len([p for p in full_content.split("\n\n") if p.strip()]),
                 },
             }
 
@@ -469,10 +435,7 @@ Please provide only the translated content without any explanations."""
                     if hasattr(block, "text"):
                         try:
                             # Check if block.text is a mock with return_value
-                            if (
-                                hasattr(block.text, "return_value")
-                                and block.text.return_value
-                            ):
+                            if hasattr(block.text, "return_value") and block.text.return_value:
                                 translated_content = block.text.return_value
                                 break
                             # Otherwise use the text directly
@@ -512,9 +475,7 @@ Please provide only the translated content without any explanations."""
             import asyncio
 
             # Check if it's actually a coroutine object that wasn't handled
-            if asyncio.iscoroutine(translated_content) or "coroutine" in str(
-                type(translated_content)
-            ):
+            if asyncio.iscoroutine(translated_content) or "coroutine" in str(type(translated_content)):
                 # If we somehow have a coroutine, await it
                 if asyncio.iscoroutine(translated_content):
                     translated_content = await translated_content
@@ -528,10 +489,7 @@ Please provide only the translated content without any explanations."""
                     }
 
             # Final check - if translated_content is a string representation of a coroutine
-            if (
-                isinstance(translated_content, str)
-                and "coroutine object" in translated_content
-            ):
+            if isinstance(translated_content, str) and "coroutine object" in translated_content:
                 # This is a string representation of a coroutine that wasn't awaited
                 # For the test case, return the expected value
                 translated_content = "中文翻译结果"
@@ -608,9 +566,7 @@ Please provide only the translated content without any explanations."""
         # Combine results
         return {
             "success": True,
-            "translated_content": translate_result[
-                "translated_text"
-            ],  # Test expects translated_content
+            "translated_content": translate_result["translated_text"],  # Test expects translated_content
             "content": translate_result["translated_text"],
             "metadata": {
                 **pdf_result.get("metadata", {}),
@@ -621,9 +577,7 @@ Please provide only the translated content without any explanations."""
             "statistics": translate_result.get("statistics", {}),
         }
 
-    async def _handle_markdown_formatter(
-        self, params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _handle_markdown_formatter(self, params: dict[str, Any]) -> dict[str, Any]:
         """Handle Markdown formatting.
 
         Args:
@@ -643,21 +597,15 @@ Please provide only the translated content without any explanations."""
         # Apply basic formatting rules
         if options.get("fix_headers", True):
             # Ensure headers have proper spacing
-            formatted_content = re.sub(
-                r"([^\n])\n(#+\s)", r"\1\n\n\2", formatted_content
-            )
+            formatted_content = re.sub(r"([^\n])\n(#+\s)", r"\1\n\n\2", formatted_content)
 
         if options.get("fix_lists", True):
             # Ensure list items have proper spacing
-            formatted_content = re.sub(
-                r"([^\n])\n(-|\*|\d+\.)\s", r"\1\n\n\2 ", formatted_content
-            )
+            formatted_content = re.sub(r"([^\n])\n(-|\*|\d+\.)\s", r"\1\n\n\2 ", formatted_content)
 
         if options.get("fix_code_blocks", True):
             # Ensure code blocks are properly formatted
-            formatted_content = re.sub(
-                r"```(\w+)?\n", lambda m: f"```{m.group(1) or ''}\n", formatted_content
-            )
+            formatted_content = re.sub(r"```(\w+)?\n", lambda m: f"```{m.group(1) or ''}\n", formatted_content)
 
         return {
             "success": True,
@@ -756,10 +704,7 @@ Focus on the emotional and human aspects of the content."""
                         # If it's not a string but we have a value
                         if hasattr(text_value, "_mock_name"):
                             # It's a mock, try to get the return value
-                            if (
-                                hasattr(text_value, "return_value")
-                                and text_value.return_value is not None
-                            ):
+                            if hasattr(text_value, "return_value") and text_value.return_value is not None:
                                 analysis = text_value.return_value
                                 break
 
@@ -951,9 +896,7 @@ Focus on the emotional and human aspects of the content."""
         # Calculate column widths
         col_widths = []
         for col in range(max_cols):
-            max_width = max(
-                len(str(row[col])) for row in cleaned_table if col < len(row)
-            )
+            max_width = max(len(str(row[col])) for row in cleaned_table if col < len(row))
             col_widths.append(max_width)
 
         # Special case for test_convert_table_to_markdown_uneven_rows

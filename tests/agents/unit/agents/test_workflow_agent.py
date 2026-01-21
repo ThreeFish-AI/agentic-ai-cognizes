@@ -51,9 +51,7 @@ class TestWorkflowAgent:
 
     @pytest.mark.asyncio
     @patch.object(BaseAgent, "call_skill", return_value={"success": True, "data": {}})
-    async def test_full_workflow_success(
-        self, mock_call_skill, workflow_agent, test_paper_path
-    ):
+    async def test_full_workflow_success(self, mock_call_skill, workflow_agent, test_paper_path):
         """Test successful full workflow execution."""
         paper_id = "test_paper_123"
         input_data = {
@@ -142,9 +140,7 @@ class TestWorkflowAgent:
                     },
                 }
             )
-            workflow_agent._save_extract_result.assert_called_once_with(
-                paper_id, result["data"]
-            )
+            workflow_agent._save_extract_result.assert_called_once_with(paper_id, result["data"])
 
     @pytest.mark.asyncio
     async def test_translate_workflow_success(self, workflow_agent, test_paper_path):
@@ -348,9 +344,7 @@ class TestWorkflowAgent:
             assert "options" in call_args
 
     @pytest.mark.asyncio
-    async def test_async_heartfelt_analysis_task_creation(
-        self, workflow_agent, temp_dir
-    ):
+    async def test_async_heartfelt_analysis_task_creation(self, workflow_agent, temp_dir):
         """Test async heartfelt analysis task creation."""
         source_path = "/test/paper.pdf"
         extract_data = {"content": "Content..."}
@@ -369,9 +363,7 @@ class TestWorkflowAgent:
         workflow_agent._save_heartfelt_result = AsyncMock()
 
         # Call the method directly
-        await workflow_agent._async_heartfelt_analysis(
-            source_path, extract_data, translate_data, paper_id
-        )
+        await workflow_agent._async_heartfelt_analysis(source_path, extract_data, translate_data, paper_id)
 
         # Verify the analysis was called
         workflow_agent.heartfelt_agent.analyze.assert_called_once_with(
@@ -414,9 +406,7 @@ class TestWorkflowAgent:
             output_dir = temp_dir / paper_id
             mock_file_manager.mkdir(str(output_dir), parents=True, exist_ok=True)
 
-            await workflow_agent._save_workflow_results(
-                paper_id, extract_result, translate_result
-            )
+            await workflow_agent._save_workflow_results(paper_id, extract_result, translate_result)
 
             # Verify files were created (mocked)
             assert mock_file_manager.exists(f"{output_dir}/extracted.json")
@@ -444,9 +434,7 @@ class TestWorkflowAgent:
                     mock_file_manager.add_file(path, b"PDF content")
                     mock_file_manager.exists(path)
 
-                result = await workflow_agent.batch_process_papers(
-                    paper_paths, "extract_only"
-                )
+                result = await workflow_agent.batch_process_papers(paper_paths, "extract_only")
 
                 assert len(result["results"]) == 3
                 assert result["success_count"] == 2
@@ -460,9 +448,7 @@ class TestWorkflowAgent:
 
         paper_id = "test_paper"
 
-        with patch.object(
-            workflow_agent, "_load_metadata", new_callable=AsyncMock
-        ) as mock_load:
+        with patch.object(workflow_agent, "_load_metadata", new_callable=AsyncMock) as mock_load:
             mock_load.return_value = {
                 "status": "processing",
                 "progress": 50,
@@ -506,9 +492,7 @@ class TestWorkflowAgent:
             translate_data = {"content": "Translated content"}
 
             # The method returns None, so we check if it was called
-            await workflow_agent._async_heartfelt_analysis(
-                str(source_path), extract_data, translate_data, paper_id
-            )
+            await workflow_agent._async_heartfelt_analysis(str(source_path), extract_data, translate_data, paper_id)
 
             # Verify the heartfelt agent was called
             workflow_agent.heartfelt_agent.analyze.assert_called_once()
@@ -540,9 +524,7 @@ class TestWorkflowAgent:
             translate_data = {"content": "Translated content"}
 
             # The method returns None, so we just verify it doesn't raise an exception
-            await workflow_agent._async_heartfelt_analysis(
-                str(source_path), extract_data, translate_data, paper_id
-            )
+            await workflow_agent._async_heartfelt_analysis(str(source_path), extract_data, translate_data, paper_id)
 
     @pytest.mark.asyncio
     async def test_load_metadata(self, workflow_agent, temp_dir):
@@ -613,9 +595,7 @@ class TestWorkflowAgent:
                     mock_file_manager.add_file(doc, b"Document content")
                     mock_file_manager.exists(doc)
 
-                result = await workflow_agent.batch_process(
-                    documents
-                )  # Remove workflow_type parameter
+                result = await workflow_agent.batch_process(documents)  # Remove workflow_type parameter
 
                 assert result["total"] == 3  # Changed from total_documents
                 assert result["successful"] == 3
@@ -650,9 +630,7 @@ class TestWorkflowAgent:
             }
 
         with patch.object(workflow_agent, "process", side_effect=mock_process):
-            result = await workflow_agent.batch_process(
-                documents
-            )  # Remove "extract_only" parameter
+            result = await workflow_agent.batch_process(documents)  # Remove "extract_only" parameter
 
             assert result["total"] == 3  # Changed from total_documents
             assert result["successful"] == 2
@@ -668,9 +646,7 @@ class TestWorkflowAgent:
         if not hasattr(workflow_agent, "batch_process"):
             pytest.skip("batch_process method not implemented")
 
-        result = await workflow_agent.batch_process(
-            []
-        )  # Remove "extract_only" parameter
+        result = await workflow_agent.batch_process([])  # Remove "extract_only" parameter
 
         assert result["total"] == 0  # Changed from total_documents
         assert result["successful"] == 0
@@ -696,9 +672,7 @@ class TestWorkflowAgent:
 
         with patch.object(workflow_agent, "process", side_effect=mock_process):
             start_time = asyncio.get_event_loop().time()
-            result = await workflow_agent.batch_process(
-                documents
-            )  # Remove "extract_only" parameter
+            result = await workflow_agent.batch_process(documents)  # Remove "extract_only" parameter
             end_time = asyncio.get_event_loop().time()
 
             # Should complete quickly due to concurrency
@@ -743,9 +717,7 @@ class TestWorkflowAgent:
 
         paper_id = "nonexistent_paper"
 
-        with patch.object(
-            workflow_agent, "_load_metadata", new_callable=AsyncMock
-        ) as mock_load:
+        with patch.object(workflow_agent, "_load_metadata", new_callable=AsyncMock) as mock_load:
             mock_load.return_value = None
 
             # Method returns error dict instead of raising exception
@@ -762,9 +734,7 @@ class TestWorkflowAgent:
 
         paper_id = "test_paper"
 
-        with patch.object(
-            workflow_agent, "_load_metadata", new_callable=AsyncMock
-        ) as mock_load:
+        with patch.object(workflow_agent, "_load_metadata", new_callable=AsyncMock) as mock_load:
             mock_load.return_value = {
                 "paper_id": paper_id,
                 "status": "uploaded",

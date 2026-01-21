@@ -10,7 +10,7 @@ dependencies = [
     "google-genai>=0.3.0",
     # Open Agent Engine (Our Implementation)
     # cognizes 包通过 uv workspace 自动引入
-    "agentic-ai-engine",                # Workspace 依赖 (包含 cognizes 包)
+    "agentic-ai-cognizes",                # Workspace 依赖 (包含 cognizes 包)
     "asyncpg>=0.31.0",                  # PostgreSQL 异步驱动 (高性能, 原生 async/await)
     "psycopg[binary]>=3.2.0",           # PostgreSQL 同步驱动 (TracingManager 需要)
     "pydantic>=2.12.5",                 # 数据验证和序列化 (BaseModel, 类型提示)
@@ -38,7 +38,7 @@ dev = [
 # 指定 workspace 依赖来源
 # ------------------------------------------------------------------------------
 [tool.uv.sources]
-agentic-ai-engine = { workspace = true }
+agentic-ai-cognizes = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

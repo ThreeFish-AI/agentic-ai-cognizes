@@ -52,9 +52,7 @@ class TestWebSocketRoutes:
 
                 # Simulate websocket connection
                 mock_ws_instance.accept = AsyncMock()
-                mock_ws_instance.receive_text = AsyncMock(
-                    side_effect=['{"type": "ping"}', '{"type": "disconnect"}']
-                )
+                mock_ws_instance.receive_text = AsyncMock(side_effect=['{"type": "ping"}', '{"type": "disconnect"}'])
                 mock_ws_instance.send_text = AsyncMock()
 
                 # This would normally be tested via integration test
@@ -115,9 +113,7 @@ class TestWebSocketRoutes:
             await mock_manager.send_personal_message({"type": "test"}, "connection_id")
             mock_manager.send_personal_message.assert_called_once()
 
-            await mock_manager.broadcast_to_subscribers(
-                {"type": "broadcast_test"}, "task_id"
-            )
+            await mock_manager.broadcast_to_subscribers({"type": "broadcast_test"}, "task_id")
             mock_manager.broadcast_to_subscribers.assert_called_once()
 
     def test_websocket_router_included(self):
@@ -173,9 +169,7 @@ class TestWebSocketRoutes:
 
             for message in test_messages:
                 await mock_manager.broadcast_to_subscribers(message, "task_123")
-                mock_manager.broadcast_to_subscribers.assert_called_with(
-                    message, "task_123"
-                )
+                mock_manager.broadcast_to_subscribers.assert_called_with(message, "task_123")
 
     def test_websocket_service_singleton(self):
         """Test that WebSocket service is properly initialized."""
@@ -397,9 +391,7 @@ class TestWebSocketRoutes:
         service = WebSocketService(mock_manager)
 
         # Send task completion
-        await service.send_task_completion(
-            "task123", {"result": "success", "output": "processed"}
-        )
+        await service.send_task_completion("task123", {"result": "success", "output": "processed"})
 
         # Check the call was made with the expected structure
         mock_manager.broadcast_to_subscribers.assert_called_once()
@@ -448,9 +440,7 @@ class TestWebSocketRoutes:
     async def test_websocket_service_send_error(self):
         """Test WebSocketService error sending."""
         mock_manager = AsyncMock()
-        mock_manager.broadcast_to_subscribers = AsyncMock(
-            side_effect=Exception("Connection error")
-        )
+        mock_manager.broadcast_to_subscribers = AsyncMock(side_effect=Exception("Connection error"))
 
         service = WebSocketService(mock_manager)
 
@@ -468,9 +458,7 @@ class TestWebSocketRoutes:
         service = WebSocketService(mock_manager)
 
         # Send paper analysis
-        await service.send_paper_analysis(
-            "paper123", {"summary": "Test summary", "insights": []}
-        )
+        await service.send_paper_analysis("paper123", {"summary": "Test summary", "insights": []})
 
         mock_manager.broadcast_to_subscribers.assert_called_once()
         call_args = mock_manager.broadcast_to_subscribers.call_args[0]

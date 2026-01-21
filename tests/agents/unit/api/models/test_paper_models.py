@@ -22,9 +22,7 @@ class TestPaperMetadata:
 
     def test_paper_metadata_creation(self):
         """Test PaperMetadata creation with required fields."""
-        metadata = PaperMetadata(
-            title="Test Paper", authors=["Author 1", "Author 2"], year=2024
-        )
+        metadata = PaperMetadata(title="Test Paper", authors=["Author 1", "Author 2"], year=2024)
         assert metadata.title == "Test Paper"
         assert metadata.authors == ["Author 1", "Author 2"]
         assert metadata.year == 2024
@@ -268,9 +266,7 @@ class TestPaperListResponse:
             upload_time="2024-01-15T14:35:00",
             size=2048,
         )
-        response = PaperListResponse(
-            papers=[paper1, paper2], total=2, offset=0, limit=20
-        )
+        response = PaperListResponse(papers=[paper1, paper2], total=2, offset=0, limit=20)
         assert len(response.papers) == 2
         assert response.total == 2
         assert response.papers[0].paper_id == "paper1"

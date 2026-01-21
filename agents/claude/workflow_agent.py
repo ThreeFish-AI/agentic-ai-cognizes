@@ -24,9 +24,7 @@ class WorkflowAgent(BaseAgent):
             config: 配置参数
         """
         super().__init__("workflow", config)
-        self.papers_dir = Path(
-            config.get("papers_dir", "papers") if config else "papers"
-        )
+        self.papers_dir = Path(config.get("papers_dir", "papers") if config else "papers")
         self.pdf_agent = PDFProcessingAgent(config)
         self.translation_agent = TranslationAgent(config)
         self.heartfelt_agent = HeartfeltAgent(config)
@@ -86,9 +84,7 @@ class WorkflowAgent(BaseAgent):
             logger.error(f"Error in workflow processing: {str(e)}")
             return {"success": False, "error": str(e)}
 
-    async def _full_workflow(
-        self, source_path: str, paper_id: str | None = None
-    ) -> dict[str, Any]:
+    async def _full_workflow(self, source_path: str, paper_id: str | None = None) -> dict[str, Any]:
         """完整处理流程：提取 -> 翻译 -> 分析.
 
         Args:
@@ -136,9 +132,7 @@ class WorkflowAgent(BaseAgent):
 
         # 4. 保存结果
         if paper_id:
-            await self._save_workflow_results(
-                paper_id, extract_result, translate_result
-            )
+            await self._save_workflow_results(paper_id, extract_result, translate_result)
 
         return {
             "success": True,
@@ -148,9 +142,7 @@ class WorkflowAgent(BaseAgent):
             "workflow": "full",
         }
 
-    async def _extract_workflow(
-        self, source_path: str, paper_id: str | None = None
-    ) -> dict[str, Any]:
+    async def _extract_workflow(self, source_path: str, paper_id: str | None = None) -> dict[str, Any]:
         """仅提取内容流程.
 
         Args:
@@ -184,9 +176,7 @@ class WorkflowAgent(BaseAgent):
             "workflow": "extract_only",
         }
 
-    async def _translate_workflow(
-        self, source_path: str, paper_id: str | None = None
-    ) -> dict[str, Any]:
+    async def _translate_workflow(self, source_path: str, paper_id: str | None = None) -> dict[str, Any]:
         """仅翻译流程.
 
         Args:
@@ -221,16 +211,12 @@ class WorkflowAgent(BaseAgent):
         return {
             "success": translate_result["success"],
             "data": translate_result.get("data"),
-            "error": translate_result.get("error")
-            if not translate_result["success"]
-            else None,
+            "error": translate_result.get("error") if not translate_result["success"] else None,
             "status": "completed" if translate_result["success"] else "failed",
             "workflow": "translate_only",
         }
 
-    async def _heartfelt_workflow(
-        self, source_path: str, paper_id: str | None = None
-    ) -> dict[str, Any]:
+    async def _heartfelt_workflow(self, source_path: str, paper_id: str | None = None) -> dict[str, Any]:
         """仅深度分析流程.
 
         Args:
@@ -261,9 +247,7 @@ class WorkflowAgent(BaseAgent):
         return {
             "success": heartfelt_result["success"],
             "data": heartfelt_result.get("data"),
-            "error": heartfelt_result.get("error")
-            if not heartfelt_result["success"]
-            else None,
+            "error": heartfelt_result.get("error") if not heartfelt_result["success"] else None,
             "status": "completed" if heartfelt_result["success"] else "failed",
             "workflow": "heartfelt_only",
         }
@@ -312,20 +296,13 @@ class WorkflowAgent(BaseAgent):
             # Perform heartfelt analysis
             result = await self.heartfelt_agent.analyze(analysis_request)
 
-            if (
-                result
-                and isinstance(result, dict)
-                and result.get("success")
-                and paper_id
-            ):
+            if result and isinstance(result, dict) and result.get("success") and paper_id:
                 # Check if result has data or result field
                 result_data = result.get("data") or result.get("result")
                 if result_data:
                     await self._save_heartfelt_result(paper_id, result_data)
                 else:
-                    logger.warning(
-                        f"Heartfelt analysis succeeded but no data for {paper_id}"
-                    )
+                    logger.warning(f"Heartfelt analysis succeeded but no data for {paper_id}")
 
             logger.info(f"Heartfelt analysis completed for {paper_id}")
         except Exception as e:
@@ -429,17 +406,12 @@ class WorkflowAgent(BaseAgent):
 
             # For test compatibility, try to determine if process is mocked
             # Tests mock process to expect positional args
-            if (
-                hasattr(self.process, "_mock_name")
-                or self.__class__.process != WorkflowAgent.process
-            ):
+            if hasattr(self.process, "_mock_name") or self.__class__.process != WorkflowAgent.process:
                 # Test scenario - call with expected mock signature
                 task = self.process(doc_path, "full")  # type: ignore[arg-type,call-arg]
             else:
                 # Real implementation - call with dict
-                task = self.process(
-                    {"source_path": doc_path, "workflow": "full", "paper_id": paper_id}
-                )
+                task = self.process({"source_path": doc_path, "workflow": "full", "paper_id": paper_id})
             tasks.append(task)
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -460,9 +432,7 @@ class WorkflowAgent(BaseAgent):
                 else:
                     failed += 1
             else:
-                processed_results.append(
-                    {"success": False, "error": "Unknown result type"}
-                )
+                processed_results.append({"success": False, "error": "Unknown result type"})
                 failed += 1
 
         return {
@@ -473,9 +443,7 @@ class WorkflowAgent(BaseAgent):
             "results": processed_results,
         }
 
-    async def batch_process_papers(
-        self, paper_paths: list[str], workflow_type: str = "full"
-    ) -> dict[str, Any]:
+    async def batch_process_papers(self, paper_paths: list[str], workflow_type: str = "full") -> dict[str, Any]:
         """批量处理多个论文.
 
         Args:
@@ -509,10 +477,7 @@ class WorkflowAgent(BaseAgent):
                     paper_id = f"test_{paper_id}"
 
                 # Handle both test mocks and real implementation
-                if (
-                    hasattr(self.process, "_mock_name")
-                    or self.__class__.process != WorkflowAgent.process
-                ):
+                if hasattr(self.process, "_mock_name") or self.__class__.process != WorkflowAgent.process:
                     # Test scenario - call with expected mock signature
                     result = await self.process(paper_path, workflow_type)  # type: ignore[arg-type,call-arg]
                 else:
@@ -531,9 +496,7 @@ class WorkflowAgent(BaseAgent):
                     failure_count += 1
             except Exception as e:
                 logger.error(f"Failed to process paper {paper_path}: {str(e)}")
-                results.append(
-                    {"success": False, "error": str(e), "paper_path": paper_path}
-                )
+                results.append({"success": False, "error": str(e), "paper_path": paper_path})
                 failure_count += 1
 
         return {
@@ -593,9 +556,7 @@ class WorkflowAgent(BaseAgent):
 
             # Get stage-specific details
             stages_completed = metadata.get("stages_completed", [])
-            total_stages = metadata.get(
-                "total_stages", 3
-            )  # extract, translate, heartfelt
+            total_stages = metadata.get("total_stages", 3)  # extract, translate, heartfelt
 
             # Ensure workflows key exists
             workflows = metadata.get("workflows", {})

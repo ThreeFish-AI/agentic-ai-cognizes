@@ -119,9 +119,7 @@ class PaperService:
             if result["success"]:
                 await self._update_status(paper_id, "completed", workflow)
             else:
-                await self._update_status(
-                    paper_id, "failed", workflow, result.get("error") or ""
-                )
+                await self._update_status(paper_id, "failed", workflow, result.get("error") or "")
 
             # Use task_id from result if available, otherwise generate one
             task_id = result.get(
@@ -330,9 +328,7 @@ class PaperService:
                 source_path.unlink()
 
             # 删除翻译文件
-            translation_path = (
-                self.papers_dir / "translation" / category / f"{paper_id}.md"
-            )
+            translation_path = self.papers_dir / "translation" / category / f"{paper_id}.md"
             if translation_path.exists():
                 translation_path.unlink()
 
@@ -361,9 +357,7 @@ class PaperService:
             logger.error(f"Error deleting paper {paper_id}: {str(e)}")
             raise
 
-    async def batch_process_papers(
-        self, paper_ids: list[str], workflow: str
-    ) -> dict[str, Any]:
+    async def batch_process_papers(self, paper_ids: list[str], workflow: str) -> dict[str, Any]:
         """批量处理论文.
 
         Args:
@@ -456,9 +450,7 @@ class PaperService:
 
         return metadata
 
-    async def update_paper_metadata(
-        self, paper_id: str, updates: dict[str, Any]
-    ) -> bool:
+    async def update_paper_metadata(self, paper_id: str, updates: dict[str, Any]) -> bool:
         """更新论文元数据（测试兼容方法）.
 
         Args:
@@ -583,9 +575,7 @@ class PaperService:
 
         await self._update_metadata(paper_id, updates)
 
-    async def _create_task_record(
-        self, paper_id: str, task_id: str, workflow: str, result: dict[str, Any]
-    ) -> None:
+    async def _create_task_record(self, paper_id: str, task_id: str, workflow: str, result: dict[str, Any]) -> None:
         """创建任务记录."""
         # 这里可以实现任务记录保存逻辑
         # 例如保存到数据库或文件
@@ -649,9 +639,7 @@ class PaperService:
 
         return output_dir / f"{filename}.json"
 
-    async def translate_paper(
-        self, paper_id: str, options: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def translate_paper(self, paper_id: str, options: dict[str, Any] | None = None) -> dict[str, Any]:
         """翻译论文.
 
         Args:
@@ -709,9 +697,7 @@ class PaperService:
                     "result": translation_result,
                 }
             else:
-                await self._update_status(
-                    paper_id, "failed", "translate", result.get("error") or ""
-                )
+                await self._update_status(paper_id, "failed", "translate", result.get("error") or "")
                 return {
                     "success": False,
                     "error": result.get("error", "Translation failed"),
@@ -729,9 +715,7 @@ class PaperService:
                 "status": "failed",
             }
 
-    async def analyze_paper(
-        self, paper_id: str, analysis_type: str | None = None
-    ) -> dict[str, Any]:
+    async def analyze_paper(self, paper_id: str, analysis_type: str | None = None) -> dict[str, Any]:
         """分析论文（深度阅读）.
 
         Args:
@@ -775,9 +759,7 @@ class PaperService:
                     analysis_id = result["analysis_id"]
                 else:
                     # Generate analysis_id for consistency if not provided
-                    analysis_id = (
-                        f"analysis_{paper_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                    )
+                    analysis_id = f"analysis_{paper_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
                 # Extract the analysis result
                 analysis_result = result.get("result", result)
@@ -788,15 +770,11 @@ class PaperService:
                     "success": True,
                     "analysis_id": analysis_id,
                     "paper_id": paper_id,
-                    "status": "processing"
-                    if result.get("status") == "processing"
-                    else "completed",
+                    "status": "processing" if result.get("status") == "processing" else "completed",
                     "result": analysis_result,
                 }
             else:
-                await self._update_status(
-                    paper_id, "failed", "heartfelt", result.get("error") or ""
-                )
+                await self._update_status(paper_id, "failed", "heartfelt", result.get("error") or "")
                 return {
                     "success": False,
                     "error": result.get("error", "Analysis failed"),
@@ -814,9 +792,7 @@ class PaperService:
                 "status": "failed",
             }
 
-    async def batch_translate(
-        self, paper_ids: list[str], options: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def batch_translate(self, paper_ids: list[str], options: dict[str, Any] | None = None) -> dict[str, Any]:
         """批量翻译论文.
 
         Args:
@@ -898,9 +874,7 @@ class PaperService:
         for i, result in enumerate(translation_results):  # type: ignore[assignment]
             if isinstance(result, Exception):
                 total_failed += 1
-                results.append(
-                    {"paper_id": paper_ids[i], "success": False, "error": str(result)}
-                )
+                results.append({"paper_id": paper_ids[i], "success": False, "error": str(result)})
             elif result.get("success", False):
                 total_success += 1
                 results.append(result)
@@ -912,9 +886,7 @@ class PaperService:
             "success": True if total_success > 0 else False,
             "batch_id": f"batch_translate_{datetime.now().strftime('%Y%m%d%H%M%S')}",
             "total_requested": len(paper_ids),
-            "total_valid": len(
-                paper_ids
-            ),  # All papers are considered valid for batch operation
+            "total_valid": len(paper_ids),  # All papers are considered valid for batch operation
             "total_success": total_success,
             "total_failed": total_failed,
             "results": results,

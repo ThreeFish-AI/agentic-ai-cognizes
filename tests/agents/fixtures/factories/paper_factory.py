@@ -23,10 +23,7 @@ class PaperMetadataFactory(factory.Factory):
 
     title = factory.Faker("sentence", nb_words=8)
     authors = factory.LazyFunction(
-        lambda: [
-            factory.Faker("name").generate()
-            for _ in range(factory.Faker("random_int", min=1, max=5).generate())
-        ]
+        lambda: [factory.Faker("name").generate() for _ in range(factory.Faker("random_int", min=1, max=5).generate())]
     )
     year = factory.Faker("random_int", min=2020, max=2024)
     venue = factory.Faker("company")
@@ -34,10 +31,7 @@ class PaperMetadataFactory(factory.Factory):
     pages = factory.Faker("random_int", min=5, max=50)
     doi = factory.LazyFunction(lambda: f"10.1000/{uuid.uuid4().hex[:8]}")
     keywords = factory.LazyFunction(
-        lambda: [
-            factory.Faker("word").generate()
-            for _ in range(factory.Faker("random_int", min=3, max=8).generate())
-        ]
+        lambda: [factory.Faker("word").generate() for _ in range(factory.Faker("random_int", min=3, max=8).generate())]
     )
 
 
@@ -47,9 +41,7 @@ class PaperInfoFactory(factory.Factory):
     class Meta:
         model = PaperInfo
 
-    paper_id = factory.LazyAttribute(
-        lambda obj: f"{obj.category}_20241212_143022_{obj.filename}"
-    )
+    paper_id = factory.LazyAttribute(lambda obj: f"{obj.category}_20241212_143022_{obj.filename}")
     filename = factory.Faker("file_name", extension="pdf")
     category = fuzzy.FuzzyChoice(
         [
@@ -96,14 +88,10 @@ class PaperUploadResponseFactory(factory.Factory):
     class Meta:
         model = PaperUploadResponse
 
-    paper_id = factory.LazyAttribute(
-        lambda obj: f"{obj.category}_20241212_143022_{obj.filename}"
-    )
+    paper_id = factory.LazyAttribute(lambda obj: f"{obj.category}_20241212_143022_{obj.filename}")
     filename = factory.Faker("file_name", extension="pdf")
     category = factory.LazyAttribute(
-        lambda obj: fuzzy.FuzzyChoice(
-            ["llm-agents", "reinforcement-learning", "multi-agent"]
-        ).fuzz()
+        lambda obj: fuzzy.FuzzyChoice(["llm-agents", "reinforcement-learning", "multi-agent"]).fuzz()
     )
     size = fuzzy.FuzzyInteger(100000, 10000000)
     upload_time = factory.LazyFunction(lambda: datetime.now().isoformat() + "Z")
@@ -142,9 +130,7 @@ class PaperStatusFactory(factory.Factory):
     class Meta:
         model = PaperStatus
 
-    paper_id = factory.LazyAttribute(
-        lambda obj: f"{obj.category}_20241212_143022_{obj.filename}"
-    )
+    paper_id = factory.LazyAttribute(lambda obj: f"{obj.category}_20241212_143022_{obj.filename}")
     status = fuzzy.FuzzyChoice(["uploaded", "processing", "completed", "failed"])
     workflows = factory.LazyFunction(
         lambda: {
@@ -156,20 +142,14 @@ class PaperStatusFactory(factory.Factory):
                 "completed_at": "2024-01-15T14:32:15Z",
             },
             "translate": {
-                "status": fuzzy.FuzzyChoice(
-                    ["pending", "processing", "completed", "failed"]
-                ),
+                "status": fuzzy.FuzzyChoice(["pending", "processing", "completed", "failed"]),
                 "progress": fuzzy.FuzzyFloat(0, 100),
                 "message": factory.Faker("sentence"),
-                "started_at": "2024-01-15T14:32:20Z"
-                if fuzzy.FuzzyChoice([True, False])
-                else None,
+                "started_at": "2024-01-15T14:32:20Z" if fuzzy.FuzzyChoice([True, False]) else None,
                 "completed_at": None,
             },
             "heartfelt": {
-                "status": fuzzy.FuzzyChoice(
-                    ["pending", "processing", "completed", "failed"]
-                ),
+                "status": fuzzy.FuzzyChoice(["pending", "processing", "completed", "failed"]),
                 "progress": fuzzy.FuzzyFloat(0, 100),
                 "message": factory.Faker("sentence"),
             },

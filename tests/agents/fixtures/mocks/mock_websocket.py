@@ -27,9 +27,7 @@ class MockWebSocket:
         """Mock sending text data."""
         if not self.connected:
             raise ConnectionError("WebSocket is not connected")
-        self.sent_messages.append(
-            {"type": "text", "data": data, "timestamp": datetime.now().isoformat()}
-        )
+        self.sent_messages.append({"type": "text", "data": data, "timestamp": datetime.now().isoformat()})
 
     async def send_json(self, data: dict[str, Any]):
         """Mock sending JSON data."""
@@ -205,9 +203,7 @@ class MockWebSocketService:
         """Register a custom message handler."""
         self.message_handlers[message_type] = handler
 
-    async def notify_task_progress(
-        self, task_id: str, progress: float, message: str = ""
-    ):
+    async def notify_task_progress(self, task_id: str, progress: float, message: str = ""):
         """Mock notifying task progress."""
         update = {"status": "processing", "progress": progress, "message": message}
         await self.connection_manager.send_task_update(task_id, update)
@@ -322,9 +318,7 @@ def create_websocket_test_message(message_type: str, **kwargs) -> dict[str, Any]
     return message
 
 
-def assert_websocket_message_sent(
-    websocket: MockWebSocket, expected_type: str, **expected_fields
-):
+def assert_websocket_message_sent(websocket: MockWebSocket, expected_type: str, **expected_fields):
     """Assert that a specific WebSocket message was sent."""
     messages = websocket.get_sent_messages()
     for msg in messages:

@@ -12,9 +12,7 @@ from fastapi.responses import JSONResponse
 from agents.api.routes import papers, tasks, websocket
 
 # 配置日志
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -71,9 +69,7 @@ app.add_middleware(
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """全局异常处理器."""
     logger.error(f"Global exception: {str(exc)}", exc_info=True)
-    return JSONResponse(
-        status_code=500, content={"detail": "Internal server error", "error": str(exc)}
-    )
+    return JSONResponse(status_code=500, content={"detail": "Internal server error", "error": str(exc)})
 
 
 # 健康检查

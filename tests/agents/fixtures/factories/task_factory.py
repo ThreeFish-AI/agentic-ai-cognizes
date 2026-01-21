@@ -42,14 +42,10 @@ class TaskProgressFactory(factory.Factory):
     )
     completed_at = factory.Maybe(
         fuzzy.FuzzyChoice([True, False]),
-        factory.LazyFunction(
-            lambda: (datetime.now() + timedelta(minutes=5)).isoformat() + "Z"
-        ),
+        factory.LazyFunction(lambda: (datetime.now() + timedelta(minutes=5)).isoformat() + "Z"),
         None,
     )
-    error_details = factory.Maybe(
-        fuzzy.FuzzyChoice([True, False]), factory.Faker("sentence"), None
-    )
+    error_details = factory.Maybe(fuzzy.FuzzyChoice([True, False]), factory.Faker("sentence"), None)
 
 
 class TaskInfoFactory(factory.Factory):
@@ -70,9 +66,7 @@ class TaskInfoFactory(factory.Factory):
             "translate_heartfelt",
         ]
     )
-    status = fuzzy.FuzzyChoice(
-        ["pending", "processing", "completed", "failed", "cancelled"]
-    )
+    status = fuzzy.FuzzyChoice(["pending", "processing", "completed", "failed", "cancelled"])
     progress = fuzzy.FuzzyFloat(0, 100)
     message = factory.Faker("sentence")
     created_at = factory.LazyFunction(lambda: datetime.now().isoformat() + "Z")
@@ -84,14 +78,10 @@ class TaskInfoFactory(factory.Factory):
     )
     completed_at = factory.Maybe(
         fuzzy.FuzzyChoice([True, False]),
-        factory.LazyFunction(
-            lambda: (datetime.now() + timedelta(minutes=10)).isoformat() + "Z"
-        ),
+        factory.LazyFunction(lambda: (datetime.now() + timedelta(minutes=10)).isoformat() + "Z"),
         None,
     )
-    error = factory.Maybe(
-        fuzzy.FuzzyChoice([True, False]), factory.Faker("sentence"), None
-    )
+    error = factory.Maybe(fuzzy.FuzzyChoice([True, False]), factory.Faker("sentence"), None)
     result = factory.Maybe(
         fuzzy.FuzzyChoice([True, False]),
         factory.LazyFunction(
@@ -103,9 +93,7 @@ class TaskInfoFactory(factory.Factory):
                 },
                 "statistics": {
                     "word_count": factory.Faker("random_int", min=1000, max=10000),
-                    "translation_quality": factory.Faker(
-                        "random.uniform", min=0.8, max=1.0
-                    ),
+                    "translation_quality": factory.Faker("random.uniform", min=0.8, max=1.0),
                     "processing_time": factory.Faker("random_int", min=60, max=600),
                 },
             }
@@ -113,10 +101,7 @@ class TaskInfoFactory(factory.Factory):
         None,
     )
     stages = factory.LazyFunction(
-        lambda: [
-            TaskProgressFactory()
-            for _ in range(factory.Faker("random_int", min=2, max=6).generate())
-        ]
+        lambda: [TaskProgressFactory() for _ in range(factory.Faker("random_int", min=2, max=6).generate())]
     )
     options = factory.LazyFunction(
         lambda: {
@@ -149,9 +134,7 @@ class TaskResponseFactory(factory.Factory):
             "translate_heartfelt",
         ]
     )
-    status = fuzzy.FuzzyChoice(
-        ["pending", "processing", "completed", "failed", "cancelled"]
-    )
+    status = fuzzy.FuzzyChoice(["pending", "processing", "completed", "failed", "cancelled"])
     progress = fuzzy.FuzzyFloat(0, 100)
     message = factory.Faker("sentence")
     created_at = factory.LazyFunction(lambda: datetime.now().isoformat() + "Z")
@@ -193,14 +176,10 @@ class TaskUpdateRequestFactory(factory.Factory):
     class Meta:
         model = TaskUpdateRequest
 
-    status = fuzzy.FuzzyChoice(
-        ["pending", "processing", "completed", "failed", "cancelled"]
-    )
+    status = fuzzy.FuzzyChoice(["pending", "processing", "completed", "failed", "cancelled"])
     progress = fuzzy.FuzzyFloat(0, 100)
     message = factory.Faker("sentence")
-    error = factory.Maybe(
-        fuzzy.FuzzyChoice([True, False]), factory.Faker("sentence"), None
-    )
+    error = factory.Maybe(fuzzy.FuzzyChoice([True, False]), factory.Faker("sentence"), None)
     result = factory.Maybe(
         fuzzy.FuzzyChoice([True, False]),
         factory.LazyFunction(
@@ -225,20 +204,15 @@ class BatchTaskFactory(factory.Factory):
     task_id = factory.Faker("uuid4")
     paper_ids = factory.LazyFunction(
         lambda: [
-            factory.Faker("uuid4").generate()
-            for _ in range(factory.Faker("random_int", min=2, max=10).generate())
+            factory.Faker("uuid4").generate() for _ in range(factory.Faker("random_int", min=2, max=10).generate())
         ]
     )
     workflow = fuzzy.FuzzyChoice(["translate", "analyze", "extract_translate", "full"])
     status = fuzzy.FuzzyChoice(["pending", "processing", "completed", "failed"])
     total = factory.LazyAttribute(lambda obj: len(obj["paper_ids"]))
-    completed = factory.LazyAttribute(
-        lambda obj: factory.Faker("random_int", min=0, max=obj["total"]).generate()
-    )
+    completed = factory.LazyAttribute(lambda obj: factory.Faker("random_int", min=0, max=obj["total"]).generate())
     failed = factory.LazyAttribute(
-        lambda obj: factory.Faker(
-            "random_int", min=0, max=obj["total"] - obj["completed"]
-        ).generate()
+        lambda obj: factory.Faker("random_int", min=0, max=obj["total"] - obj["completed"]).generate()
     )
     created_at = factory.LazyFunction(lambda: datetime.now().isoformat() + "Z")
     updated_at = factory.LazyFunction(lambda: datetime.now().isoformat() + "Z")

@@ -45,9 +45,7 @@ class MockFileManager:
         if path_str in self.files:
             return True
         # Check if it's a directory
-        return any(
-            path_str == d or path_str.startswith(f"{d}/") for d in self.directories
-        )
+        return any(path_str == d or path_str.startswith(f"{d}/") for d in self.directories)
 
     def exists_path(self, path_obj) -> bool:
         """Mock exists() method for pathlib.Path."""
@@ -157,9 +155,7 @@ class MockFileManager:
             raise FileExistsError(f"Directory exists: {path}")
         self.directories.add(path_str)
 
-    def mkdir_path(
-        self, path_obj, parents: bool = False, exist_ok: bool = False, **kwargs
-    ):
+    def mkdir_path(self, path_obj, parents: bool = False, exist_ok: bool = False, **kwargs):
         """Mock mkdir() method for pathlib.Path."""
         # path_obj is the Path object when used as side_effect
         path_str = str(path_obj)
@@ -392,9 +388,7 @@ class MockAsyncFileManager:
         self.uploaded_files = {}
         self.processing_files = {}
 
-    async def save_upload(
-        self, filename: str, content: bytes, category: str
-    ) -> dict[str, Any]:
+    async def save_upload(self, filename: str, content: bytes, category: str) -> dict[str, Any]:
         """Mock saving uploaded file."""
         file_id = f"{category}_{filename}"
         self.uploaded_files[file_id] = {
@@ -431,9 +425,7 @@ class MockAsyncFileManager:
         }
         return dir_path
 
-    async def save_processing_result(
-        self, paper_id: str, filename: str, content: bytes
-    ) -> dict[str, Any]:
+    async def save_processing_result(self, paper_id: str, filename: str, content: bytes) -> dict[str, Any]:
         """Mock saving processing result."""
         if paper_id not in self.processing_files:
             await self.create_processing_dir(paper_id)
@@ -553,14 +545,10 @@ class FileOperationsPatcher:
         self.patches.append(patch("shutil.copyfileobj", side_effect=mock_copyfileobj))
 
         # Patch os.path.getsize
-        self.patches.append(
-            patch("os.path.getsize", side_effect=self.file_manager.getsize)
-        )
+        self.patches.append(patch("os.path.getsize", side_effect=self.file_manager.getsize))
 
         # Patch os.path.exists
-        self.patches.append(
-            patch("os.path.exists", side_effect=self.file_manager.exists)
-        )
+        self.patches.append(patch("os.path.exists", side_effect=self.file_manager.exists))
 
         # Start all patches
         for p in self.patches:

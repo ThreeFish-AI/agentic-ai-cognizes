@@ -258,9 +258,7 @@ def merge_dicts(*dicts: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def flatten_dict(
-    d: dict[str, Any], parent_key: str = "", sep: str = "."
-) -> dict[str, Any]:
+def flatten_dict(d: dict[str, Any], parent_key: str = "", sep: str = ".") -> dict[str, Any]:
     """扁平化字典.
 
     Args:
@@ -298,9 +296,7 @@ def retry_on_failure(max_retries: int = 3, delay: float = 1.0) -> Callable[..., 
                 except Exception as e:
                     last_error = e
                     if attempt < max_retries:
-                        logger.warning(
-                            f"Attempt {attempt + 1} failed, retrying... Error: {str(e)}"
-                        )
+                        logger.warning(f"Attempt {attempt + 1} failed, retrying... Error: {str(e)}")
                         await asyncio.sleep(delay * (2**attempt))  # 指数退避
                     else:
                         logger.error(f"All {max_retries + 1} attempts failed")

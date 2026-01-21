@@ -17,9 +17,7 @@ router = APIRouter()
 class ConnectionManager:
     def __init__(self) -> None:
         self.active_connections: dict[str, WebSocket] = {}
-        self.client_subscriptions: dict[
-            str, set[str]
-        ] = {}  # client_id -> set of task_ids
+        self.client_subscriptions: dict[str, set[str]] = {}  # client_id -> set of task_ids
 
     async def connect(self, websocket: WebSocket, client_id: str) -> None:
         """接受 WebSocket 连接."""
@@ -41,9 +39,7 @@ class ConnectionManager:
             del self.client_subscriptions[client_id]
         logger.info(f"WebSocket client disconnected: {client_id}")
 
-    async def send_personal_message(
-        self, message: dict[str, Any], client_id: str
-    ) -> None:
+    async def send_personal_message(self, message: dict[str, Any], client_id: str) -> None:
         """发送个人消息."""
         if client_id in self.active_connections:
             websocket = self.active_connections[client_id]
@@ -53,9 +49,7 @@ class ConnectionManager:
                 logger.error(f"Error sending message to {client_id}: {str(e)}")
                 await self.disconnect(client_id)
 
-    async def broadcast_to_subscribers(
-        self, message: dict[str, Any], task_id: str
-    ) -> None:
+    async def broadcast_to_subscribers(self, message: dict[str, Any], task_id: str) -> None:
         """向任务订阅者广播消息."""
         for client_id, subscriptions in self.client_subscriptions.items():
             if task_id in subscriptions:
@@ -75,9 +69,7 @@ class ConnectionManager:
                 self.client_subscriptions[client_id].clear()
             else:
                 self.client_subscriptions[client_id].discard(task_id)
-            logger.info(
-                f"Client {client_id} unsubscribed from task {task_id or 'all tasks'}"
-            )
+            logger.info(f"Client {client_id} unsubscribed from task {task_id or 'all tasks'}")
 
     def get_connection_count(self) -> int:
         """获取当前连接数."""
@@ -100,9 +92,7 @@ class ConnectionManager:
 
         for client_id in disconnected_clients:
             del self.client_subscriptions[client_id]
-            logger.info(
-                f"Cleaned up subscriptions for disconnected client: {client_id}"
-            )
+            logger.info(f"Cleaned up subscriptions for disconnected client: {client_id}")
 
 
 manager = ConnectionManager()
@@ -186,9 +176,7 @@ async def send_task_update(
 
 
 # 发送任务完成通知
-async def send_task_completion(
-    task_id: str, result: dict[Any, Any] | None = None, error: str | None = None
-) -> None:
+async def send_task_completion(task_id: str, result: dict[Any, Any] | None = None, error: str | None = None) -> None:
     """发送任务完成通知."""
     completion_message = {
         "type": "task_completed",
@@ -202,9 +190,7 @@ async def send_task_completion(
 
 
 # 发送批处理进度更新
-async def send_batch_progress(
-    batch_id: str, total: int, processed: int, current_file: str | None = None
-) -> None:
+async def send_batch_progress(batch_id: str, total: int, processed: int, current_file: str | None = None) -> None:
     """发送批处理进度更新."""
     progress_message = {
         "type": "batch_progress",

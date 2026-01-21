@@ -129,14 +129,10 @@ class WebSocketService:
             try:
                 await self.manager.send_personal_message(progress_message, client_id)
             except Exception as e:
-                logger.error(
-                    f"Error sending batch progress to client {client_id}: {str(e)}"
-                )
+                logger.error(f"Error sending batch progress to client {client_id}: {str(e)}")
                 # Continue with other clients
 
-    async def send_paper_analysis(
-        self, paper_id: str, analysis_data: dict[str, Any]
-    ) -> None:
+    async def send_paper_analysis(self, paper_id: str, analysis_data: dict[str, Any]) -> None:
         """发送论文分析结果.
 
         Args:
