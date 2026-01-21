@@ -47,9 +47,7 @@ async def list_tasks(
         return tasks
     except Exception as e:
         logger.error(f"Error listing tasks: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"获取任务列表失败: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"获取任务列表失败: {str(e)}") from e
 
 
 @router.get("/{task_id}", response_model=TaskResponse)

@@ -26,9 +26,7 @@ class Settings:
 
         # 文件存储
         self.PAPERS_DIR: str = os.getenv("PAPERS_DIR", "papers")
-        self.MAX_UPLOAD_SIZE: int = (
-            int(os.getenv("MAX_UPLOAD_SIZE", "50")) * 1024 * 1024
-        )  # MB
+        self.MAX_UPLOAD_SIZE: int = int(os.getenv("MAX_UPLOAD_SIZE", "50")) * 1024 * 1024  # MB
 
         # Claude API
         self.ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
@@ -72,21 +70,15 @@ class Settings:
 
         # 安全设置
         self.SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-this")
-        self.ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
-            os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-        )
+        self.ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
         # CORS 设置
-        self.CORS_ORIGINS: list[str] = os.getenv(
-            "CORS_ORIGINS", "http://localhost:9003"
-        ).split(",")
+        self.CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "http://localhost:9003").split(",")
 
         # 日志设置
         self.LOG_DIR: str = os.getenv("LOG_DIR", "logs")
         self.LOG_FILE: str = os.path.join(self.LOG_DIR, "app.log")
-        self.LOG_MAX_SIZE: int = (
-            int(os.getenv("LOG_MAX_SIZE", "10")) * 1024 * 1024
-        )  # MB
+        self.LOG_MAX_SIZE: int = int(os.getenv("LOG_MAX_SIZE", "10")) * 1024 * 1024  # MB
         self.LOG_BACKUP_COUNT: int = int(os.getenv("LOG_BACKUP_COUNT", "5"))
 
     @property

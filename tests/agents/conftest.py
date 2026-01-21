@@ -80,9 +80,7 @@ def mock_pdf_extract_response():
             "authors": ["John Doe", "Jane Smith"],
             "year": 2024,
         },
-        "images": [
-            {"path": "image1.png", "caption": "Figure 1: Test Image", "position": 1}
-        ],
+        "images": [{"path": "image1.png", "caption": "Figure 1: Test Image", "position": 1}],
         "formulas": [{"latex": "E = mc^2", "position": 5}],
     }
 

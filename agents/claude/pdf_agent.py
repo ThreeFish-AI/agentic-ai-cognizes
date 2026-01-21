@@ -93,17 +93,13 @@ class PDFProcessingAgent(BaseAgent):
                 return {
                     "success": True,
                     "data": {
-                        "content": result["data"].get(
-                            "markdown", result["data"].get("content", "")
-                        ),
+                        "content": result["data"].get("markdown", result["data"].get("content", "")),
                         "metadata": metadata,
                         "images": result["data"].get("images", []),
                         "tables": result["data"].get("tables", []),
                         "formulas": result["data"].get("formulas", []),
                         "page_count": result["data"].get("page_count", 0),
-                        "word_count": self._count_words(
-                            result["data"].get("content", "")
-                        ),
+                        "word_count": self._count_words(result["data"].get("content", "")),
                     },
                 }
             else:
@@ -113,9 +109,7 @@ class PDFProcessingAgent(BaseAgent):
             logger.error(f"Error extracting PDF content: {str(e)}")
             return {"success": False, "error": str(e)}
 
-    async def batch_extract(
-        self, file_paths: list[str], options: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def batch_extract(self, file_paths: list[str], options: dict[str, Any] | None = None) -> dict[str, Any]:
         """批量提取 PDF 内容.
 
         Args:
@@ -134,15 +128,9 @@ class PDFProcessingAgent(BaseAgent):
                         "pdf_source": file_path,
                         "method": options.get("method", "auto") if options else "auto",
                         "include_metadata": True,
-                        "extract_images": options.get("extract_images", True)
-                        if options
-                        else True,
-                        "extract_tables": options.get("extract_tables", True)
-                        if options
-                        else True,
-                        "extract_formulas": options.get("extract_formulas", True)
-                        if options
-                        else True,
+                        "extract_images": options.get("extract_images", True) if options else True,
+                        "extract_tables": options.get("extract_tables", True) if options else True,
+                        "extract_formulas": options.get("extract_formulas", True) if options else True,
                     },
                 }
             )
@@ -165,9 +153,7 @@ class PDFProcessingAgent(BaseAgent):
                     {
                         "file_path": file_paths[i],
                         "success": False,
-                        "error": str(result)
-                        if not isinstance(result, dict)
-                        else result.get("error"),
+                        "error": str(result) if not isinstance(result, dict) else result.get("error"),
                     }
                 )
 
@@ -242,11 +228,7 @@ class PDFProcessingAgent(BaseAgent):
                 processed_img["embedded"] = True
             else:
                 # 生成图片文件名
-                category = (
-                    paper_id.split("_")[0]
-                    if paper_id and "_" in paper_id
-                    else "general"
-                )
+                category = paper_id.split("_")[0] if paper_id and "_" in paper_id else "general"
                 pdf_name = os.path.splitext(os.path.basename(pdf_path))[0]
                 img_filename = f"{pdf_name}_p{img.get('page', 0)}_{img.get('index', 0)}.{img.get('format', 'png')}"
                 img_path = f"images/{category}/{img_filename}"

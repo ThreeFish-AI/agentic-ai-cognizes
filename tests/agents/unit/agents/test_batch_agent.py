@@ -104,9 +104,7 @@ class TestBatchProcessingAgent:
         batch_agent.papers_dir = tmp_path
 
         # Mock methods
-        batch_agent._validate_files = AsyncMock(
-            return_value={"success": True, "files": files, "invalid": []}
-        )
+        batch_agent._validate_files = AsyncMock(return_value={"success": True, "files": files, "invalid": []})
         # Since batch_size=1, _process_batch will be called twice, once for each file
         batch_agent._process_batch = AsyncMock(
             side_effect=[
@@ -115,9 +113,7 @@ class TestBatchProcessingAgent:
             ]
         )
 
-        result = await batch_agent.batch_process(
-            {"files": files, "workflow": "extract", "options": {"batch_size": 1}}
-        )
+        result = await batch_agent.batch_process({"files": files, "workflow": "extract", "options": {"batch_size": 1}})
 
         assert result["success"] is True
         assert result["stats"]["total"] == 2
@@ -133,9 +129,7 @@ class TestBatchProcessingAgent:
 
         # Mock progress callback
         progress_callback = AsyncMock()
-        batch_agent._process_batch = AsyncMock(
-            return_value=[{"file_path": str(file), "success": True}]
-        )
+        batch_agent._process_batch = AsyncMock(return_value=[{"file_path": str(file), "success": True}])
 
         await batch_agent.batch_process(
             {
@@ -266,9 +260,7 @@ class TestBatchProcessingAgent:
             }
             mock_workflow.return_value = mock_agent
 
-            result = await batch_agent._process_single_file(
-                str(file_path), "extract", 1
-            )
+            result = await batch_agent._process_single_file(str(file_path), "extract", 1)
 
             assert result["success"] is True
             assert result["file_path"] == str(file_path)
@@ -291,9 +283,7 @@ class TestBatchProcessingAgent:
             ]
             mock_workflow.return_value = mock_agent
 
-            result = await batch_agent._process_single_file(
-                str(file_path), "extract", 2
-            )
+            result = await batch_agent._process_single_file(str(file_path), "extract", 2)
 
             assert result["success"] is True
             assert result["attempt"] == 2
@@ -313,9 +303,7 @@ class TestBatchProcessingAgent:
             }
             mock_workflow.return_value = mock_agent
 
-            result = await batch_agent._process_single_file(
-                str(file_path), "extract", 2
-            )
+            result = await batch_agent._process_single_file(str(file_path), "extract", 2)
 
             assert result["success"] is False
             assert result["error"] == "Always fails"
@@ -333,9 +321,7 @@ class TestBatchProcessingAgent:
             mock_agent.process.side_effect = Exception("Unexpected error")
             mock_workflow.return_value = mock_agent
 
-            result = await batch_agent._process_single_file(
-                str(file_path), "extract", 1
-            )
+            result = await batch_agent._process_single_file(str(file_path), "extract", 1)
 
             assert result["success"] is False
             assert "Unexpected error" in result["error"]
@@ -455,12 +441,8 @@ class TestBatchProcessingAgent:
         files = ["/path/to/file.pdf"]
 
         # Mock methods
-        batch_agent._validate_files = AsyncMock(
-            return_value={"success": True, "files": files, "invalid": []}
-        )
-        batch_agent._process_batch = AsyncMock(
-            return_value=[{"file_path": files[0], "success": True}]
-        )
+        batch_agent._validate_files = AsyncMock(return_value={"success": True, "files": files, "invalid": []})
+        batch_agent._process_batch = AsyncMock(return_value=[{"file_path": files[0], "success": True}])
 
         await batch_agent.batch_process({"files": files, "workflow": "full"})
 

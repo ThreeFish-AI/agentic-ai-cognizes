@@ -30,12 +30,8 @@ class TestAPIIntegration:
         # Mock file operations
         with patch_file_operations():
             # Setup mock storage
-            mock_file_manager.mkdir(
-                "/test/papers/source/llm-agents", parents=True, exist_ok=True
-            )
-            mock_file_manager.add_file(
-                "/test/papers/source/llm-agents/test_paper.pdf", paper_content
-            )
+            mock_file_manager.mkdir("/test/papers/source/llm-agents", parents=True, exist_ok=True)
+            mock_file_manager.add_file("/test/papers/source/llm-agents/test_paper.pdf", paper_content)
 
             # Create mock service instance
             mock_service = AsyncMock()
@@ -56,9 +52,7 @@ class TestAPIIntegration:
                 }
             )
 
-            mock_service.process_paper = AsyncMock(
-                return_value={"task_id": "task_123", "status": "processing"}
-            )
+            mock_service.process_paper = AsyncMock(return_value={"task_id": "task_123", "status": "processing"})
 
             mock_service.get_status = AsyncMock(
                 return_value={
@@ -96,9 +90,7 @@ class TestAPIIntegration:
                 # Upload paper
                 upload_response = await async_client.post(
                     "/api/papers/upload",
-                    files={
-                        "file": ("test_paper.pdf", paper_content, "application/pdf")
-                    },
+                    files={"file": ("test_paper.pdf", paper_content, "application/pdf")},
                     params={"category": "llm-agents"},
                 )
 
@@ -124,9 +116,7 @@ class TestAPIIntegration:
                 assert len(task_id) > 0
 
                 # 3. Check status
-                status_response = await async_client.get(
-                    f"/api/papers/{paper_id}/status"
-                )
+                status_response = await async_client.get(f"/api/papers/{paper_id}/status")
                 assert status_response.status_code == 200
                 status_data = status_response.json()
                 assert status_data["status"] == "completed"
@@ -204,9 +194,7 @@ class TestAPIIntegration:
         mock_websocket_service.add_active_task(task_id, paper_id, "translate")
 
         # Subscribe to task updates
-        await mock_websocket_service.connection_manager.subscribe_to_task(
-            "test_client", task_id
-        )
+        await mock_websocket_service.connection_manager.subscribe_to_task("test_client", task_id)
 
         # Simulate progress updates
         progress_steps = [
@@ -223,9 +211,7 @@ class TestAPIIntegration:
         assert len(messages) >= 4  # Should have progress updates
 
         # Verify subscription
-        subscribers = mock_websocket_service.connection_manager.get_task_subscribers(
-            task_id
-        )
+        subscribers = mock_websocket_service.connection_manager.get_task_subscribers(task_id)
         assert "test_client" in subscribers
 
     @pytest.mark.asyncio
@@ -252,9 +238,7 @@ class TestAPIIntegration:
             service.upload_paper = AsyncMock(return_value={"paper_id": "test_paper"})
             service.process_paper = AsyncMock(side_effect=ValueError("Paper not found"))
 
-            process_response = await async_client.post(
-                "/api/papers/test_paper/process", json={"workflow": "full"}
-            )
+            process_response = await async_client.post("/api/papers/test_paper/process", json={"workflow": "full"})
 
             assert process_response.status_code == 404
             assert "Paper not found" in process_response.json()["detail"]
@@ -311,9 +295,7 @@ class TestAPIIntegration:
     async def test_file_validation_integration(self, async_client):
         """Test file validation in upload endpoint."""
         # Test invalid file type
-        response = await async_client.post(
-            "/api/papers/upload", files={"file": ("test.txt", b"content", "text/plain")}
-        )
+        response = await async_client.post("/api/papers/upload", files={"file": ("test.txt", b"content", "text/plain")})
         assert response.status_code == 400
         assert "只支持 PDF 文件" in response.json()["detail"]
 
@@ -357,9 +339,7 @@ class TestAPIIntegration:
 
         try:
             # Test first page
-            response = await async_client.get(
-                "/api/papers/", params={"limit": 10, "offset": 0}
-            )
+            response = await async_client.get("/api/papers/", params={"limit": 10, "offset": 0})
             assert response.status_code == 200
             data = response.json()
             assert len(data["papers"]) == 10
@@ -385,9 +365,7 @@ class TestAPIIntegration:
                 "offset": 10,
             }
 
-            response = await async_client.get(
-                "/api/papers/", params={"limit": 10, "offset": 10}
-            )
+            response = await async_client.get("/api/papers/", params={"limit": 10, "offset": 10})
             assert response.status_code == 200
             data = response.json()
             assert len(data["papers"]) == 10
@@ -424,18 +402,14 @@ class TestAPIIntegration:
         app.dependency_overrides[get_paper_service] = lambda: service
 
         try:
-            response = await async_client.get(
-                "/api/papers/", params={"category": "llm-agents"}
-            )
+            response = await async_client.get("/api/papers/", params={"category": "llm-agents"})
             assert response.status_code == 200
             data = response.json()
             assert len(data["papers"]) == 1
             assert data["papers"][0]["category"] == "llm-agents"
 
             # Verify service was called with correct parameters
-            service.list_papers.assert_called_with(
-                category="llm-agents", status=None, limit=20, offset=0
-            )
+            service.list_papers.assert_called_with(category="llm-agents", status=None, limit=20, offset=0)
         finally:
             # Clean up dependency override
             app.dependency_overrides.clear()
@@ -446,9 +420,7 @@ class TestAPIIntegration:
         paper_id = "test_paper"
 
         # Test invalid content type
-        response = await async_client.get(
-            f"/api/papers/{paper_id}/content", params={"content_type": "invalid_type"}
-        )
+        response = await async_client.get(f"/api/papers/{paper_id}/content", params={"content_type": "invalid_type"})
         assert response.status_code == 400
         assert "无效的内容类型" in response.json()["detail"]
 

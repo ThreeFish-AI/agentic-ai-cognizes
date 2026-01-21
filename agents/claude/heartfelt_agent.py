@@ -20,9 +20,7 @@ class HeartfeltAgent(BaseAgent):
             config: 配置参数
         """
         super().__init__("heartfelt", config)
-        self.papers_dir = Path(
-            config.get("papers_dir", "papers") if config else "papers"
-        )
+        self.papers_dir = Path(config.get("papers_dir", "papers") if config else "papers")
         self.default_options = {
             "generate_summary": True,
             "generate_insights": True,
@@ -111,9 +109,7 @@ class HeartfeltAgent(BaseAgent):
             logger.error(f"Error in heartfelt analysis: {str(e)}")
             return {"success": False, "error": str(e)}
 
-    def _process_analysis_result(
-        self, data: dict[str, Any], original_content: str
-    ) -> dict[str, Any]:
+    def _process_analysis_result(self, data: dict[str, Any], original_content: str) -> dict[str, Any]:
         """处理分析结果.
 
         Args:
@@ -210,9 +206,7 @@ class HeartfeltAgent(BaseAgent):
         """
         try:
             category = paper_id.split("_")[0] if "_" in paper_id else "general"
-            analysis_file = (
-                self.papers_dir / "heartfelt" / category / f"{paper_id}_analysis.json"
-            )
+            analysis_file = self.papers_dir / "heartfelt" / category / f"{paper_id}_analysis.json"
 
             if not analysis_file.exists():
                 return {"success": False, "error": "Analysis not found"}
@@ -227,9 +221,7 @@ class HeartfeltAgent(BaseAgent):
             report = self._generate_report_content(analysis_data)
 
             # 保存报告
-            report_file = (
-                self.papers_dir / "heartfelt" / category / f"{paper_id}_report.md"
-            )
+            report_file = self.papers_dir / "heartfelt" / category / f"{paper_id}_report.md"
             with open(report_file, "w", encoding="utf-8") as f:
                 f.write(report)
 

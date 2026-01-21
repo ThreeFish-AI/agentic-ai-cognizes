@@ -99,9 +99,7 @@ class TestPapersRoutes:
         data = response.json()
         assert data["task_id"] == "task_456"
         assert data["status"] == "processing"
-        mock_paper_service.process_paper.assert_called_once_with(
-            paper_id, workflow, options={"extract_images": True}
-        )
+        mock_paper_service.process_paper.assert_called_once_with(paper_id, workflow, options={"extract_images": True})
 
     def test_process_paper_not_found(self, client, mock_paper_service):
         """Test processing non-existent paper."""
@@ -187,9 +185,7 @@ class TestPapersRoutes:
             "content_type": content_type,
         }
 
-        response = client.get(
-            f"/api/papers/{paper_id}/content", params={"content_type": content_type}
-        )
+        response = client.get(f"/api/papers/{paper_id}/content", params={"content_type": content_type})
 
         assert response.status_code == 200
         data = response.json()
@@ -199,9 +195,7 @@ class TestPapersRoutes:
         """Test getting content with invalid type."""
         paper_id = "test_paper"
 
-        response = client.get(
-            f"/api/papers/{paper_id}/content", params={"content_type": "invalid"}
-        )
+        response = client.get(f"/api/papers/{paper_id}/content", params={"content_type": "invalid"})
 
         assert response.status_code == 400
         assert "无效的内容类型" in response.json()["detail"]
@@ -211,9 +205,7 @@ class TestPapersRoutes:
         paper_id = "nonexistent"
         mock_paper_service.get_content.side_effect = ValueError("Paper not found")
 
-        response = client.get(
-            f"/api/papers/{paper_id}/content", params={"content_type": "translation"}
-        )
+        response = client.get(f"/api/papers/{paper_id}/content", params={"content_type": "translation"})
 
         assert response.status_code == 404
 
@@ -275,9 +267,7 @@ class TestPapersRoutes:
             "offset": 0,
         }
 
-        response = client.get(
-            "/api/papers/", params={"category": category, "status": status}
-        )
+        response = client.get("/api/papers/", params={"category": category, "status": status})
 
         assert response.status_code == 200
         data = response.json()
@@ -347,9 +337,7 @@ class TestPapersRoutes:
         }
         mock_paper_service.batch_process_papers.return_value = mock_response
 
-        response = client.post(
-            "/api/papers/batch", params={"workflow": workflow}, json=paper_ids
-        )
+        response = client.post("/api/papers/batch", params={"workflow": workflow}, json=paper_ids)
 
         assert response.status_code == 200
         data = response.json()
@@ -439,9 +427,7 @@ class TestPapersRoutes:
             ("/api/papers/nonexistent/report", "GET"),
         ],
     )
-    def test_paper_not_found_endpoints(
-        self, client, mock_paper_service, endpoint, method
-    ):
+    def test_paper_not_found_endpoints(self, client, mock_paper_service, endpoint, method):
         """Test various endpoints with non-existent paper."""
         mock_paper_service.get_status.side_effect = ValueError("Paper not found")
         mock_paper_service.get_content.side_effect = ValueError("Paper not found")

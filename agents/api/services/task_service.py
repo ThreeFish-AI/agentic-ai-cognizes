@@ -28,9 +28,7 @@ class TaskService:
         logger.info("TaskService cleanup completed")
         # 保存正在运行的任务状态
 
-    async def create_task(
-        self, paper_id: str, workflow: str, params: dict[str, Any] | None = None
-    ) -> str:
+    async def create_task(self, paper_id: str, workflow: str, params: dict[str, Any] | None = None) -> str:
         """创建新任务.
 
         Args:
@@ -129,9 +127,7 @@ class TaskService:
         try:
             from ..routes.websocket import send_task_update
 
-            await send_task_update(
-                task_id, status or "unknown", progress or 0.0, message or ""
-            )
+            await send_task_update(task_id, status or "unknown", progress or 0.0, message or "")
 
             # 如果任务完成，发送完成通知
             if status in ["completed", "failed"]:
@@ -167,9 +163,7 @@ class TaskService:
             }
 
         # 更新状态
-        await self.update_task(
-            task_id, status="cancelled", message="Task cancelled by user"
-        )
+        await self.update_task(task_id, status="cancelled", message="Task cancelled by user")
 
         return {
             "task_id": task_id,
@@ -242,9 +236,7 @@ class TaskService:
             logger.error(f"Error reading task logs: {str(e)}")
             return []
 
-    async def cleanup_completed_tasks(
-        self, older_than_hours: int = 24
-    ) -> dict[str, Any]:
+    async def cleanup_completed_tasks(self, older_than_hours: int = 24) -> dict[str, Any]:
         """清理已完成的任务.
 
         Args:

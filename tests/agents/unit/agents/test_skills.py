@@ -72,16 +72,12 @@ class TestSkillInvoker:
         assert invoker.anthropic_client is None
         assert len(invoker.skill_registry) == 7
 
-    def test_init_with_api_key_and_base_url(
-        self, skill_invoker_with_api_key_and_base_url
-    ):
+    def test_init_with_api_key_and_base_url(self, skill_invoker_with_api_key_and_base_url):
         """Test SkillInvoker initialization with API key and base URL."""
         invoker, mock_anthropic_class = skill_invoker_with_api_key_and_base_url
         assert invoker.anthropic_client is not None
         # Verify that Anthropic was called with both api_key and base_url
-        mock_anthropic_class.assert_called_once_with(
-            api_key="test-key", base_url="https://test.api.example.com"
-        )
+        mock_anthropic_class.assert_called_once_with(api_key="test-key", base_url="https://test.api.example.com")
         assert len(invoker.skill_registry) == 7
 
     async def test_call_skill_success(self, skill_invoker_with_api_key):
@@ -186,9 +182,7 @@ class TestSkillInvoker:
                 mock_page.extract_text.return_value = "Downloaded PDF content"
                 mock_pdf.return_value.__enter__.return_value.pages = [mock_page]
 
-                result = await invoker._handle_pdf_reader(
-                    {"url": "https://example.com/test.pdf"}
-                )
+                result = await invoker._handle_pdf_reader({"url": "https://example.com/test.pdf"})
 
                 assert result["success"] is True
                 assert "Downloaded PDF content" in result["data"]["content"]
@@ -277,9 +271,7 @@ class TestSkillInvoker:
             mock_client.get.return_value = mock_response
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            result = await invoker._handle_web_translator(
-                {"url": "https://example.com"}
-            )
+            result = await invoker._handle_web_translator({"url": "https://example.com"})
 
             assert result["success"] is True
             assert "Main Content" in result["content"]
@@ -289,25 +281,19 @@ class TestSkillInvoker:
             assert "Footer" not in result["content"]
 
     @pytest.mark.asyncio
-    async def test_handle_web_translator_with_markdown_conversion(
-        self, skill_invoker_no_api_key
-    ):
+    async def test_handle_web_translator_with_markdown_conversion(self, skill_invoker_no_api_key):
         """Test web translator skill with markdown conversion."""
         invoker = skill_invoker_no_api_key
 
         with patch("httpx.AsyncClient") as mock_client_class:
             mock_client = AsyncMock()
             mock_response = MagicMock()
-            mock_response.text = (
-                "<html><body><h1>Title</h1><p>Content</p></body></html>"
-            )
+            mock_response.text = "<html><body><h1>Title</h1><p>Content</p></body></html>"
             mock_response.status_code = 200
             mock_client.get.return_value = mock_response
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            result = await invoker._handle_web_translator(
-                {"url": "https://example.com", "format": "markdown"}
-            )
+            result = await invoker._handle_web_translator({"url": "https://example.com", "format": "markdown"})
 
             assert result["success"] is True
             assert "# Title" in result["content"]
@@ -323,9 +309,7 @@ class TestSkillInvoker:
         mock_response.content = [MagicMock(text="中文翻译结果")]
         invoker.anthropic_client.messages.create.return_value = mock_response
 
-        result = await invoker._handle_zh_translator(
-            {"text": "English text to translate", "target_language": "zh"}
-        )
+        result = await invoker._handle_zh_translator({"text": "English text to translate", "target_language": "zh"})
 
         assert result["success"] is True
         assert result["translated_text"] == "中文翻译结果"
@@ -336,9 +320,7 @@ class TestSkillInvoker:
         """Test Chinese translator skill without API key."""
         invoker = skill_invoker_no_api_key
 
-        result = await invoker._handle_zh_translator(
-            {"text": "Test text", "target_language": "zh"}
-        )
+        result = await invoker._handle_zh_translator({"text": "Test text", "target_language": "zh"})
 
         assert result["success"] is False
         assert "Anthropic API key not configured" in result["error"]
@@ -421,9 +403,7 @@ class TestSkillInvoker:
                     "translated_text": "Translated document content",
                 }
 
-                result = await invoker._handle_doc_translator(
-                    {"file_path": "document.pdf", "target_language": "zh"}
-                )
+                result = await invoker._handle_doc_translator({"file_path": "document.pdf", "target_language": "zh"})
 
                 assert result["success"] is True
                 assert result["translated_content"] == "Translated document content"
@@ -504,26 +484,20 @@ class TestSkillInvoker:
             mock_client.get.side_effect = httpx.RequestError("Connection failed")
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            result = await invoker._handle_web_translator(
-                {"url": "https://example.com"}
-            )
+            result = await invoker._handle_web_translator({"url": "https://example.com"})
 
             assert result["success"] is False
             assert "Connection failed" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_error_handling_translation_api_failure(
-        self, skill_invoker_with_api_key
-    ):
+    async def test_error_handling_translation_api_failure(self, skill_invoker_with_api_key):
         """Test handling of translation API failures."""
         invoker = skill_invoker_with_api_key
 
         # Mock API failure
         invoker.anthropic_client.messages.create.side_effect = Exception("API error")
 
-        result = await invoker._handle_zh_translator(
-            {"text": "Test text", "target_language": "zh"}
-        )
+        result = await invoker._handle_zh_translator({"text": "Test text", "target_language": "zh"})
 
         assert result["success"] is False
         assert "API error" in result["error"]

@@ -34,9 +34,7 @@ class TestTranslationAgent:
         assert translation_agent.default_options["preserve_formulas"] is True
         assert translation_agent.default_options["batch_size"] == 5000
 
-    def test_translation_agent_initialization_with_config(
-        self, translation_agent_with_config
-    ):
+    def test_translation_agent_initialization_with_config(self, translation_agent_with_config):
         """Test TranslationAgent initialization with config."""
         assert translation_agent_with_config.name == "translator"
         assert translation_agent_with_config.config == {
@@ -66,9 +64,7 @@ class TestTranslationAgent:
         }
 
         # Mock the translate method
-        translation_agent.translate = AsyncMock(
-            return_value={"success": True, "data": {"content": "翻译内容"}}
-        )
+        translation_agent.translate = AsyncMock(return_value={"success": True, "data": {"content": "翻译内容"}})
 
         result = await translation_agent.process(input_data)
 
@@ -101,9 +97,7 @@ class TestTranslationAgent:
 
         assert result["success"] is True
         translation_agent._translate_single.assert_called_once()
-        translation_agent._save_translation.assert_called_once_with(
-            "test_paper", "翻译后的内容"
-        )
+        translation_agent._save_translation.assert_called_once_with("test_paper", "翻译后的内容")
 
     @pytest.mark.asyncio
     async def test_translate_large_content(self, translation_agent):
@@ -135,9 +129,7 @@ class TestTranslationAgent:
         params = {"content": "Test content"}
 
         # Mock exception
-        translation_agent._translate_single = AsyncMock(
-            side_effect=Exception("Translation error")
-        )
+        translation_agent._translate_single = AsyncMock(side_effect=Exception("Translation error"))
 
         result = await translation_agent.translate(params)
 
@@ -156,9 +148,7 @@ class TestTranslationAgent:
         }
 
         # Mock skill call
-        translation_agent.call_skill = AsyncMock(
-            return_value={"success": True, "data": "你好世界"}
-        )
+        translation_agent.call_skill = AsyncMock(return_value={"success": True, "data": "你好世界"})
 
         result = await translation_agent._translate_single(params)
 
@@ -187,9 +177,7 @@ class TestTranslationAgent:
         }
 
         # Mock failed skill call
-        translation_agent.call_skill = AsyncMock(
-            return_value={"success": False, "error": "Translation service error"}
-        )
+        translation_agent.call_skill = AsyncMock(return_value={"success": False, "error": "Translation service error"})
 
         result = await translation_agent._translate_single(params)
 
@@ -258,9 +246,7 @@ class TestTranslationAgent:
 
         assert result["success"] is True
         assert "第一批翻译" in result["data"]["content"]
-        assert (
-            "Second batch" in result["data"]["content"]
-        )  # Original content as fallback
+        assert "Second batch" in result["data"]["content"]  # Original content as fallback
 
     @pytest.mark.asyncio
     async def test_save_translation_success(self, translation_agent, tmp_path):

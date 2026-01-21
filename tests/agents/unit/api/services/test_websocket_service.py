@@ -24,9 +24,7 @@ class TestWebSocketService:
         """Create a WebSocketService instance for testing."""
         return WebSocketService(mock_connection_manager)
 
-    def test_websocket_service_initialization(
-        self, websocket_service, mock_connection_manager
-    ):
+    def test_websocket_service_initialization(self, websocket_service, mock_connection_manager):
         """Test WebSocketService initialization."""
         assert websocket_service.manager == mock_connection_manager
 
@@ -245,9 +243,7 @@ class TestWebSocketService:
         processed = 5
         current_file = "paper5.pdf"
 
-        await websocket_service.send_batch_progress(
-            batch_id, total, processed, current_file
-        )
+        await websocket_service.send_batch_progress(batch_id, total, processed, current_file)
 
         # Verify send_personal_message was called for each active connection
         assert websocket_service.manager.send_personal_message.call_count == 3
@@ -296,9 +292,7 @@ class TestWebSocketService:
         processed = 10
         current_file = None
 
-        await websocket_service.send_batch_progress(
-            batch_id, total, processed, current_file
-        )
+        await websocket_service.send_batch_progress(batch_id, total, processed, current_file)
 
         # Verify send_personal_message was called for each active connection
         assert websocket_service.manager.send_personal_message.call_count == 3
@@ -322,9 +316,7 @@ class TestWebSocketService:
         status = "processing"
 
         # Make the manager's broadcast_to_subscribers raise an exception
-        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception(
-            "WebSocket error"
-        )
+        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception("WebSocket error")
 
         # Should not raise exception, just log it
         await websocket_service.send_task_update(task_id, status)
@@ -336,16 +328,12 @@ class TestWebSocketService:
         websocket_service.manager.broadcast_to_subscribers.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_send_task_completion_exception_handling(
-        self, websocket_service, caplog
-    ):
+    async def test_send_task_completion_exception_handling(self, websocket_service, caplog):
         """Test send_task_completion exception handling."""
         task_id = "task_123"
 
         # Make the manager's broadcast_to_subscribers raise an exception
-        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception(
-            "WebSocket connection lost"
-        )
+        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception("WebSocket connection lost")
 
         # Should not raise exception, just log it
         await websocket_service.send_task_completion(task_id)
@@ -357,18 +345,14 @@ class TestWebSocketService:
         websocket_service.manager.broadcast_to_subscribers.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_send_batch_progress_exception_handling(
-        self, websocket_service, caplog
-    ):
+    async def test_send_batch_progress_exception_handling(self, websocket_service, caplog):
         """Test send_batch_progress exception handling."""
         batch_id = "batch_123"
         total = 10
         processed = 5
 
         # Make the manager's send_personal_message raise an exception
-        websocket_service.manager.send_personal_message.side_effect = Exception(
-            "Broadcast failed"
-        )
+        websocket_service.manager.send_personal_message.side_effect = Exception("Broadcast failed")
 
         # Should not raise exception, just log it
         await websocket_service.send_batch_progress(batch_id, total, processed)
@@ -485,9 +469,7 @@ class TestWebSocketService:
             assert websocket_service.manager.send_personal_message.call_count == 3
 
             # Check the arguments for the first call
-            call_args = websocket_service.manager.send_personal_message.call_args_list[
-                0
-            ]
+            call_args = websocket_service.manager.send_personal_message.call_args_list[0]
             message = call_args[0][0]
 
             assert message["type"] == "batch_progress"
@@ -574,30 +556,17 @@ class TestWebSocketService:
         assert message["type"] == "paper_analysis"
         assert message["paper_id"] == paper_id
         # Empty dict should only have type, paper_id, and timestamp
-        assert (
-            len(
-                [
-                    k
-                    for k in message.keys()
-                    if k not in ["type", "paper_id", "timestamp"]
-                ]
-            )
-            == 0
-        )
+        assert len([k for k in message.keys() if k not in ["type", "paper_id", "timestamp"]]) == 0
         assert "timestamp" in message
 
     @pytest.mark.asyncio
-    async def test_send_paper_analysis_exception_handling(
-        self, websocket_service, caplog
-    ):
+    async def test_send_paper_analysis_exception_handling(self, websocket_service, caplog):
         """Test send_paper_analysis exception handling."""
         paper_id = "paper_error"
         analysis_data = {"title": "Error Test"}
 
         # Make the manager's broadcast_to_subscribers raise an exception
-        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception(
-            "Analysis broadcast failed"
-        )
+        websocket_service.manager.broadcast_to_subscribers.side_effect = Exception("Analysis broadcast failed")
 
         # Should not raise exception, just log it
         await websocket_service.send_paper_analysis(paper_id, analysis_data)

@@ -85,17 +85,13 @@ async def process_paper(
     - **workflow**: Workflow type
     """
     try:
-        result = await service.process_paper(
-            paper_id, request.workflow, options=request.options
-        )
+        result = await service.process_paper(paper_id, request.workflow, options=request.options)
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error processing paper {paper_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Processing failed: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}") from e
 
 
 @router.get("/{paper_id}/status", response_model=PaperStatus)
@@ -115,17 +111,13 @@ async def get_paper_status(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error getting paper status {paper_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get status: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to get status: {str(e)}") from e
 
 
 @router.get("/{paper_id}/content")
 async def get_paper_content(
     paper_id: str = Path(..., description="Paper ID"),
-    content_type: str = Query(
-        "translation", description="Content type: source, translation, heartfelt"
-    ),
+    content_type: str = Query("translation", description="Content type: source, translation, heartfelt"),
     service: PaperService = Depends(get_paper_service),
 ) -> dict[str, Any]:
     """
@@ -144,9 +136,7 @@ async def get_paper_content(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error getting paper content {paper_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get content: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to get content: {str(e)}") from e
 
 
 @router.get("/", response_model=PaperListResponse)
@@ -166,15 +156,11 @@ async def list_papers(
     - **offset**: Offset
     """
     try:
-        papers = await service.list_papers(
-            category=category, status=status, limit=limit, offset=offset
-        )
+        papers = await service.list_papers(category=category, status=status, limit=limit, offset=offset)
         return papers
     except Exception as e:
         logger.error(f"Error listing papers: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get list: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to get list: {str(e)}") from e
 
 
 @router.delete("/{paper_id}")
@@ -237,9 +223,7 @@ async def get_paper_report(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error getting paper report {paper_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get report: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to get report: {str(e)}") from e
 
 
 @router.post("/{paper_id}/translate")
@@ -259,9 +243,7 @@ async def translate_paper(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error translating paper {paper_id}: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Translation failed: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}") from e
 
 
 @router.post("/{paper_id}/analyze")

@@ -22,9 +22,7 @@ class BatchProcessingAgent(BaseAgent):
             config: 配置参数
         """
         super().__init__("batch_processor", config)
-        self.papers_dir = Path(
-            config.get("papers_dir", "papers") if config else "papers"
-        )
+        self.papers_dir = Path(config.get("papers_dir", "papers") if config else "papers")
         self.default_options = {
             "batch_size": 10,  # 每批处理的文件数
             "parallel_tasks": 3,  # 并行任务数
@@ -79,9 +77,7 @@ class BatchProcessingAgent(BaseAgent):
         logger.info(f"Starting batch processing for {len(valid_files['files'])} files")
 
         # 创建批次
-        batches = self._create_batches(
-            valid_files["files"], options.get("batch_size", 10)
-        )
+        batches = self._create_batches(valid_files["files"], options.get("batch_size", 10))
 
         # 处理所有批次
         all_results = []
@@ -89,9 +85,7 @@ class BatchProcessingAgent(BaseAgent):
         processed_files = 0
 
         for i, batch in enumerate(batches):
-            logger.info(
-                f"Processing batch {i + 1}/{len(batches)} with {len(batch)} files"
-            )
+            logger.info(f"Processing batch {i + 1}/{len(batches)} with {len(batch)} files")
 
             # 处理当前批次
             batch_results = await self._process_batch(batch, workflow, options)
@@ -115,9 +109,7 @@ class BatchProcessingAgent(BaseAgent):
         end_time = datetime.now()
         stats = self._calculate_stats(all_results, start_time, end_time)
 
-        logger.info(
-            f"Batch processing completed: {stats['successful']}/{stats['total']} successful"
-        )
+        logger.info(f"Batch processing completed: {stats['successful']}/{stats['total']} successful")
 
         return {
             "success": True,
@@ -168,9 +160,7 @@ class BatchProcessingAgent(BaseAgent):
 
         return batches
 
-    async def _process_batch(
-        self, files: list[str], workflow: str, options: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    async def _process_batch(self, files: list[str], workflow: str, options: dict[str, Any]) -> list[dict[str, Any]]:
         """处理单个批次.
 
         Args:
@@ -213,9 +203,7 @@ class BatchProcessingAgent(BaseAgent):
                     }
                 )
             else:
-                processed_results.append(result) if isinstance(
-                    result, dict
-                ) else processed_results.append(
+                processed_results.append(result) if isinstance(result, dict) else processed_results.append(
                     {
                         "success": False,
                         "error": f"Unexpected result type: {type(result)}",
@@ -224,9 +212,7 @@ class BatchProcessingAgent(BaseAgent):
 
         return processed_results
 
-    async def _process_single_file(
-        self, file_path: str, workflow: str, retry_count: int
-    ) -> dict[str, Any]:
+    async def _process_single_file(self, file_path: str, workflow: str, retry_count: int) -> dict[str, Any]:
         """处理单个文件，支持重试.
 
         Args:
@@ -244,9 +230,7 @@ class BatchProcessingAgent(BaseAgent):
                 # 生成 paper_id
                 file_name = os.path.splitext(os.path.basename(file_path))[0]
                 category = self._get_category_from_path(file_path)
-                paper_id = (
-                    f"{category}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file_name}"
-                )
+                paper_id = f"{category}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file_name}"
 
                 # 调用 WorkflowAgent 处理
                 from .workflow_agent import WorkflowAgent
@@ -275,9 +259,7 @@ class BatchProcessingAgent(BaseAgent):
 
             except Exception as e:
                 last_error = str(e)
-                logger.error(
-                    f"Error processing {file_path} (attempt {attempt + 1}): {last_error}"
-                )
+                logger.error(f"Error processing {file_path} (attempt {attempt + 1}): {last_error}")
 
                 if attempt < retry_count:
                     # 等待后重试

@@ -35,9 +35,7 @@ class BaseAgent(ABC):
         """
         pass
 
-    async def call_skill(
-        self, skill_name: str, params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def call_skill(self, skill_name: str, params: dict[str, Any]) -> dict[str, Any]:
         """调用 Claude Skill.
 
         Args:
@@ -72,9 +70,7 @@ class BaseAgent(ABC):
             logger.error(f"Error calling skill {skill_name}: {str(e)}")
             return {"success": False, "error": str(e)}
 
-    async def batch_call_skill(
-        self, calls: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    async def batch_call_skill(self, calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """批量调用 Skills，提高并发性能.
 
         Args:
@@ -114,15 +110,11 @@ class BaseAgent(ABC):
         """
         return isinstance(input_data, dict)
 
-    async def log_processing(
-        self, input_data: dict[str, Any], output_data: dict[str, Any]
-    ) -> None:
+    async def log_processing(self, input_data: dict[str, Any], output_data: dict[str, Any]) -> None:
         """记录处理日志.
 
         Args:
             input_data: 输入数据
             output_data: 输出数据
         """
-        logger.info(
-            f"{self.name} processed: {input_data} -> {output_data.get('success', False)}"
-        )
+        logger.info(f"{self.name} processed: {input_data} -> {output_data.get('success', False)}")

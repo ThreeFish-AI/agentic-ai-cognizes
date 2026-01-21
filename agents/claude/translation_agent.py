@@ -19,9 +19,7 @@ class TranslationAgent(BaseAgent):
             config: 配置参数
         """
         super().__init__("translator", config)
-        self.papers_dir = Path(
-            config.get("papers_dir", "papers") if config else "papers"
-        )
+        self.papers_dir = Path(config.get("papers_dir", "papers") if config else "papers")
         self.default_options: dict[str, Any] = {
             "target_language": "zh",
             "preserve_format": True,
@@ -279,9 +277,7 @@ class TranslationAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Error saving translation: {str(e)}")
 
-    async def validate_translation(
-        self, original: str, translated: str
-    ) -> dict[str, Any]:
+    async def validate_translation(self, original: str, translated: str) -> dict[str, Any]:
         """验证翻译质量.
 
         Args:
@@ -314,8 +310,7 @@ class TranslationAgent(BaseAgent):
                 "translated_length": translated_length,
                 "length_ratio": length_ratio,
                 "code_blocks_preserved": code_blocks_original == code_blocks_translated,
-                "formulas_preserved": formula_blocks_original
-                == formula_blocks_translated,
+                "formulas_preserved": formula_blocks_original == formula_blocks_translated,
             },
         }
 
@@ -327,9 +322,7 @@ class TranslationAgent(BaseAgent):
             validation["warnings"].append("Code blocks may not be preserved correctly")
 
         if formula_blocks_original != formula_blocks_translated:
-            validation["warnings"].append(
-                "Math formulas may not be preserved correctly"
-            )
+            validation["warnings"].append("Math formulas may not be preserved correctly")
 
         return validation
 

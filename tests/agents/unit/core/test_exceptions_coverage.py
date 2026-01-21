@@ -35,9 +35,7 @@ def test_base_api_exception():
     assert err.details == {"field": "value"}
 
     # Test with both code and details
-    err = BaseAPIException(
-        "Test error", code="CUSTOM_ERROR", details={"field": "value"}
-    )
+    err = BaseAPIException("Test error", code="CUSTOM_ERROR", details={"field": "value"})
     assert err.code == "CUSTOM_ERROR"
     assert err.details == {"field": "value"}
 

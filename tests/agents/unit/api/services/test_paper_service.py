@@ -41,9 +41,7 @@ class TestPaperService:
         return file
 
     @pytest.mark.asyncio
-    async def test_upload_paper_success(
-        self, paper_service, mock_upload_file, temp_dir
-    ):
+    async def test_upload_paper_success(self, paper_service, mock_upload_file, temp_dir):
         """Test successful paper upload."""
         # Setup mocks
         papers_dir = temp_dir / "papers"
@@ -52,26 +50,17 @@ class TestPaperService:
                 str(papers_dir / "source/llm-agents/test_paper.pdf"),
                 mock_upload_file.file.getvalue(),
             )
-            mock_file_manager.mkdir(
-                str(papers_dir / "source/llm-agents"), parents=True, exist_ok=True
-            )
+            mock_file_manager.mkdir(str(papers_dir / "source/llm-agents"), parents=True, exist_ok=True)
 
             with patch("agents.api.services.paper_service.datetime") as mock_datetime:
                 mock_datetime.now.return_value.strftime.return_value = "20240115_143022"
 
                 # Mock metadata saving
-                with patch.object(
-                    paper_service, "_save_metadata", new_callable=AsyncMock
-                ):
-                    result = await paper_service.upload_paper(
-                        mock_upload_file, "llm-agents"
-                    )
+                with patch.object(paper_service, "_save_metadata", new_callable=AsyncMock):
+                    result = await paper_service.upload_paper(mock_upload_file, "llm-agents")
 
                     # Assert result
-                    assert (
-                        result["paper_id"]
-                        == "llm-agents_20240115_143022_test_paper.pdf"
-                    )
+                    assert result["paper_id"] == "llm-agents_20240115_143022_test_paper.pdf"
                     assert result["filename"] == "test_paper.pdf"
                     assert result["category"] == "llm-agents"
                     assert result["size"] == len(mock_upload_file.file.getvalue())
@@ -108,9 +97,7 @@ class TestPaperService:
         source_path = papers_dir / "source/test/test_paper_123.pdf"
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                 mock_get_meta.return_value = {"workflows": {}}
 
                 with patch_file_operations():
@@ -148,12 +135,8 @@ class TestPaperService:
         source_path = papers_dir / "source/test/nonexistent_paper"
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
-                mock_get_meta.return_value = (
-                    None  # No metadata means paper doesn't exist
-                )
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
+                mock_get_meta.return_value = None  # No metadata means paper doesn't exist
 
                 with patch_file_operations():
                     # File doesn't exist
@@ -173,9 +156,7 @@ class TestPaperService:
         papers_dir = temp_dir / "papers"
         source_path = papers_dir / "source/test/test_paper_123.pdf"
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                 mock_get_meta.return_value = {"workflows": {}}
 
                 with patch_file_operations():
@@ -189,9 +170,7 @@ class TestPaperService:
                         "result": "Processing started with options",
                     }
 
-                    result = await paper_service.process_paper(
-                        paper_id, workflow, options
-                    )
+                    result = await paper_service.process_paper(paper_id, workflow, options)
 
                     paper_service.workflow_agent.process.assert_called_once_with(
                         {
@@ -218,9 +197,7 @@ class TestPaperService:
             },
         }
 
-        with patch.object(
-            paper_service, "_get_metadata", new_callable=AsyncMock
-        ) as mock_get_meta:
+        with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
             mock_get_meta.return_value = metadata
 
             result = await paper_service.get_paper_status(paper_id)
@@ -235,9 +212,7 @@ class TestPaperService:
         """Test getting status of non-existent paper."""
         paper_id = "nonexistent"
 
-        with patch.object(
-            paper_service, "_load_metadata", new_callable=AsyncMock
-        ) as mock_load:
+        with patch.object(paper_service, "_load_metadata", new_callable=AsyncMock) as mock_load:
             mock_load.return_value = None
 
             result = await paper_service.get_paper_status(paper_id)
@@ -263,15 +238,9 @@ class TestPaperService:
         mock_file_manager.directories.add(f"{papers_dir}/.metadata")
 
         # Add paper files
-        mock_file_manager.add_file(
-            f"{papers_dir}/source/llm-agents/paper_1.pdf", b"PDF content 1"
-        )
-        mock_file_manager.add_file(
-            f"{papers_dir}/source/rl/paper_2.pdf", b"PDF content 2"
-        )
-        mock_file_manager.add_file(
-            f"{papers_dir}/source/llm-agents/paper_3.pdf", b"PDF content 3"
-        )
+        mock_file_manager.add_file(f"{papers_dir}/source/llm-agents/paper_1.pdf", b"PDF content 1")
+        mock_file_manager.add_file(f"{papers_dir}/source/rl/paper_2.pdf", b"PDF content 2")
+        mock_file_manager.add_file(f"{papers_dir}/source/llm-agents/paper_3.pdf", b"PDF content 3")
 
         # Add metadata files
         import json
@@ -295,19 +264,11 @@ class TestPaperService:
             "filename": "paper_3.pdf",
         }
 
-        mock_file_manager.add_text_file(
-            f"{papers_dir}/.metadata/paper_1.json", json.dumps(metadata1)
-        )
-        mock_file_manager.add_text_file(
-            f"{papers_dir}/.metadata/paper_2.json", json.dumps(metadata2)
-        )
-        mock_file_manager.add_text_file(
-            f"{papers_dir}/.metadata/paper_3.json", json.dumps(metadata3)
-        )
+        mock_file_manager.add_text_file(f"{papers_dir}/.metadata/paper_1.json", json.dumps(metadata1))
+        mock_file_manager.add_text_file(f"{papers_dir}/.metadata/paper_2.json", json.dumps(metadata2))
+        mock_file_manager.add_text_file(f"{papers_dir}/.metadata/paper_3.json", json.dumps(metadata3))
 
-        with patch.object(
-            paper_service, "_list_papers_internal", new_callable=AsyncMock
-        ) as mock_list:
+        with patch.object(paper_service, "_list_papers_internal", new_callable=AsyncMock) as mock_list:
             papers_list = [
                 {
                     "paper_id": "paper_1",
@@ -341,13 +302,9 @@ class TestPaperService:
             def mock_list_internal(category=None, status=None, limit=20, offset=0):
                 filtered_papers = papers_list
                 if category:
-                    filtered_papers = [
-                        p for p in filtered_papers if p["category"] == category
-                    ]
+                    filtered_papers = [p for p in filtered_papers if p["category"] == category]
                 if status:
-                    filtered_papers = [
-                        p for p in filtered_papers if p["status"] == status
-                    ]
+                    filtered_papers = [p for p in filtered_papers if p["status"] == status]
                 total = len(filtered_papers)
                 filtered_papers = filtered_papers[offset : offset + limit]
                 return {"papers": filtered_papers, "total": total}
@@ -372,9 +329,7 @@ class TestPaperService:
     @pytest.mark.asyncio
     async def test_list_papers_empty(self, paper_service):
         """Test listing papers when none exist."""
-        with patch.object(
-            paper_service, "_list_all_metadata", new_callable=AsyncMock
-        ) as mock_list:
+        with patch.object(paper_service, "_list_all_metadata", new_callable=AsyncMock) as mock_list:
             mock_list.return_value = []
 
             with patch_file_operations():
@@ -391,12 +346,8 @@ class TestPaperService:
         metadata_path = papers_dir / ".metadata/test_paper_123.json"
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata_path", return_value=metadata_path
-            ):
-                with patch.object(
-                    paper_service, "_get_metadata", new_callable=AsyncMock
-                ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata_path", return_value=metadata_path):
+                with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                     mock_get_meta.return_value = {
                         "paper_id": paper_id,
                         "status": "uploaded",
@@ -404,9 +355,7 @@ class TestPaperService:
 
                     with patch_file_operations():
                         mock_file_manager.add_file(str(source_path), b"PDF content")
-                        mock_file_manager.add_file(
-                            str(metadata_path), b'{"paper_id": "test"}'
-                        )
+                        mock_file_manager.add_file(str(metadata_path), b'{"paper_id": "test"}')
 
                         result = await paper_service.delete_paper(paper_id)
 
@@ -417,9 +366,7 @@ class TestPaperService:
         """Test deleting non-existent paper."""
         paper_id = "nonexistent"
 
-        with patch.object(
-            paper_service, "_get_metadata", new_callable=AsyncMock
-        ) as mock_get_meta:
+        with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
             mock_get_meta.return_value = None
 
             with pytest.raises(ValueError, match="Paper not found"):
@@ -431,9 +378,7 @@ class TestPaperService:
         paper_id = "test_paper_123"
         content = "Extracted PDF content..."
 
-        with patch.object(
-            paper_service, "_get_output_path", return_value=Path("/test/output.json")
-        ):
+        with patch.object(paper_service, "_get_output_path", return_value=Path("/test/output.json")):
             with patch_file_operations():
                 mock_file_manager.add_file("/test/output.json", content)
 
@@ -474,23 +419,15 @@ class TestPaperService:
         # Add directories and files to mock file manager
         mock_file_manager.directories.add(f"{papers_dir}/source")
         mock_file_manager.directories.add(f"{papers_dir}/source/test")
-        mock_file_manager.add_file(
-            f"{papers_dir}/source/test/paper_1.pdf", b"PDF content 1"
-        )
-        mock_file_manager.add_file(
-            f"{papers_dir}/source/test/paper_2.pdf", b"PDF content 2"
-        )
-        mock_file_manager.add_file(
-            f"{papers_dir}/source/test/paper_3.pdf", b"PDF content 3"
-        )
+        mock_file_manager.add_file(f"{papers_dir}/source/test/paper_1.pdf", b"PDF content 1")
+        mock_file_manager.add_file(f"{papers_dir}/source/test/paper_2.pdf", b"PDF content 2")
+        mock_file_manager.add_file(f"{papers_dir}/source/test/paper_3.pdf", b"PDF content 3")
 
         # Mock _get_source_path to return paths that exist
         def mock_get_source_path(paper_id):
             return Path(f"{papers_dir}/source/test/{paper_id}.pdf")
 
-        with patch.object(
-            paper_service, "_get_source_path", side_effect=mock_get_source_path
-        ):
+        with patch.object(paper_service, "_get_source_path", side_effect=mock_get_source_path):
             with patch_file_operations(custom_file_manager=mock_file_manager):
                 # Clear any existing calls to the mock
                 paper_service.batch_agent.batch_translate.reset_mock()
@@ -519,9 +456,7 @@ class TestPaperService:
         assert paper_service._sanitize_filename("normal.pdf") == "normal.pdf"
 
         # Test filename with path
-        assert (
-            paper_service._sanitize_filename("path/to/file.pdf") == "path_to_file.pdf"
-        )
+        assert paper_service._sanitize_filename("path/to/file.pdf") == "path_to_file.pdf"
 
         # Test filename with special characters
         assert paper_service._sanitize_filename("file@#$%.pdf") == "file____.pdf"
@@ -547,16 +482,12 @@ class TestPaperService:
         source_path = Path(f"{papers_dir}/source/test/test_paper_123.pdf")
 
         # Add file to mock file manager so exists() returns True
-        mock_file_manager.add_file(
-            f"{papers_dir}/source/test/test_paper_123.pdf", b"PDF content"
-        )
+        mock_file_manager.add_file(f"{papers_dir}/source/test/test_paper_123.pdf", b"PDF content")
         mock_file_manager.directories.add(f"{papers_dir}/source")
         mock_file_manager.directories.add(f"{papers_dir}/source/test")
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                 mock_get_meta.return_value = {"workflows": {}}
 
                 with patch.object(
@@ -567,12 +498,8 @@ class TestPaperService:
                         "data": {"analysis_id": "analysis_123", "status": "processing"},
                     },
                 ):
-                    with patch.object(
-                        paper_service, "_update_status", new_callable=AsyncMock
-                    ):
-                        with patch_file_operations(
-                            custom_file_manager=mock_file_manager
-                        ):
+                    with patch.object(paper_service, "_update_status", new_callable=AsyncMock):
+                        with patch_file_operations(custom_file_manager=mock_file_manager):
                             # Clear any existing calls to the mock
                             paper_service.heartfelt_agent.analyze.reset_mock()
 
@@ -586,15 +513,10 @@ class TestPaperService:
 
                             result = await paper_service.analyze_paper(paper_id)
 
-                            assert (
-                                result["analysis_id"]
-                                == "analysis_test_paper_123_20240115143022"
-                            )
+                            assert result["analysis_id"] == "analysis_test_paper_123_20240115143022"
                             assert result["paper_id"] == paper_id
                             assert result["status"] == "completed"
-                            paper_service.heartfelt_agent.analyze.assert_called_once_with(
-                                {"paper_id": paper_id}
-                            )
+                            paper_service.heartfelt_agent.analyze.assert_called_once_with({"paper_id": paper_id})
 
     @pytest.mark.asyncio
     async def test_get_paper_info(self, paper_service, temp_dir):
@@ -622,16 +544,12 @@ class TestPaperService:
         source_path = Path(f"{papers_dir}/source/test/test.pdf")
 
         # Add file to mock file manager so exists() returns True
-        mock_file_manager.add_file(
-            str(source_path), b"PDF content" * 1000
-        )  # Large content
+        mock_file_manager.add_file(str(source_path), b"PDF content" * 1000)  # Large content
         mock_file_manager.directories.add(f"{papers_dir}/source")
         mock_file_manager.directories.add(f"{papers_dir}/source/test")
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                 mock_get_meta.return_value = metadata
 
                 with patch_file_operations(custom_file_manager=mock_file_manager):
@@ -656,9 +574,7 @@ class TestPaperService:
             },
         }
 
-        with patch.object(
-            paper_service, "_load_metadata", new_callable=AsyncMock
-        ) as mock_load:
+        with patch.object(paper_service, "_load_metadata", new_callable=AsyncMock) as mock_load:
             mock_load.return_value = {
                 "paper_id": paper_id,
                 "status": "processing",
@@ -679,9 +595,7 @@ class TestPaperService:
         source_path = papers_dir / "source/test/test_paper_123.pdf"
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                 mock_get_meta.return_value = {
                     "paper_id": paper_id,
                     "status": "extracted",
@@ -717,18 +631,14 @@ class TestPaperService:
         """Test translating a paper that hasn't been extracted."""
         paper_id = "test_paper_123"
 
-        with patch.object(
-            paper_service, "_get_metadata", new_callable=AsyncMock
-        ) as mock_get_meta:
+        with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
             mock_get_meta.return_value = {
                 "paper_id": paper_id,
                 "status": "uploaded",
                 "workflows": {},
             }
 
-            with pytest.raises(
-                ValueError, match="Paper must be extracted before translation"
-            ):
+            with pytest.raises(ValueError, match="Paper must be extracted before translation"):
                 await paper_service.translate_paper(paper_id)
 
     @pytest.mark.asyncio
@@ -736,9 +646,7 @@ class TestPaperService:
         """Test translating a non-existent paper."""
         paper_id = "nonexistent_paper"
 
-        with patch.object(
-            paper_service, "_get_metadata", new_callable=AsyncMock
-        ) as mock_get_meta:
+        with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
             mock_get_meta.return_value = None
 
             with pytest.raises(ValueError, match="Paper not found"):
@@ -758,9 +666,7 @@ class TestPaperService:
         source_path = papers_dir / "source/test/test_paper_123.pdf"
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                 mock_get_meta.return_value = {
                     "paper_id": paper_id,
                     "status": "extracted",
@@ -792,9 +698,7 @@ class TestPaperService:
         source_path = papers_dir / "source/test/test_paper_123.pdf"
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                 mock_get_meta.return_value = {
                     "paper_id": paper_id,
                     "status": "extracted",
@@ -822,27 +726,21 @@ class TestPaperService:
                     assert result["analysis_id"] == "analysis_123"
                     assert "summary" in result["result"]
                     assert "key_insights" in result["result"]
-                    paper_service.heartfelt_agent.analyze.assert_called_once_with(
-                        {"paper_id": paper_id}
-                    )
+                    paper_service.heartfelt_agent.analyze.assert_called_once_with({"paper_id": paper_id})
 
     @pytest.mark.asyncio
     async def test_analyze_paper_not_extracted(self, paper_service):
         """Test analyzing a paper that hasn't been extracted."""
         paper_id = "test_paper_123"
 
-        with patch.object(
-            paper_service, "_get_metadata", new_callable=AsyncMock
-        ) as mock_get_meta:
+        with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
             mock_get_meta.return_value = {
                 "paper_id": paper_id,
                 "status": "uploaded",
                 "workflows": {},
             }
 
-            with pytest.raises(
-                ValueError, match="Paper must be extracted before analysis"
-            ):
+            with pytest.raises(ValueError, match="Paper must be extracted before analysis"):
                 await paper_service.analyze_paper(paper_id)
 
     @pytest.mark.asyncio
@@ -850,9 +748,7 @@ class TestPaperService:
         """Test analyzing a non-existent paper."""
         paper_id = "nonexistent_paper"
 
-        with patch.object(
-            paper_service, "_get_metadata", new_callable=AsyncMock
-        ) as mock_get_meta:
+        with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
             mock_get_meta.return_value = None
 
             with pytest.raises(ValueError, match="Paper not found"):
@@ -868,9 +764,7 @@ class TestPaperService:
         source_path = papers_dir / "source/test/test_paper_123.pdf"
 
         with patch.object(paper_service, "_get_source_path", return_value=source_path):
-            with patch.object(
-                paper_service, "_get_metadata", new_callable=AsyncMock
-            ) as mock_get_meta:
+            with patch.object(paper_service, "_get_metadata", new_callable=AsyncMock) as mock_get_meta:
                 mock_get_meta.return_value = {
                     "paper_id": paper_id,
                     "status": "extracted",

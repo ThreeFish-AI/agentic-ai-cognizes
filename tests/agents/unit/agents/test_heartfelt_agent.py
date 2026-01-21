@@ -34,9 +34,7 @@ class TestHeartfeltAgent:
         assert heartfelt_agent.default_options["analyze_structure"] is True
         assert heartfelt_agent.default_options["extract_key_points"] is True
 
-    def test_heartfelt_agent_initialization_with_config(
-        self, heartfelt_agent_with_config
-    ):
+    def test_heartfelt_agent_initialization_with_config(self, heartfelt_agent_with_config):
         """Test HeartfeltAgent initialization with config."""
         assert heartfelt_agent_with_config.name == "heartfelt"
         assert heartfelt_agent_with_config.config == {"papers_dir": "custom_papers"}
@@ -63,9 +61,7 @@ class TestHeartfeltAgent:
         }
 
         # Mock the analyze method
-        heartfelt_agent.analyze = AsyncMock(
-            return_value={"success": True, "data": {"analysis": "result"}}
-        )
+        heartfelt_agent.analyze = AsyncMock(return_value={"success": True, "data": {"analysis": "result"}})
 
         result = await heartfelt_agent.process(input_data)
 
@@ -134,9 +130,7 @@ class TestHeartfeltAgent:
         skill_params = heartfelt_agent.call_skill.call_args[0][1]
         assert skill_params["content"] == "Test content"
         # Only the options that are True should be included
-        assert (
-            "generate_reflections" not in skill_params
-        )  # Not in options, so not included
+        assert "generate_reflections" not in skill_params  # Not in options, so not included
 
     @pytest.mark.asyncio
     async def test_analyze_with_translation_content(self, heartfelt_agent):
@@ -163,9 +157,7 @@ class TestHeartfeltAgent:
         params = {"content": "Test content"}
 
         # Mock failed skill call
-        heartfelt_agent.call_skill = AsyncMock(
-            return_value={"success": False, "error": "Skill failed"}
-        )
+        heartfelt_agent.call_skill = AsyncMock(return_value={"success": False, "error": "Skill failed"})
 
         result = await heartfelt_agent.analyze(params)
 
@@ -178,9 +170,7 @@ class TestHeartfeltAgent:
         params = {"content": "Test content"}
 
         # Mock exception
-        heartfelt_agent.call_skill = AsyncMock(
-            side_effect=Exception("Unexpected error")
-        )
+        heartfelt_agent.call_skill = AsyncMock(side_effect=Exception("Unexpected error"))
 
         result = await heartfelt_agent.analyze(params)
 
@@ -232,12 +222,8 @@ class TestHeartfeltAgent:
         assert "structure" not in result
 
         # Stats should still be present
-        assert (
-            result["stats"]["original_word_count"] == 2
-        )  # "Single word" is actually 2 words
-        assert (
-            result["stats"]["analysis_word_count"] == 2
-        )  # "Analyzed content" is 2 words
+        assert result["stats"]["original_word_count"] == 2  # "Single word" is actually 2 words
+        assert result["stats"]["analysis_word_count"] == 2  # "Analyzed content" is 2 words
         assert result["stats"]["key_points_count"] == 0
         assert result["stats"]["insights_count"] == 0
 
@@ -315,9 +301,7 @@ class TestHeartfeltAgent:
 
         import json
 
-        with open(
-            analysis_dir / f"{paper_id}_analysis.json", "w", encoding="utf-8"
-        ) as f:
+        with open(analysis_dir / f"{paper_id}_analysis.json", "w", encoding="utf-8") as f:
             json.dump(analysis_data, f)
 
         result = await heartfelt_agent.generate_reading_report(paper_id)

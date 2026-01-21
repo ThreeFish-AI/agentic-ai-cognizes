@@ -88,9 +88,7 @@ class TestPDFProcessingAgent:
         }
 
         # Mock the extract_content method
-        pdf_agent.extract_content = AsyncMock(
-            return_value={"success": True, "data": {}}
-        )
+        pdf_agent.extract_content = AsyncMock(return_value={"success": True, "data": {}})
 
         await pdf_agent.process(input_data)
 
@@ -305,9 +303,7 @@ class TestPDFProcessingAgent:
         input_data = {"file_path": str(pdf_file)}
 
         # Mock the extract_content method
-        pdf_agent.extract_content = AsyncMock(
-            return_value={"success": True, "data": {}}
-        )
+        pdf_agent.extract_content = AsyncMock(return_value={"success": True, "data": {}})
 
         await pdf_agent.process(input_data)
 
@@ -538,9 +534,7 @@ class TestPDFProcessingAgent:
 
         # Mock batch_call_skill
         with patch.object(pdf_agent, "batch_call_skill") as mock_batch_call:
-            mock_batch_call.return_value = [
-                {"success": True, "data": {"content": "Content 1", "page_count": 3}}
-            ]
+            mock_batch_call.return_value = [{"success": True, "data": {"content": "Content 1", "page_count": 3}}]
 
             result = await pdf_agent.batch_extract(file_paths)
 
