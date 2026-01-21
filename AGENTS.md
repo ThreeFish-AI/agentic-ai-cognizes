@@ -4,7 +4,18 @@ This file provides guidance to Claude Code/Antigravity when working with code/do
 
 ## 项目定位
 
-见「docs/000-prd-architecture.md」的「产品愿景 · 核心定位」
+This is a research repository focused on Agentic AI Cognizes, containing the following components (Cognizes Engine):
+
+- Context Engineering
+- Runtime
+- RAG Engine (Agentic RAG、Graph RAG)
+- Storage (DB、Vector DB、Graph DB)
+- AG-UI
+- CI/CD
+- Monitor
+- Evaluation
+
+Cognizes Business Layer 见「docs/000-prd-architecture.md」的「产品愿景 · 核心定位」
 
 ## 开发总则
 
@@ -66,3 +77,30 @@ Vibe Coding = 规划驱动 + 上下文固定 + AI 结对执行，让「从想法
 - [🚀 GitHub Actions](docs/005-github-actions.md) - 自动化工作流
 - [🤖 AI Agents](docs/006-agents.md) - Claude SDK 与 Google ADK 实现方案
 - [📡 API 文档](docs/007-apis.md) - RESTful API 和 WebSocket 详细文档
+
+---
+
+## Cognizes Engine
+
+- [🗺️ 项目路线](docs/000-roadmap.md) - 项目整体开发计划和进度
+- [📖 任务清单](docs/001-task-checklist.md) - 任务清单
+- [🫀 脉搏系统](docs/010-the-pulse.md) - 脉搏系统
+- [🧠 仿生记忆](docs/020-the-hippocampus.md) - 仿生记忆
+- [👁️ 神经感知](docs/030-the-perception.md) - 神经感知
+- [🔮 心智空间](docs/040-the-realm-of-mind.md) - 心智空间
+- [🚀 集成验证](docs/050-integrated-demo.md) - 集成验证
+
+### 研究
+
+- [🤖 认知增强](docs/research/000-cognitive-enhancement.md) - 认知增强
+- [📡 上下文工程](docs/research/010-context-engineering.md) - 上下文工程
+- [🤖 Agent Runtime](docs/research/020-agent-runtime-frameworks.md) - Agent Runtime
+- [📡 Vector Search Algorithm](docs/research/030-vector-search-algorithm.md) - Vector Search Algorithm
+- [📡 Vector Databases Selection](docs/research/031-vector-databases-selection.md) - Vector Databases Selection
+- [📡 Vector Databases](docs/research/032-vector-databases.md) - Vector Databases
+- [📡 Cognee](docs/research/040-cognee.md) - Cognee
+- [📡 Neo4j](docs/research/050-neo4j.md) - Neo4j
+- [📡 Bettafish](docs/research/060-bettafish.md) - Bettafish
+- [📡 AG-UI](docs/research/070-ag-ui.md) - AG-UI
+- [📡 Agent Sandbox](docs/research/080-agent-sandbox.md) - Agent Sandbox
+- [📡 Agent Evaluation](docs/research/090-agent-evaluation.md) - Agent Evaluation

@@ -1,49 +1,63 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+# ==============================================================================
+# pyproject.toml - Python 项目元数据和构建配置
+# 遵循 PEP 621 (项目元数据) 和 PEP 517/518 (构建系统)
+# ==============================================================================
 
+# ------------------------------------------------------------------------------
+# [project] - 项目核心元数据 (PEP 621)
+# 定义项目的基本信息，供 pip、uv 等工具读取
+# ------------------------------------------------------------------------------
 [project]
-name = "agentic-ai-cognizes"
-version = "1.0.0"
-description = "A platform for collecting, translating, and managing Agentic AI research papers"
+name = "agentic-ai-cognizes"            # 包名称，用于 pip install 和发布到 PyPI
+version = "0.1.0"                       # 语义化版本号: MAJOR.MINOR.PATCH
+description = "The Agentic AI Cognizes, a platform for perception, cognition, and reasoning of Agentic AI" # 项目简短描述，显示在 PyPI 和 pip search
+readme = "README.md"                    # 长描述文件路径，PyPI 详情页显示
+requires-python = ">=3.13.11"           # Python 版本约束，确保运行环境兼容
+license = "Apache-2.0"
 authors = [
-    {name = "ThreeFish-AI", email = "threefish.ai@gmail.com"},
+    { name = "Cognizes", email = "threefish.ai@gmail.com" }
 ]
-readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.13"
+keywords = ["agent", "rag", "knowledge", "memory", "adk", "claude", "postgres", "pgvector", "tracing", "sandbox"]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "Framework :: AsyncIO",
+    "License :: OSI Approved :: Apache-2.0 License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Text Processing :: Linguistic",
 ]
+
+# dependencies - 运行时依赖列表
+# 这些包会在 `uv sync` 或 `pip install` 时自动安装
 dependencies = [
-    # Core dependencies
+    # === Cognizes ===
+     # Core dependencies
     "anthropic>=0.7.0",
     "claude-agent-sdk>=0.1.0",
+
     # FastAPI server
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
-    "pydantic>=2.5.0",
     "python-multipart>=0.0.6",
+
     # File handling
     "aiofiles>=23.2.1",
     "httpx>=0.25.0",
+
     # PDF processing (via MCP tools)
     # These are for local fallback if MCP tools are not available
     "pypdf2>=3.0.1",
     "pdfplumber>=0.10.0",
     "python-magic>=0.4.27",
     "pillow>=10.1.0",
+
     # Content processing
     "markdown>=3.5.0",
     "beautifulsoup4>=4.12.0",
     "lxml>=4.9.0",
+
     # Configuration and utilities
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.1",
@@ -51,28 +65,75 @@ dependencies = [
     "tqdm>=4.66.0",
     "click>=8.1.0",
     "jinja2>=3.1.0",
+
     # Async support
     "asyncio-mqtt>=0.13.0",
-    "ruff>=0.14.8",
+
+    # === Engine ===
+    # === Core: 核心运行依赖 ===
+    "asyncpg>=0.31.0",                  # PostgreSQL 异步驱动 (高性能, 原生 async/await)
+    "psycopg[binary]>=3.3.2",           # PostgreSQL 同步驱动 (备选, binary 预编译加速)
+    "pgvector>=0.4.2",                  # PostgreSQL 向量扩展支持 (向量相似度搜索)
+    "pydantic>=2.12.5",                 # 数据验证和序列化 (BaseModel, 类型提示)
+    "uvicorn>=0.40.0",                  # ASGI 服务器 (运行 FastAPI/Starlette 应用)
+
+    # === Google ADK: Agent Development Kit ===
+    "google-adk>=1.22.0",               # Google Agent 开发框架 (LlmAgent, SessionService)
+    "google-generativeai>=0.8.6",       # Gemini API 客户端 (Embedding, LLM 调用)
+
+    # === OpenTelemetry: 全链路追踪 ===
+    "opentelemetry-api>=1.37.0",        # 全链路追踪 API
+    "opentelemetry-sdk>=1.37.0",        # 全链路追踪 SDK
+    "opentelemetry-exporter-otlp>=1.37.0", # OTLP 协议导出器 (兼容 OTEL Collector)
+    "langfuse>=3.12.0",
+
+    # === Sandbox: 安全沙箱环境 ===
+    "microsandbox>=0.1.8",              # Python 沙箱执行环境 (隔离不信任代码)
+
+    # === Utilities: 工具库 ===
+    "tiktoken>=0.12.0",
+    "sentence-transformers>=5.2.0",
+]
+
+# ------------------------------------------------------------------------------
+# [dependency-groups] - 依赖分组 (PEP 735)
+# 按用途分组的可选依赖，通过 `uv sync --group dev` 安装
+# ------------------------------------------------------------------------------
+[dependency-groups]
+dev = [
+    # === Testing: 测试框架 ===
+    "pytest>=9.0.2",                    # Python 标准测试框架
+    "pytest-asyncio>=1.3.0",            # pytest 异步测试支持 (async def test_xxx)
+    "pytest-cov>=7.0.0",                # pytest 覆盖率插件 (--cov 参数支持)
+    "pytest-dotenv>=0.5.2",             # .env 文件加载 (暂未启用)
+    # === Linting & Formatting: 代码质量工具 ===
+    "black>=24.4.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    # === Development Utilities: 开发辅助工具 ===
+    "numpy>=2.4.1",
+    "torch>=2.9.1",
+    # === Transformers: 变换器模型支持 ===
+    "transformers>=4.57.3",
+    # === Performance Testing: 性能测试工具 ===
+    "locust>=2.23.0",                   # Locust 性能压测框架 (SessionService/MemoryService)
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.11.0",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
     "pytest-xdist>=3.3.0",
+    "ruff>=0.14.8",
     "black>=23.7.0",
-    "ruff>=0.0.280",
-    "mypy>=1.5.0",
+    "mypy>=1.19.0",
     "pre-commit>=3.3.0",
-    "httpx>=0.25.0",
     "factory-boy>=3.3.0",
     "faker>=19.0.0",
     "asynctest>=0.13.0",
     "websockets>=11.0.0",
-    "aiofiles>=23.2.1",
 ]
 docs = [
     "mkdocs>=1.5.0",
@@ -82,11 +143,27 @@ docs = [
 gpu = [
     "torch>=2.0.0",
     "transformers>=4.30.0",
-    "sentence-transformers>=2.2.0",
 ]
 
+# ------------------------------------------------------------------------------
+# [tool.uv.workspace] - uv 工作区配置
+# 用于 monorepo 多包管理，当前为单包项目
+# ------------------------------------------------------------------------------
+[tool.uv.workspace]
+members = [
+    "src/cognizes/examples/e2e_travel_agent",  # E2E Travel Agent Demo
+]
+
+# ------------------------------------------------------------------------------
+# [build-system] - 构建后端配置 (PEP 517/518)
+# 指定如何构建 wheel 和 sdist 分发包
+# ------------------------------------------------------------------------------
+[build-system]
+requires = ["hatchling"]                # 构建依赖 (hatchling 是现代 Python 构建工具)
+build-backend = "hatchling.build"       # 构建后端入口点
+
 [project.scripts]
-agentic-papers = "agentic_ai_papers.cli:main"
+agentic-ai-cognizes = "agentic_ai_cognizes.cli:main"
 
 [project.urls]
 Homepage = "https://threefish.site"
@@ -116,17 +193,48 @@ extend-exclude = '''
 )/
 '''
 
-[tool.ruff]
-target-version = "py312"
-line-length = 88
-extend-exclude = [
-    "*.md",
-    "*.pdf",
-    "papers/",
-    "docs/",
-    ".github/",
-    "ui/",
+# ------------------------------------------------------------------------------
+# [tool.hatch.build.targets.wheel] - Hatch 构建目标配置
+# 控制 wheel 包的内容和结构
+# ------------------------------------------------------------------------------
+[tool.hatch.build.targets.wheel]
+packages = ["src/cognizes"]             # 要打包的源码目录 (src layout 布局)
+
+# ------------------------------------------------------------------------------
+# [tool.pytest.ini_options] - pytest 配置
+# 等效于 pytest.ini 或 setup.cfg 中的 [tool:pytest]
+# ------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "-q",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=agents",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+    "--cov-fail-under=20",
+    "-p no:warnings",
 ]
+testpaths = [
+    "tests",
+]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "e2e: marks tests as end-to-end tests",
+    "performance: marks tests as performance tests",
+    "websocket: marks tests that require WebSocket",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
@@ -158,44 +266,6 @@ exclude = [
     "docs/",
 ]
 
-[tool.mypy]
-python_version = "3.12"
-check_untyped_defs = true
-disallow_any_generics = true
-disallow_incomplete_defs = true
-disallow_untyped_defs = true
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-minversion = "7.0"
-addopts = [
-    "-ra",
-    "-q",
-    "--strict-markers",
-    "--strict-config",
-    "--cov=agents",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-report=xml",
-    "--cov-fail-under=20",
-    "-p no:warnings",
-]
-testpaths = [
-    "tests",
-]
-asyncio_mode = "auto"
-markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-    "e2e: marks tests as end-to-end tests",
-    "performance: marks tests as performance tests",
-    "websocket: marks tests that require WebSocket",
-]
-
 [tool.coverage.run]
 source = ["agents"]
 omit = [
@@ -215,13 +285,4 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
-]
-
-[dependency-groups]
-dev = [
-    "mypy>=1.19.0",
-    "pytest>=9.0.2",
-    "pytest-asyncio>=1.3.0",
-    "pytest-cov>=7.0.0",
-    "pytest-mock>=3.15.1",
 ]
