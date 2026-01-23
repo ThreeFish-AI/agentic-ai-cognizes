@@ -12,10 +12,40 @@ Sandbox 安全沙箱单元测试
 import pytest
 import asyncio
 import os
+import socket
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # pytest-asyncio 配置
 pytestmark = pytest.mark.asyncio
+
+
+def is_microsandbox_available(host: str = "127.0.0.1", port: int = 5555, timeout: float = 1.0) -> bool:
+    """
+    检测 microsandbox 服务是否可用。
+
+    通过尝试建立 TCP 连接来检测服务是否运行。
+
+    Args:
+        host: microsandbox 服务地址
+        port: microsandbox 服务端口
+        timeout: 连接超时时间（秒）
+
+    Returns:
+        bool: True 表示服务可用，False 表示不可用
+    """
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result == 0
+    except (socket.error, OSError):
+        return False
+
+
+# 预先检测 microsandbox 是否可用（模块加载时执行一次）
+MICROSANDBOX_AVAILABLE = is_microsandbox_available()
+MICROSANDBOX_SKIP_REASON = "microsandbox 服务不可用（127.0.0.1:5555 无法连接）"
 
 
 class TestBaseSandboxRunner:
@@ -243,6 +273,7 @@ class TestMicrosandboxRunner:
             name="test-sandbox", timeout_seconds=5, network_enabled=False, api_key=os.getenv("MSB_API_KEY")
         )
 
+    @pytest.mark.skipif(not MICROSANDBOX_AVAILABLE, reason=MICROSANDBOX_SKIP_REASON)
     async def test_microsandbox_execute(self, sandbox_config):
         """集成测试: 真实 microsandbox 执行"""
         from cognizes.adapters.postgres.sandbox.microsandbox_runner import MicrosandboxRunner
@@ -253,6 +284,7 @@ class TestMicrosandboxRunner:
         assert result.success is True
         assert "Hello from sandbox!" in result.stdout
 
+    @pytest.mark.skipif(not MICROSANDBOX_AVAILABLE, reason=MICROSANDBOX_SKIP_REASON)
     async def test_microsandbox_timeout(self, sandbox_config):
         """集成测试: 真实超时测试"""
         from cognizes.adapters.postgres.sandbox.microsandbox_runner import MicrosandboxRunner

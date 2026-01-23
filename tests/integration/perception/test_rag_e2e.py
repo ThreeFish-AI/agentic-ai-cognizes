@@ -14,7 +14,6 @@ Task ID: P3-5-1, P3-5-3, P3-5-4, P3-5-5
 import pytest
 import tempfile
 import time
-import asyncio
 from pathlib import Path
 
 from cognizes.engine.perception.rag_pipeline import (
@@ -28,6 +27,9 @@ from cognizes.engine.perception.ingestion import (
 )
 from cognizes.engine.perception.embedder import get_embedder
 from cognizes.engine.perception.chunking import chunk_text
+
+# pytest-asyncio 配置
+pytestmark = pytest.mark.asyncio
 
 
 # ============================================
@@ -126,7 +128,7 @@ def rag_pipeline():
 class TestRAGE2E01SingleDocument:
     """RAG-E2E-01: Single document ingestion and retrieval."""
 
-    def test_ingest_markdown_document(self, sample_markdown_2000_chars):
+    async def test_ingest_markdown_document(self, sample_markdown_2000_chars):
         """Test ingesting a single markdown document."""
         ingester = get_ingester(
             chunk_size=256,
@@ -134,14 +136,10 @@ class TestRAGE2E01SingleDocument:
             embedding_provider="mock",
         )
 
-        async def run():
-            result = await ingester.ingest_text(
-                content=sample_markdown_2000_chars,
-                source_uri="ml_guide.md",
-            )
-            return result
-
-        result = asyncio.get_event_loop().run_until_complete(run())
+        result = await ingester.ingest_text(
+            content=sample_markdown_2000_chars,
+            source_uri="ml_guide.md",
+        )
 
         # Verify chunking
         assert len(result.chunks) > 0, "Document should be chunked"
@@ -155,24 +153,19 @@ class TestRAGE2E01SingleDocument:
 
         print(f"✅ RAG-E2E-01: Ingested into {len(result.chunks)} chunks")
 
-    def test_chunks_are_searchable(self, sample_markdown_2000_chars, rag_pipeline):
+    async def test_chunks_are_searchable(self, sample_markdown_2000_chars, rag_pipeline):
         """Test that ingested chunks can be retrieved."""
+        # Index document
+        await rag_pipeline.index_document(
+            content=sample_markdown_2000_chars,
+            source_uri="ml_guide.md",
+        )
 
-        async def run():
-            # Index document
-            await rag_pipeline.index_document(
-                content=sample_markdown_2000_chars,
-                source_uri="ml_guide.md",
-            )
-
-            # Retrieve (mock mode returns mock results)
-            results = await rag_pipeline.retrieve(
-                query="What is supervised learning?",
-                top_k=5,
-            )
-            return results
-
-        results = asyncio.get_event_loop().run_until_complete(run())
+        # Retrieve (mock mode returns mock results)
+        results = await rag_pipeline.retrieve(
+            query="What is supervised learning?",
+            top_k=5,
+        )
 
         # Should return results
         assert len(results) > 0
@@ -187,28 +180,24 @@ class TestRAGE2E01SingleDocument:
 class TestRAGE2E02BatchIngestion:
     """RAG-E2E-02: Multi-document batch ingestion."""
 
-    def test_ingest_multiple_documents(self, multiple_documents):
+    async def test_ingest_multiple_documents(self, multiple_documents):
         """Test ingesting 100 mixed documents."""
         ingester = get_ingester(embedding_provider="mock")
 
         # Generate 100 documents by repeating the base set
         docs = multiple_documents * 20  # 5 * 20 = 100
 
-        async def run():
-            start_time = time.perf_counter()
-            results = []
+        start_time = time.perf_counter()
+        results = []
 
-            for i, doc in enumerate(docs):
-                result = await ingester.ingest_text(
-                    content=doc["content"],
-                    source_uri=f"doc_{i}_{doc['title'].lower().replace(' ', '_')}.md",
-                )
-                results.append(result)
+        for i, doc in enumerate(docs):
+            result = await ingester.ingest_text(
+                content=doc["content"],
+                source_uri=f"doc_{i}_{doc['title'].lower().replace(' ', '_')}.md",
+            )
+            results.append(result)
 
-            elapsed = time.perf_counter() - start_time
-            return results, elapsed
-
-        results, elapsed = asyncio.get_event_loop().run_until_complete(run())
+        elapsed = time.perf_counter() - start_time
 
         # Verify all documents were processed
         assert len(results) == 100
@@ -227,25 +216,20 @@ class TestRAGE2E02BatchIngestion:
 class TestRAGE2E03CrossDocumentRetrieval:
     """RAG-E2E-03: Cross-document semantic retrieval."""
 
-    def test_semantic_retrieval_across_documents(self, rag_pipeline, multiple_documents):
+    async def test_semantic_retrieval_across_documents(self, rag_pipeline, multiple_documents):
         """Test retrieving semantically similar content across documents."""
-
-        async def run():
-            # Index all documents
-            for i, doc in enumerate(multiple_documents):
-                await rag_pipeline.index_document(
-                    content=doc["content"],
-                    source_uri=f"doc_{i}.md",
-                )
-
-            # Query for related content
-            results = await rag_pipeline.retrieve(
-                query="How do neural networks work in AI?",
-                top_k=5,
+        # Index all documents
+        for i, doc in enumerate(multiple_documents):
+            await rag_pipeline.index_document(
+                content=doc["content"],
+                source_uri=f"doc_{i}.md",
             )
-            return results
 
-        results = asyncio.get_event_loop().run_until_complete(run())
+        # Query for related content
+        results = await rag_pipeline.retrieve(
+            query="How do neural networks work in AI?",
+            top_k=5,
+        )
 
         # Should return results from multiple sources
         assert len(results) == 5
@@ -260,24 +244,19 @@ class TestRAGE2E03CrossDocumentRetrieval:
 class TestRAGE2E04AnswerGeneration:
     """RAG-E2E-04: RAG answer generation."""
 
-    def test_rag_answer_with_citations(self, rag_pipeline, sample_markdown_2000_chars):
+    async def test_rag_answer_with_citations(self, rag_pipeline, sample_markdown_2000_chars):
         """Test generating answer with citations."""
+        # Index document
+        await rag_pipeline.index_document(
+            content=sample_markdown_2000_chars,
+            source_uri="ml_guide.md",
+        )
 
-        async def run():
-            # Index document
-            await rag_pipeline.index_document(
-                content=sample_markdown_2000_chars,
-                source_uri="ml_guide.md",
-            )
-
-            # Query
-            response = await rag_pipeline.query(
-                query="What are the types of machine learning?",
-                top_k=3,
-            )
-            return response
-
-        response = asyncio.get_event_loop().run_until_complete(run())
+        # Query
+        response = await rag_pipeline.query(
+            query="What are the types of machine learning?",
+            top_k=3,
+        )
 
         # Verify response structure
         assert isinstance(response, RAGResponse)
@@ -296,17 +275,12 @@ class TestRAGE2E04AnswerGeneration:
 class TestRAGE2E05Latency:
     """RAG-E2E-05: RAG E2E latency."""
 
-    def test_rag_latency_single_query(self, rag_pipeline):
+    async def test_rag_latency_single_query(self, rag_pipeline):
         """Test single query latency."""
-
-        async def run():
-            response = await rag_pipeline.query(
-                query="Test query for latency measurement",
-                top_k=5,
-            )
-            return response
-
-        response = asyncio.get_event_loop().run_until_complete(run())
+        response = await rag_pipeline.query(
+            query="Test query for latency measurement",
+            top_k=5,
+        )
 
         # Check latency (mock mode should be fast)
         print(f"  Retrieval: {response.retrieval_time_ms:.2f}ms")
@@ -317,22 +291,17 @@ class TestRAGE2E05Latency:
         assert response.total_time_ms < 1000, "Query too slow"
         print(f"✅ RAG-E2E-05: Latency = {response.total_time_ms:.2f}ms")
 
-    def test_rag_latency_batch_queries(self, rag_pipeline):
+    async def test_rag_latency_batch_queries(self, rag_pipeline):
         """Test batch query latency (simulating 100 QPS)."""
+        queries = [f"Query {i}" for i in range(100)]
+        start_time = time.perf_counter()
 
-        async def run():
-            queries = [f"Query {i}" for i in range(100)]
-            start_time = time.perf_counter()
+        responses = []
+        for query in queries:
+            response = await rag_pipeline.query(query, top_k=5)
+            responses.append(response)
 
-            responses = []
-            for query in queries:
-                response = await rag_pipeline.query(query, top_k=5)
-                responses.append(response)
-
-            elapsed = time.perf_counter() - start_time
-            return responses, elapsed
-
-        responses, elapsed = asyncio.get_event_loop().run_until_complete(run())
+        elapsed = time.perf_counter() - start_time
 
         # Calculate stats
         latencies = [r.total_time_ms for r in responses]
@@ -355,7 +324,7 @@ class TestRAGE2E05Latency:
 class TestFullPipelineIntegration:
     """Full pipeline integration test."""
 
-    def test_complete_rag_workflow(self, sample_markdown_2000_chars):
+    async def test_complete_rag_workflow(self, sample_markdown_2000_chars):
         """Test complete workflow: ingest -> index -> retrieve -> generate."""
         # Create pipeline
         pipeline = get_rag_pipeline(
@@ -364,22 +333,17 @@ class TestFullPipelineIntegration:
             embedding_provider="mock",
         )
 
-        async def run():
-            # 1. Index document
-            index_result = await pipeline.index_document(
-                content=sample_markdown_2000_chars,
-                source_uri="ml_fundamentals.md",
-            )
+        # 1. Index document
+        index_result = await pipeline.index_document(
+            content=sample_markdown_2000_chars,
+            source_uri="ml_fundamentals.md",
+        )
 
-            # 2. Query
-            response = await pipeline.query(
-                query="What is machine learning and what are its types?",
-                top_k=5,
-            )
-
-            return index_result, response
-
-        index_result, response = asyncio.get_event_loop().run_until_complete(run())
+        # 2. Query
+        response = await pipeline.query(
+            query="What is machine learning and what are its types?",
+            top_k=5,
+        )
 
         # Verify indexing
         assert index_result.source_uri == "ml_fundamentals.md"

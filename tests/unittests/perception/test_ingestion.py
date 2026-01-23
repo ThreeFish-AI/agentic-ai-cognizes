@@ -22,6 +22,9 @@ from cognizes.engine.perception.ingestion import (
     get_ingester,
 )
 
+# pytest-asyncio 配置
+pytestmark = pytest.mark.asyncio
+
 
 # ============================================
 # Document Dataclass Tests
@@ -122,58 +125,43 @@ Machine learning is a subset of AI that enables computers to learn from data.
 Common methods include supervised learning, unsupervised learning, and reinforcement learning.
 """
 
-    def test_ingest_text(self, ingester, sample_markdown):
+    async def test_ingest_text(self, ingester, sample_markdown):
         """Test ingesting text content."""
-
-        async def run():
-            result = await ingester.ingest_text(
-                content=sample_markdown,
-                source_uri="guide.md",
-            )
-            return result
-
-        result = pytest.importorskip("asyncio").get_event_loop().run_until_complete(run())
+        result = await ingester.ingest_text(
+            content=sample_markdown,
+            source_uri="guide.md",
+        )
 
         assert isinstance(result, IngestedDocument)
         assert len(result.chunks) > 0
         assert result.document.source_uri == "guide.md"
 
-    def test_chunks_have_embeddings(self, ingester, sample_markdown):
+    async def test_chunks_have_embeddings(self, ingester, sample_markdown):
         """Test that chunks have embeddings."""
-
-        async def run():
-            result = await ingester.ingest_text(
-                content=sample_markdown,
-                source_uri="test.md",
-                generate_embeddings=True,
-            )
-            return result
-
-        result = pytest.importorskip("asyncio").get_event_loop().run_until_complete(run())
+        result = await ingester.ingest_text(
+            content=sample_markdown,
+            source_uri="test.md",
+            generate_embeddings=True,
+        )
 
         # All chunks should have embeddings
         for chunk in result.chunks:
             assert "embedding" in chunk
             assert len(chunk["embedding"]) > 0
 
-    def test_ingest_without_embeddings(self, ingester, sample_markdown):
+    async def test_ingest_without_embeddings(self, ingester, sample_markdown):
         """Test ingesting without embeddings."""
-
-        async def run():
-            result = await ingester.ingest_text(
-                content=sample_markdown,
-                source_uri="test.md",
-                generate_embeddings=False,
-            )
-            return result
-
-        result = pytest.importorskip("asyncio").get_event_loop().run_until_complete(run())
+        result = await ingester.ingest_text(
+            content=sample_markdown,
+            source_uri="test.md",
+            generate_embeddings=False,
+        )
 
         # Chunks should not have embeddings
         for chunk in result.chunks:
             assert "embedding" not in chunk
 
-    def test_ingest_file(self, ingester):
+    async def test_ingest_file(self, ingester):
         """Test ingesting from file."""
         # Create temp file
         with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
@@ -181,12 +169,7 @@ Common methods include supervised learning, unsupervised learning, and reinforce
             temp_path = f.name
 
         try:
-
-            async def run():
-                result = await ingester.ingest_file(temp_path)
-                return result
-
-            result = pytest.importorskip("asyncio").get_event_loop().run_until_complete(run())
+            result = await ingester.ingest_file(temp_path)
 
             assert isinstance(result, IngestedDocument)
             assert result.document.title == "Test"
