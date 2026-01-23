@@ -1,10 +1,10 @@
 """Simple test to improve coverage."""
 
 
-def test_agents_module_import():
-    """Test that agents module can be imported."""
-    # This will cover the agents/__init__.py file
-    import agents
+def test_cognizes_module_import():
+    """Test that cognizes module can be imported."""
+    # This will cover the cognizes/__init__.py file
+    import cognizes
 
-    # Access the __version__ to ensure it's loaded
-    assert hasattr(agents, "__version__")
+    # Access the version to ensure it's loaded
+    assert hasattr(cognizes, "__version__")

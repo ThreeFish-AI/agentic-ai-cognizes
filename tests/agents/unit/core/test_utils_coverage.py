@@ -1,6 +1,6 @@
 """Test utils for better coverage."""
 
-from agents.core.utils import format_file_size, get_category_from_path
+from cognizes.agents.utils import format_file_size, get_category_from_path
 
 
 def test_format_file_size():

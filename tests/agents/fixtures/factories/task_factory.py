@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import factory
 from factory import SubFactory, fuzzy
 
-from agents.api.models.task import (
+from cognizes.api.models.task import (
     TaskCreateRequest,
     TaskInfo,
     TaskProgress,

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from agents.claude.pdf_agent import PDFProcessingAgent
+from cognizes.agents.claude.pdf_agent import PDFProcessingAgent
 
 
 @pytest.mark.unit
@@ -233,7 +233,7 @@ class TestPDFProcessingAgent:
     #     input_data = {"file_path": "/test/file.pdf"}
     #     output_data = {"success": True, "data": {"content": "extracted"}}
 
-    #     with patch("agents.claude.pdf_agent.logger") as mock_logger:
+    #     with patch("cognizes.agents.claude.pdf_agent.logger") as mock_logger:
     #         await pdf_agent.log_processing(input_data, output_data)
 
     #         mock_logger.info.assert_called_once()

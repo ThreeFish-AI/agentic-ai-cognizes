@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from agents.claude.base import BaseAgent
-from agents.claude.workflow_agent import WorkflowAgent
+from cognizes.agents.claude.base import BaseAgent
+from cognizes.agents.claude.workflow_agent import WorkflowAgent
 from tests.agents.fixtures.mocks.mock_file_operations import (
     mock_file_manager,
     patch_file_operations,

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 # 导入并注册路由
-from agents.api.routes import papers, tasks, websocket
+from cognizes.api.routes import papers, tasks, websocket
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting Agentic AI Papers API...")
     try:
         # 初始化服务
-        from agents.api.services.task_service import task_service
+        from cognizes.api.services.task_service import task_service
 
         await task_service.initialize()
         logger.info("Services initialized successfully")
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 关闭时清理
     logger.info("Shutting down Agentic AI Papers API...")
     try:
-        from agents.api.services.task_service import task_service
+        from cognizes.api.services.task_service import task_service
 
         await task_service.cleanup()
         logger.info("Services cleanup completed")

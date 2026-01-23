@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agents.core.config import Settings, settings
+from cognizes.agents.config import Settings, settings
 
 
 @pytest.mark.unit
@@ -69,7 +69,7 @@ class TestSettings:
         import os
         from unittest.mock import patch
 
-        from agents.core.config import Settings
+        from cognizes.agents.config import Settings
 
         with patch.dict(os.environ, {}, clear=True):
             s = Settings()
@@ -205,7 +205,7 @@ class TestSettings:
             with pytest.raises(ValueError):
                 from importlib import reload
 
-                from agents.core import config
+                from cognizes.agents import config
 
                 reload(config)
 
@@ -294,7 +294,7 @@ class TestSettings:
         with patch.dict(os.environ, {"CORS_ORIGINS": origins}):
             from importlib import reload
 
-            from agents.core import config
+            from cognizes.agents import config
 
             reload(config)
 
@@ -311,7 +311,7 @@ class TestSettings:
         with patch.dict(os.environ, {"CORS_ORIGINS": origins}):
             from importlib import reload
 
-            from agents.core import config
+            from cognizes.agents import config
 
             reload(config)
 
@@ -327,7 +327,7 @@ class TestSettings:
         with patch.dict(os.environ, {"MAX_UPLOAD_SIZE": "100"}):
             from importlib import reload
 
-            from agents.core import config
+            from cognizes.agents import config
 
             reload(config)
 
@@ -339,7 +339,7 @@ class TestSettings:
         with patch.dict(os.environ, {"LOG_DIR": "custom_logs"}):
             from importlib import reload
 
-            from agents.core import config
+            from cognizes.agents import config
 
             reload(config)
 
@@ -351,7 +351,7 @@ class TestSettings:
         with patch.dict(os.environ, {"LOG_MAX_SIZE": "20"}):
             from importlib import reload
 
-            from agents.core import config
+            from cognizes.agents import config
 
             reload(config)
 
@@ -373,7 +373,7 @@ class TestSettings:
         with patch.dict(os.environ, {}, clear=True):
             from importlib import reload
 
-            from agents.core import config
+            from cognizes.agents import config
 
             reload(config)
 

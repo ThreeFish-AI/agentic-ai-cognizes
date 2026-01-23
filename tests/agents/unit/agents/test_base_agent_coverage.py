@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agents.claude.batch_agent import BatchProcessingAgent
+from cognizes.agents.claude.batch_agent import BatchProcessingAgent
 
 
 @pytest.mark.unit

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from agents.claude.skills import SkillInvoker
+from cognizes.agents.claude.skills import SkillInvoker
 
 
 class TestSkillInvoker:
@@ -26,7 +26,7 @@ class TestSkillInvoker:
         """Create a SkillInvoker instance with API key."""
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
             with patch(
-                "agents.claude.skills.anthropic.Anthropic",
+                "cognizes.agents.claude.skills.anthropic.Anthropic",
                 return_value=mock_anthropic_client,
             ):
                 return SkillInvoker()
@@ -42,7 +42,7 @@ class TestSkillInvoker:
             },
         ):
             with patch(
-                "agents.claude.skills.anthropic.Anthropic",
+                "cognizes.agents.claude.skills.anthropic.Anthropic",
                 return_value=mock_anthropic_client,
             ) as mock_anthropic_class:
                 return SkillInvoker(), mock_anthropic_class

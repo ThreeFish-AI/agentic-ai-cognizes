@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from agents.api.models.paper import (
+from cognizes.api.models.paper import (
     BatchProcessRequest,
     PaperContent,
     PaperInfo,

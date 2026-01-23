@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from agents.core.utils import (
+from cognizes.agents.utils import (
     ensure_directory,
     extract_text_summary,
     flatten_dict,
@@ -182,7 +182,7 @@ class TestValidatePdfFile:
         assert result["valid"] is False
         assert "Not a PDF file" in result["error"]
 
-    @patch("agents.core.utils.logger")  # Patch logger instead
+    @patch("cognizes.agents.utils.logger")  # Patch logger instead
     def test_validate_pdf_success(self, mock_logger, temp_dir):
         """Test successful PDF validation."""
         # Mock PDF content

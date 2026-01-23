@@ -84,7 +84,7 @@ def generate_coverage_report():
             "-m",
             "pytest",
             "tests/agents",
-            "--cov=agents",
+            "--cov=cognizes",
             "--cov-report=term-missing",
             "--cov-report=html",
             "--cov-report=xml",

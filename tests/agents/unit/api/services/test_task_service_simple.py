@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agents.api.services.task_service import TaskService
+from cognizes.api.services.task_service import TaskService
 
 
 @pytest.mark.unit
@@ -14,7 +14,7 @@ class TestTaskService:
     @pytest.fixture
     def task_service(self):
         """Create a TaskService instance for testing."""
-        with patch("agents.api.services.task_service.Path") as mock_path:
+        with patch("cognizes.api.services.task_service.Path") as mock_path:
             # Mock the logs directory
             mock_logs_dir = MagicMock()
             mock_logs_dir.mkdir = MagicMock()
@@ -26,14 +26,14 @@ class TestTaskService:
     @pytest.mark.asyncio
     async def test_initialize(self, task_service):
         """Test service initialization."""
-        with patch("agents.api.services.task_service.logger") as mock_logger:
+        with patch("cognizes.api.services.task_service.logger") as mock_logger:
             await task_service.initialize()
             mock_logger.info.assert_called_once_with("TaskService initialized")
 
     @pytest.mark.asyncio
     async def test_cleanup(self, task_service):
         """Test service cleanup."""
-        with patch("agents.api.services.task_service.logger") as mock_logger:
+        with patch("cognizes.api.services.task_service.logger") as mock_logger:
             await task_service.cleanup()
             mock_logger.info.assert_called_once_with("TaskService cleanup completed")
 
@@ -117,7 +117,7 @@ class TestTaskService:
     @pytest.mark.asyncio
     async def test_update_nonexistent_task(self, task_service):
         """Test updating nonexistent task."""
-        with patch("agents.api.services.task_service.logger") as mock_logger:
+        with patch("cognizes.api.services.task_service.logger") as mock_logger:
             await task_service.update_task("nonexistent", status="processing")
             mock_logger.warning.assert_called_once()
 

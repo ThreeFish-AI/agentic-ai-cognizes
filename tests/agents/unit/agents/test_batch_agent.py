@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from agents.claude.batch_agent import BatchProcessingAgent
+from cognizes.agents.claude.batch_agent import BatchProcessingAgent
 
 
 @pytest.mark.unit
@@ -252,7 +252,7 @@ class TestBatchProcessingAgent:
         batch_agent.papers_dir = tmp_path
 
         # Mock WorkflowAgent
-        with patch("agents.claude.workflow_agent.WorkflowAgent") as mock_workflow:
+        with patch("cognizes.agents.claude.workflow_agent.WorkflowAgent") as mock_workflow:
             mock_agent = AsyncMock()
             mock_agent.process.return_value = {
                 "success": True,
@@ -275,7 +275,7 @@ class TestBatchProcessingAgent:
         batch_agent.papers_dir = tmp_path
 
         # Mock WorkflowAgent to fail then succeed
-        with patch("agents.claude.workflow_agent.WorkflowAgent") as mock_workflow:
+        with patch("cognizes.agents.claude.workflow_agent.WorkflowAgent") as mock_workflow:
             mock_agent = AsyncMock()
             mock_agent.process.side_effect = [
                 {"success": False, "error": "First attempt failed"},
@@ -295,7 +295,7 @@ class TestBatchProcessingAgent:
         file_path.write_bytes(b"PDF content")
 
         # Mock WorkflowAgent to always fail
-        with patch("agents.claude.workflow_agent.WorkflowAgent") as mock_workflow:
+        with patch("cognizes.agents.claude.workflow_agent.WorkflowAgent") as mock_workflow:
             mock_agent = AsyncMock()
             mock_agent.process.return_value = {
                 "success": False,
@@ -316,7 +316,7 @@ class TestBatchProcessingAgent:
         file_path.write_bytes(b"PDF content")
 
         # Mock WorkflowAgent to raise exception
-        with patch("agents.claude.workflow_agent.WorkflowAgent") as mock_workflow:
+        with patch("cognizes.agents.claude.workflow_agent.WorkflowAgent") as mock_workflow:
             mock_agent = AsyncMock()
             mock_agent.process.side_effect = Exception("Unexpected error")
             mock_workflow.return_value = mock_agent

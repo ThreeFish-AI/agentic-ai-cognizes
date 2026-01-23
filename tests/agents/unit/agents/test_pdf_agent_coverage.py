@@ -1,6 +1,6 @@
 """Test PDF agent for better coverage."""
 
-from agents.claude.pdf_agent import PDFProcessingAgent
+from cognizes.agents.claude.pdf_agent import PDFProcessingAgent
 
 
 def test_pdf_agent_methods():

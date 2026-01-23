@@ -3,7 +3,7 @@
 
 def test_simple_method_exists():
     """Test that simple methods exist and are callable."""
-    from agents.claude.batch_agent import BatchProcessingAgent
+    from cognizes.agents.claude.batch_agent import BatchProcessingAgent
 
     agent = BatchProcessingAgent()
 
