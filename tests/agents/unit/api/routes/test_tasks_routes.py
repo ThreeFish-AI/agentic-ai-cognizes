@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from agents.api.routes.tasks import get_task_service, router
+from cognizes.api.routes.tasks import get_task_service, router
 
 
 @pytest.mark.unit
@@ -40,7 +40,7 @@ class TestTasksRoutes:
     @pytest.mark.asyncio
     async def test_list_tasks_success(self, mock_task_service):
         """Test successful task listing."""
-        from agents.api.routes.tasks import list_tasks
+        from cognizes.api.routes.tasks import list_tasks
 
         # Mock successful response
         mock_task_service.list_tasks.return_value = {
@@ -72,7 +72,7 @@ class TestTasksRoutes:
     @pytest.mark.asyncio
     async def test_list_tasks_with_filters(self, mock_task_service):
         """Test task listing with various filters."""
-        from agents.api.routes.tasks import list_tasks
+        from cognizes.api.routes.tasks import list_tasks
 
         mock_task_service.list_tasks.return_value = {
             "tasks": [],
@@ -105,7 +105,7 @@ class TestTasksRoutes:
         """Test task listing with service error."""
         from fastapi import HTTPException
 
-        from agents.api.routes.tasks import list_tasks
+        from cognizes.api.routes.tasks import list_tasks
 
         mock_task_service.list_tasks.side_effect = Exception("Service error")
 
@@ -115,7 +115,7 @@ class TestTasksRoutes:
     @pytest.mark.asyncio
     async def test_get_task_success(self, mock_task_service):
         """Test successful task retrieval."""
-        from agents.api.routes.tasks import get_task
+        from cognizes.api.routes.tasks import get_task
 
         task_data = {
             "task_id": "task123",
@@ -140,7 +140,7 @@ class TestTasksRoutes:
         """Test task retrieval when task not found."""
         from fastapi import HTTPException
 
-        from agents.api.routes.tasks import get_task
+        from cognizes.api.routes.tasks import get_task
 
         mock_task_service.get_task.side_effect = ValueError("Task not found")
 
@@ -153,7 +153,7 @@ class TestTasksRoutes:
         """Test task retrieval with service error."""
         from fastapi import HTTPException
 
-        from agents.api.routes.tasks import get_task
+        from cognizes.api.routes.tasks import get_task
 
         mock_task_service.get_task.side_effect = Exception("Service error")
 
@@ -163,7 +163,7 @@ class TestTasksRoutes:
     @pytest.mark.asyncio
     async def test_cancel_task_success(self, mock_task_service):
         """Test successful task cancellation."""
-        from agents.api.routes.tasks import cancel_task
+        from cognizes.api.routes.tasks import cancel_task
 
         mock_task_service.cancel_task.return_value = {
             "success": True,
@@ -182,7 +182,7 @@ class TestTasksRoutes:
         """Test task cancellation when task not found."""
         from fastapi import HTTPException
 
-        from agents.api.routes.tasks import cancel_task
+        from cognizes.api.routes.tasks import cancel_task
 
         mock_task_service.cancel_task.side_effect = ValueError("Task not found")
 
@@ -195,7 +195,7 @@ class TestTasksRoutes:
         """Test task cancellation with service error."""
         from fastapi import HTTPException
 
-        from agents.api.routes.tasks import cancel_task
+        from cognizes.api.routes.tasks import cancel_task
 
         mock_task_service.cancel_task.side_effect = Exception("Service error")
 
@@ -205,7 +205,7 @@ class TestTasksRoutes:
     @pytest.mark.asyncio
     async def test_get_task_logs_success(self, mock_task_service):
         """Test successful task logs retrieval."""
-        from agents.api.routes.tasks import get_task_logs
+        from cognizes.api.routes.tasks import get_task_logs
 
         mock_logs = [
             "2024-01-01 10:00:00 - Task started",
@@ -225,7 +225,7 @@ class TestTasksRoutes:
     @pytest.mark.asyncio
     async def test_get_task_logs_with_line_limit(self, mock_task_service):
         """Test task logs retrieval with line limit."""
-        from agents.api.routes.tasks import get_task_logs
+        from cognizes.api.routes.tasks import get_task_logs
 
         mock_task_service.get_task_logs.return_value = ["log entry"]
 
@@ -241,7 +241,7 @@ class TestTasksRoutes:
         """Test task logs retrieval when task not found."""
         from fastapi import HTTPException
 
-        from agents.api.routes.tasks import get_task_logs
+        from cognizes.api.routes.tasks import get_task_logs
 
         mock_task_service.get_task_logs.side_effect = ValueError("Task not found")
 
@@ -252,7 +252,7 @@ class TestTasksRoutes:
     @pytest.mark.asyncio
     async def test_cleanup_completed_tasks_success(self, mock_task_service):
         """Test successful cleanup of completed tasks."""
-        from agents.api.routes.tasks import cleanup_completed_tasks
+        from cognizes.api.routes.tasks import cleanup_completed_tasks
 
         mock_task_service.cleanup_completed_tasks.return_value = {
             "deleted_count": 10,
@@ -268,7 +268,7 @@ class TestTasksRoutes:
     @pytest.mark.asyncio
     async def test_cleanup_completed_tasks_with_custom_hours(self, mock_task_service):
         """Test cleanup with custom hours parameter."""
-        from agents.api.routes.tasks import cleanup_completed_tasks
+        from cognizes.api.routes.tasks import cleanup_completed_tasks
 
         mock_task_service.cleanup_completed_tasks.return_value = {"deleted_count": 0}
 
@@ -280,7 +280,7 @@ class TestTasksRoutes:
         """Test cleanup with service error."""
         from fastapi import HTTPException
 
-        from agents.api.routes.tasks import cleanup_completed_tasks
+        from cognizes.api.routes.tasks import cleanup_completed_tasks
 
         mock_task_service.cleanup_completed_tasks.side_effect = Exception("Service error")
 

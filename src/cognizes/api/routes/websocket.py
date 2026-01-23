@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from agents.api.services.websocket_service import WebSocketService
+from cognizes.api.services.websocket_service import WebSocketService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

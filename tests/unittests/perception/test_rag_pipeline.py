@@ -20,6 +20,9 @@ from cognizes.engine.perception.rag_pipeline import (
     get_rag_pipeline,
 )
 
+# pytest-asyncio 配置
+pytestmark = pytest.mark.asyncio
+
 
 # ============================================
 # Dataclass Tests
@@ -79,40 +82,30 @@ class TestRAGPipelineMock:
             embedding_provider="mock",
         )
 
-    def test_index_document(self, pipeline):
+    async def test_index_document(self, pipeline):
         """Test document indexing (mock mode)."""
-
-        async def run():
-            result = await pipeline.index_document(
-                content="Machine learning is a subset of AI.",
-                source_uri="test.txt",
-            )
-            return result
-
-        result = pytest.importorskip("asyncio").get_event_loop().run_until_complete(run())
+        result = await pipeline.index_document(
+            content="Machine learning is a subset of AI.",
+            source_uri="test.txt",
+        )
 
         assert isinstance(result, IndexingResult)
         assert result.source_uri == "test.txt"
         # No DB, so chunks_indexed is 0
         assert result.chunks_indexed == 0
 
-    def test_retrieve_mock(self, pipeline):
+    async def test_retrieve_mock(self, pipeline):
         """Test retrieval in mock mode."""
-
-        async def run():
-            results = await pipeline.retrieve(
-                query="What is machine learning?",
-                top_k=5,
-            )
-            return results
-
-        results = pytest.importorskip("asyncio").get_event_loop().run_until_complete(run())
+        results = await pipeline.retrieve(
+            query="What is machine learning?",
+            top_k=5,
+        )
 
         # Should return mock results
         assert len(results) == 5
         assert all(isinstance(r, RetrievalResult) for r in results)
 
-    def test_generate_mock(self, pipeline):
+    async def test_generate_mock(self, pipeline):
         """Test generation in mock mode."""
         context = [
             RetrievalResult(
@@ -122,31 +115,21 @@ class TestRAGPipelineMock:
                 source_uri="doc.txt",
             ),
         ]
-
-        async def run():
-            answer = await pipeline.generate(
-                query="What is ML?",
-                context=context,
-            )
-            return answer
-
-        answer = pytest.importorskip("asyncio").get_event_loop().run_until_complete(run())
+        answer = await pipeline.generate(
+            query="What is ML?",
+            context=context,
+        )
 
         # Should return mock answer (no LLM configured)
         assert isinstance(answer, str)
         assert "Mock answer" in answer
 
-    def test_query_e2e_mock(self, pipeline):
+    async def test_query_e2e_mock(self, pipeline):
         """Test end-to-end query in mock mode."""
-
-        async def run():
-            response = await pipeline.query(
-                query="What is machine learning?",
-                top_k=3,
-            )
-            return response
-
-        response = pytest.importorskip("asyncio").get_event_loop().run_until_complete(run())
+        response = await pipeline.query(
+            query="What is machine learning?",
+            top_k=3,
+        )
 
         assert isinstance(response, RAGResponse)
         assert response.query == "What is machine learning?"

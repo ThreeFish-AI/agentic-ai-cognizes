@@ -14,8 +14,9 @@ from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from agents.api.main import app
+from cognizes.api.main import app
 
 
 @pytest.fixture(scope="session")
@@ -134,7 +135,7 @@ async def async_client():
 @pytest.fixture
 def mock_paper_service():
     """Mock the PaperService."""
-    with patch("agents.api.services.paper_service.PaperService") as mock:
+    with patch("cognizes.api.services.paper_service.PaperService") as mock:
         service = MagicMock()
         service.upload_paper = AsyncMock()
         service.get_paper = AsyncMock()
@@ -154,7 +155,7 @@ def mock_paper_service():
 @pytest.fixture
 def mock_task_service():
     """Mock the TaskService."""
-    with patch("agents.api.services.task_service.TaskService") as mock:
+    with patch("cognizes.api.services.task_service.TaskService") as mock:
         service = MagicMock()
         service.create_task = AsyncMock()
         service.get_task = AsyncMock()
@@ -168,7 +169,7 @@ def mock_task_service():
 @pytest.fixture
 def mock_workflow_agent():
     """Mock the WorkflowAgent."""
-    with patch("agents.claude.workflow_agent.WorkflowAgent") as mock:
+    with patch("cognizes.agents.claude.workflow_agent.WorkflowAgent") as mock:
         agent = MagicMock()
         agent.process_paper = AsyncMock()
         agent.translate_paper = AsyncMock()
@@ -182,7 +183,7 @@ def mock_workflow_agent():
 @pytest.fixture
 def mock_pdf_agent():
     """Mock the PDFProcessingAgent."""
-    with patch("agents.claude.pdf_agent.PDFProcessingAgent") as mock:
+    with patch("cognizes.agents.claude.pdf_agent.PDFProcessingAgent") as mock:
         agent = MagicMock()
         agent.extract_content = AsyncMock()
         agent.extract_images = AsyncMock()
@@ -194,7 +195,7 @@ def mock_pdf_agent():
 @pytest.fixture
 def mock_translation_agent():
     """Mock the TranslationAgent."""
-    with patch("agents.claude.translation_agent.TranslationAgent") as mock:
+    with patch("cognizes.agents.claude.translation_agent.TranslationAgent") as mock:
         agent = MagicMock()
         agent.translate = AsyncMock()
         agent.translate_with_options = AsyncMock()
@@ -206,7 +207,7 @@ def mock_translation_agent():
 @pytest.fixture
 def mock_heartfelt_agent():
     """Mock the HeartfeltAgent."""
-    with patch("agents.claude.heartfelt_agent.HeartfeltAgent") as mock:
+    with patch("cognizes.agents.claude.heartfelt_agent.HeartfeltAgent") as mock:
         agent = MagicMock()
         agent.analyze = AsyncMock()
         agent.generate_insights = AsyncMock()

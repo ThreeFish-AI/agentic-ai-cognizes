@@ -1,8 +1,24 @@
-# Agentic AI Papers Collection & Translation Platform 🔬
+---
+id: cognizes
+sidebar_position: 0
+title: Agentic AI Cognizes
+last_update:
+  author: Aurelius Huang
+  created_at: 2025-10-22
+  updated_at: 2026-01-22
+  version: 1.1
+  status: Reviewed
+tags:
+  - Agentic AI
+  - Cognizes
+  - Research
+---
 
+> [!NOTE]
+>
 > **开发状态**: 早期 MVP 阶段 · 后端优先 · [📋 查看完整路线图](docs/000-roadmap.md)
-
-一个专注于 Agentic AI 研究的学术论文收集、翻译、理解、语义检索、应用的智能平台，为中文读者提供高质量的人工智能智能体领域技术资源与服务支持。
+>
+> 一个专注于 Agentic AI 研究的学术论文收集、翻译、理解、语义检索、应用的智能平台，为中文读者提供高质量的人工智能智能体领域技术资源与服务支持。
 
 ## 📊 当前进展
 

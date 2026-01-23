@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agents.api.services.websocket_service import WebSocketService
+from cognizes.api.services.websocket_service import WebSocketService
 
 
 @pytest.mark.unit

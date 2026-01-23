@@ -1,6 +1,6 @@
 """Test batch agent file validation for coverage."""
 
-from agents.claude.batch_agent import BatchProcessingAgent
+from cognizes.agents.claude.batch_agent import BatchProcessingAgent
 
 
 def test_batch_agent_process_with_no_files():

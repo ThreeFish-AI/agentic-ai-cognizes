@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from agents.api.routes.websocket import (
+from cognizes.api.routes.websocket import (
     ConnectionManager,
     WebSocketService,
     get_websocket_service,
@@ -35,7 +35,7 @@ class TestWebSocketRoutes:
     async def test_websocket_endpoint_connects(self):
         """Test WebSocket endpoint connection."""
         # Mock the ConnectionManager
-        with patch("agents.api.routes.websocket.manager") as mock_manager:
+        with patch("cognizes.api.routes.websocket.manager") as mock_manager:
             mock_manager.connect = AsyncMock()
             mock_manager.disconnect = AsyncMock()
             mock_manager.active_connections = {}
@@ -78,7 +78,7 @@ class TestWebSocketRoutes:
     async def test_websocket_connection_handling(self):
         """Test WebSocket connection handling."""
         # Mock the ConnectionManager directly
-        with patch("agents.api.routes.websocket.ConnectionManager") as mock_cm_class:
+        with patch("cognizes.api.routes.websocket.ConnectionManager") as mock_cm_class:
             mock_manager = AsyncMock()
             mock_cm_class.return_value = mock_manager
 
@@ -102,7 +102,7 @@ class TestWebSocketRoutes:
     async def test_websocket_message_handling(self):
         """Test WebSocket message handling."""
         # Mock the ConnectionManager
-        with patch("agents.api.routes.websocket.manager") as mock_manager:
+        with patch("cognizes.api.routes.websocket.manager") as mock_manager:
             # Setup mock
             mock_manager.send_personal_message = AsyncMock()
             mock_manager.broadcast_to_subscribers = AsyncMock()
@@ -128,7 +128,7 @@ class TestWebSocketRoutes:
     async def test_websocket_error_handling(self):
         """Test WebSocket error handling."""
         # Mock the ConnectionManager
-        with patch("agents.api.routes.websocket.manager") as mock_manager:
+        with patch("cognizes.api.routes.websocket.manager") as mock_manager:
             # Test connection error
             mock_manager.connect = AsyncMock(side_effect=Exception("Connection failed"))
 
@@ -139,7 +139,7 @@ class TestWebSocketRoutes:
     async def test_websocket_connection_lifecycle(self):
         """Test full WebSocket connection lifecycle."""
         # Mock the ConnectionManager
-        with patch("agents.api.routes.websocket.manager") as mock_manager:
+        with patch("cognizes.api.routes.websocket.manager") as mock_manager:
             # Setup mock lifecycle
             mock_manager.connect = AsyncMock()
             mock_manager.disconnect = AsyncMock()
@@ -164,7 +164,7 @@ class TestWebSocketRoutes:
         ]
 
         # Mock the ConnectionManager
-        with patch("agents.api.routes.websocket.manager") as mock_manager:
+        with patch("cognizes.api.routes.websocket.manager") as mock_manager:
             mock_manager.broadcast_to_subscribers = AsyncMock()
 
             for message in test_messages:
@@ -206,20 +206,20 @@ class TestWebSocketRoutes:
 
     def test_manager_instance(self):
         """Test that manager instance exists."""
-        from agents.api.routes.websocket import manager
+        from cognizes.api.routes.websocket import manager
 
         assert manager is not None
         assert isinstance(manager, ConnectionManager)
 
     def test_router_exists(self):
         """Test that router exists."""
-        from agents.api.routes.websocket import router
+        from cognizes.api.routes.websocket import router
 
         assert router is not None
 
     def test_websocket_endpoint_exists(self):
         """Test that websocket endpoint function exists."""
-        from agents.api.routes.websocket import websocket_endpoint
+        from cognizes.api.routes.websocket import websocket_endpoint
 
         assert callable(websocket_endpoint)
 

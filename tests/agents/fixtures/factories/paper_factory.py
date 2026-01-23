@@ -6,7 +6,7 @@ from datetime import datetime
 import factory
 from factory import fuzzy
 
-from agents.api.models.paper import (
+from cognizes.api.models.paper import (
     PaperInfo,
     PaperMetadata,
     PaperProcessRequest,

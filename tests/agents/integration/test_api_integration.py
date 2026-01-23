@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agents.api.main import app
-from agents.api.routes.papers import get_paper_service
+from cognizes.api.main import app
+from cognizes.api.routes.papers import get_paper_service
 from tests.agents.fixtures.mocks.mock_file_operations import (
     mock_file_manager,
     patch_file_operations,

@@ -14,14 +14,14 @@ from fastapi import (
     UploadFile,
 )
 
-from agents.api.models.paper import (
+from cognizes.api.models.paper import (
     BatchProcessRequest,
     PaperListResponse,
     PaperProcessRequest,
     PaperStatus,
     PaperUploadResponse,
 )
-from agents.api.services.paper_service import PaperService
+from cognizes.api.services.paper_service import PaperService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

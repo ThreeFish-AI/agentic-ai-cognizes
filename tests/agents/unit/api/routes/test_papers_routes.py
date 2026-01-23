@@ -5,8 +5,8 @@ import io
 import pytest
 from fastapi.testclient import TestClient
 
-from agents.api.main import app
-from agents.api.routes.papers import get_paper_service
+from cognizes.api.main import app
+from cognizes.api.routes.papers import get_paper_service
 from tests.agents.fixtures.factories.paper_factory import (
     PaperUploadResponseFactory,
 )

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from agents.api.main import app
+from cognizes.api.main import app
 
 
 def test_app_creation():
@@ -43,10 +43,10 @@ def test_app_routes():
 @pytest.mark.asyncio
 async def test_lifespan_context_manager():
     """Test lifespan context manager."""
-    from agents.api.main import lifespan
+    from cognizes.api.main import lifespan
 
     # Test successful initialization and cleanup
-    with patch("agents.api.services.task_service.task_service") as mock_service:
+    with patch("cognizes.api.services.task_service.task_service") as mock_service:
         mock_service.initialize = AsyncMock()
         mock_service.cleanup = AsyncMock()
 
@@ -60,9 +60,9 @@ async def test_lifespan_context_manager():
 @pytest.mark.asyncio
 async def test_lifespan_initialization_failure():
     """Test lifespan with initialization failure."""
-    from agents.api.main import lifespan
+    from cognizes.api.main import lifespan
 
-    with patch("agents.api.services.task_service.task_service") as mock_service:
+    with patch("cognizes.api.services.task_service.task_service") as mock_service:
         mock_service.initialize = AsyncMock(side_effect=Exception("Init failed"))
 
         with pytest.raises(Exception, match="Init failed"):
@@ -72,6 +72,6 @@ async def test_lifespan_initialization_failure():
 
 def test_exception_handler_import():
     """Test that exception handler can be imported."""
-    from agents.api.main import global_exception_handler
+    from cognizes.api.main import global_exception_handler
 
     assert callable(global_exception_handler)

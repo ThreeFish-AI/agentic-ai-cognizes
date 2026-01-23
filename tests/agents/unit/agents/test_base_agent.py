@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from agents.claude.base import BaseAgent
+from cognizes.agents.claude.base import BaseAgent
 
 
 @pytest.mark.unit
@@ -101,7 +101,7 @@ class TestBaseAgent:
         agent = TestAgent("test_agent")
 
         # Mock the skill import and execution
-        with patch("agents.claude.base.logger"):
+        with patch("cognizes.agents.claude.base.logger"):
             result = await agent.call_skill("test_skill", {"param": "value"})
 
             # Now it should fail with unknown skill error instead of module not found
@@ -118,7 +118,7 @@ class TestBaseAgent:
 
         agent = TestAgent("test_agent")
 
-        with patch("agents.claude.base.logger"):
+        with patch("cognizes.agents.claude.base.logger"):
             result = await agent.call_skill("invalid_skill", {})
 
             assert result["success"] is False
@@ -235,7 +235,7 @@ class TestBaseAgent:
         input_data = {"file": "test.pdf"}
         output_data = {"success": True, "data": {"result": "processed"}}
 
-        with patch("agents.claude.base.logger") as mock_logger:
+        with patch("cognizes.agents.claude.base.logger") as mock_logger:
             await agent.log_processing(input_data, output_data)
 
             mock_logger.info.assert_called_once()
@@ -257,7 +257,7 @@ class TestBaseAgent:
         input_data = {"file": "test.pdf"}
         output_data = {"success": False, "error": "Processing failed"}
 
-        with patch("agents.claude.base.logger") as mock_logger:
+        with patch("cognizes.agents.claude.base.logger") as mock_logger:
             await agent.log_processing(input_data, output_data)
 
             mock_logger.info.assert_called_once()

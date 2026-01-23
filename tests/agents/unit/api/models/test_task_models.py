@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from agents.api.models.task import (
+from cognizes.api.models.task import (
     BatchProgress,
     PingMessage,
     PongMessage,

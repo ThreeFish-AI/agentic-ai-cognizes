@@ -2,7 +2,7 @@
 
 import pytest
 
-from agents.core.exceptions import (
+from cognizes.agents.exceptions import (
     AgentError,
     AuthenticationError,
     AuthorizationError,

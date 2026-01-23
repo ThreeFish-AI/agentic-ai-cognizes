@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agents.claude.translation_agent import TranslationAgent
+from cognizes.agents.claude.translation_agent import TranslationAgent
 
 
 @pytest.mark.unit

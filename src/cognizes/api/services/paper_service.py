@@ -9,10 +9,10 @@ from typing import Any
 
 from fastapi import UploadFile
 
-from agents.claude.batch_agent import BatchProcessingAgent
-from agents.claude.heartfelt_agent import HeartfeltAgent
-from agents.claude.workflow_agent import WorkflowAgent
-from agents.core.config import settings
+from cognizes.agents.claude.batch_agent import BatchProcessingAgent
+from cognizes.agents.claude.heartfelt_agent import HeartfeltAgent
+from cognizes.agents.claude.workflow_agent import WorkflowAgent
+from cognizes.agents.config import settings
 
 logger = logging.getLogger(__name__)
 

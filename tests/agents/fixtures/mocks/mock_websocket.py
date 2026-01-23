@@ -278,7 +278,7 @@ def patch_websocket_service():
     # Patch WebSocketService
     patches.append(
         patch(
-            "agents.api.services.websocket_service.WebSocketService",
+            "cognizes.api.services.websocket_service.WebSocketService",
             return_value=mock_websocket_service,
         )
     )
@@ -286,7 +286,7 @@ def patch_websocket_service():
     # Patch ConnectionManager
     patches.append(
         patch(
-            "agents.api.services.websocket_service.ConnectionManager",
+            "cognizes.api.services.websocket_service.ConnectionManager",
             return_value=mock_connection_manager,
         )
     )

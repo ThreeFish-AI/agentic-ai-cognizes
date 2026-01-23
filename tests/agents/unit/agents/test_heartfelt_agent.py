@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from agents.claude.heartfelt_agent import HeartfeltAgent
+from cognizes.agents.claude.heartfelt_agent import HeartfeltAgent
 
 
 @pytest.mark.unit

@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import UploadFile
 
-from agents.api.services.paper_service import PaperService
-from agents.claude.base import BaseAgent
+from cognizes.api.services.paper_service import PaperService
+from cognizes.agents.claude.base import BaseAgent
 from tests.agents.fixtures.mocks.mock_file_operations import (
     mock_file_manager,
     patch_file_operations,
@@ -22,7 +22,7 @@ class TestPaperService:
     @pytest.fixture
     def paper_service(self, temp_dir):
         """Create a PaperService instance for testing."""
-        with patch("agents.api.services.paper_service.settings") as mock_settings:
+        with patch("cognizes.api.services.paper_service.settings") as mock_settings:
             mock_settings.PAPERS_DIR = str(temp_dir / "papers")
             service = PaperService()
             # Replace agents with mocks
@@ -52,7 +52,7 @@ class TestPaperService:
             )
             mock_file_manager.mkdir(str(papers_dir / "source/llm-agents"), parents=True, exist_ok=True)
 
-            with patch("agents.api.services.paper_service.datetime") as mock_datetime:
+            with patch("cognizes.api.services.paper_service.datetime") as mock_datetime:
                 mock_datetime.now.return_value.strftime.return_value = "20240115_143022"
 
                 # Mock metadata saving
@@ -401,7 +401,7 @@ class TestPaperService:
                 assert result is None
 
     @pytest.mark.asyncio
-    @patch("agents.api.services.paper_service.datetime")
+    @patch("cognizes.api.services.paper_service.datetime")
     async def test_batch_translate(self, mock_datetime, paper_service):
         """Test batch translation of papers."""
         from tests.agents.fixtures.mocks.mock_file_operations import (
@@ -465,7 +465,7 @@ class TestPaperService:
         assert paper_service._sanitize_filename("") == "unnamed"
 
     @pytest.mark.asyncio
-    @patch("agents.api.services.paper_service.datetime")
+    @patch("cognizes.api.services.paper_service.datetime")
     async def test_heartfelt_analysis(self, mock_datetime, paper_service, temp_dir):
         """Test heartfelt analysis of paper."""
         from tests.agents.fixtures.mocks.mock_file_operations import (

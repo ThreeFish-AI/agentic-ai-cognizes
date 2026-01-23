@@ -5,8 +5,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
-from agents.api.models.task import TaskListResponse, TaskResponse
-from agents.api.services.task_service import TaskService
+from cognizes.api.models.task import TaskListResponse, TaskResponse
+from cognizes.api.services.task_service import TaskService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
