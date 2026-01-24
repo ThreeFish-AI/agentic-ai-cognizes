@@ -1,15 +1,15 @@
 ---
-id: agentic-ai-engine-validation-roadmap
+id: cognizes-engine-validation-roadmap
 sidebar_position: 0.0
-title: Agentic AI Engine Validation Roadmap
+title: Cognizes Engine Validation Roadmap
 last_update:
   author: Aurelius Huang
   created_at: 2025-12-22
-  updated_at: 2026-01-08
-  version: 1.3
+  updated_at: 2026-01-24
+  version: 1.4
   status: Reviewed
 tags:
-  - Agentic AI Engine
+  - Cognizes Engine
   - Memory Bank
   - RAG Engine
   - Validation Roadmap
@@ -18,56 +18,59 @@ tags:
 > [!NOTE]
 >
 > **基于调研**: [context-engineering](../research/010-context-engineering.md) | [agent-runtime-frameworks](../research/020-agent-runtime-frameworks.md) | [vector-search-algorithm](../research/030-vector-search-algorithm.md) | [vector-databases](../research/032-vector-databases.md) | [ag-ui](../research/070-ag-ui.md)
+> **权威定义**: [Cognizes Engine README](README.md)
 
 ## 1. 验证目标
 
-核心验证目标是 **在私有化/自托管环境下，重构并验证「Agentic AI Engine」的完整工程能力**。不仅要"用" Agent，更要"造" Engine。我们致力于脱离 Google Vertex AI 的全托管黑盒服务，基于开源标准技术栈，对标并复刻 **Google Vertex AI Agent Engine** 的核心架构。
+核心验证目标是 **在私有化/自托管环境下，重构并验证「Cognizes Engine」的完整工程能力**。不仅要"用" Agent，更要"造" Engine。我们致力于脱离 Google Vertex AI 的全托管黑盒服务，基于开源标准技术栈，对标并复刻 **Google Vertex AI Agent Engine** 的核心架构。
 
 ### 1.1 两大核心验证命题
 
-1. **Agentic AI Engine Engineering (Agent Engine 工程验证)**：
-   验证在脱离 Google Vertex AI Agent Engine 托管服务后，如何通过自建基础设施搭配 **Google ADK (Agent Development Kit)**，构建一套涵盖 **开发 (Dev)**、**测试 (Test)**、**评估 (Eval)** 到 **部署 (Ops)** 等的全链路 Agent 工程体系。
+1. **Cognizes Engine Engineering (Cognizes Engine 工程验证)**：
+   验证在脱离 Google Vertex AI Agent Engine 托管服务后，如何通过 **Agent Engine Adapters** 搭配 **Google ADK (Agent Development Kit)**，构建一套涵盖 **开发 (Dev)**、**测试 (Test)**、**评估 (Eval)** 到 **部署 (Ops)** 等的全链路 Agent 工程体系。
 
 2. **Unified Retrieval Platform (企业级统一检索平台验证)**：
-   验证构建一个"多模态、全能型"的 **企业级统一检索平台 (Unified Retrieval Platform)**。它不仅是 RAG Engine，通过 **PostgreSQL + PGVector** 的融合能力，同时实现 **语义检索 (Vector Search)**、**关键字搜索 (Keyword Search)** 与 **元数据过滤 (Metadata Filtering)** 等的统一调度。
+   验证构建一个"多模态、全能型"的 **企业级统一检索平台 (Unified Retrieval Platform)**。它是 **PostgreSQL (All-in-One)** 架构的终极体现，同时实现 **语义检索 (Vector Search)**、**关键字搜索 (Keyword Search)** 与 **元数据过滤 (Metadata Filtering)** 的统一调度。
 
 ### 1.2 现阶段执行目标 (Current Phase)
 
-**"De-Google, but Re-Google"**，基于 **PostgreSQL + PGVector** 存储介质，**1:1 复刻（甚至更优）** Google Vertex AI Agent Engine 的关键原子能力：
+**"Compatible above, Sovereign below"**（上层兼容，底层自主）。基于 **PostgreSQL + PGVector** 存储介质，**1:1 复刻（甚至更优）** Google Vertex AI Agent Engine 的关键原子能力：
 
-- **Session Management**: 会话状态的原子性管理与持久化。
-- **Memory Bank**: 长期记忆的"海马体"构建（存储、索引与提取）。
-- **Retrieval Engine**: 高性能的混合检索链路。
+- **Session Management**: 会话状态的原子性管理与持久化 (ACID)。
+- **Memory Bank**: 长期记忆的"海马体"构建 (Zero-ETL)。
+- **Retrieval Engine**: 高性能的混合检索链路 (One-Shot Hybrid Search)。
 - **Sandbox**: 安全可控的代码执行环境。
 
-最终，使用这套自建的 **Agent Engine** 搭配 **Google ADK**，走通 Agent 搭建的 **全场景闭环**。
+最终，使用这套自建的 **Agent Engine Adapters** 搭配 **Google ADK**，走通 Agent 搭建的 **全场景闭环**。
 
 ### 1.3 四大核心支柱 (The 4 Pillars of Verification)
 
-我们将 **Agentic AI Engine** 的黑盒能力解构为四个 **正交 (Orthogonal)** 的工程支柱。通过 **"Glass-Box (白盒化)"** 策略，利用 PostgreSQL 生态的原子能力（JSONB, Vectors, Triggers, Notify）实现对 Google Vertex AI 中这 4 个支柱的对标、复刻与机制透明化，从而 **"De-Google, but Re-Google"**。
+我们将 **Cognizes Engine** 的黑盒能力解构为四个 **正交 (Orthogonal)** 的工程支柱。通过 **"Glass-Box (白盒化)"** 策略，利用 PostgreSQL 生态的原子能力（JSONB, Vectors, Triggers, Notify）实现对 Google Vertex AI 中这 4 个支柱的对标、复刻与机制透明化。
 
 #### 🫀 Pillar I: The Pulse (脉搏引擎)
 
 > [!NOTE]
 >
 > - **Definition**: **Session Engine** —— 负责管理 Agent 与环境交互的 **瞬时状态 (Ephemeral State)** 与 **控制流 (Control Flow)**。
-> - **Core Value**: **Consistency (一致性：可回溯的会话上下文)** & **Real-time (实时性：高并发、强一致)**。
+> - **Implementation**: `PostgresSessionService`
+> - **Core Value**: **Consistency (一致性)** & **Real-time (实时性)**。
 > - **Align With**: Google `VertexAiSessionService` (Firestore/Redis) + Realtime API。
 
 1. **State Granularity (状态颗粒度)**
-   - **Thread (会话容器)**: 持久化存储用户级交互历史（Human-Agent Interaction），作为长期记忆的输入源。
+   - **Thread/Session (会话容器)**: 持久化存储用户级交互历史（Human-Agent Interaction），作为长期记忆的输入源。使用 `JSONB` 保持灵活性。
    - **Run (执行链路)**: 临时存储单次推理过程中的 Thinking Steps 和 Tool Calls，仅在执行期间存活，保障推理的可观测性。
 2. **Concurrency Control (并发控制)**
-   - **Optimistic Locking (乐观锁)**: 利用 PG `xmin` 实现 `CAS (Compare-And-Swap)`，解决多 Agent 或多用户同时操作同一 Thread 时的状态竞争。
-   - **Atomic Transitions (原子流转)**: 利用 PG 事务确保 `User Message -> Agent State Update -> Tool Execution` 这一连串动作的原子性。
+   - **Optimistic Locking (乐观锁)**: 利用 PG `xmin` 实现 `version` 字段的 `CAS (Compare-And-Swap)`，解决多 Agent 或多用户同时操作同一 Thread 时的状态竞争。
+   - **Atomic Transitions (原子转换)**: 利用 PG 事务确保 `User Message -> Agent State Update -> Tool Execution` 这一连串动作的原子性。
 3. **Event Streaming (事件流)**
-   - **Real-time Pub/Sub**: 利用 `LISTEN/NOTIFY` 机制替代 Redis Pub/Sub，实现 Token Streaming 和 Tool Outputs 的毫秒级前端推送。
+   - **Real-time Pub/Sub (实时发布/订阅)**: 利用 `LISTEN/NOTIFY` 实现 Database-Native 的 Token Streaming 和 Tool Outputs 的毫秒级前端事件流推送。
 
 #### 🧠 Pillar II: The Hippocampus (仿生记忆)
 
 > [!NOTE]
 >
 > - **Definition**: **Memory System** —— 负责将瞬时状态转化为 **持久记忆 (Persistent Memory)** 的生命周期管理系统。
+> - **Implementation**: `PostgresMemoryService`
 > - **Core Value**: **Evolution (演化性：短期记忆向长期记忆的动态转化)** & **Relevance (关联性：模拟人类记忆机制)**。
 > - **Align With**: Google `VertexAiMemoryBankService` (Vector Search + LLM Extraction)。
 
@@ -86,6 +89,7 @@ tags:
 > [!NOTE]
 >
 > - **Definition**: **Unified Search** —— 负责从海量记忆与知识中 **精准定位 (Pinpoint)** 信息的检索中枢。
+> - **Implementation**: `PostgreKnowledgeBase` (Unified Retrieval Platform)
 > - **Core Value**: **Precision (精准度：重排序、精排序)** & **Fusion (融合性：多模态、混合的检索能力)**。
 > - **Align With**: Vertex AI RAG Engine + Vector Search + VertexAIMemoryBankService。
 
@@ -101,6 +105,7 @@ tags:
 > [!NOTE]
 >
 > - **Definition**: **Agent Runtime** —— 负责编排思考路径、调度工具与沙箱的 **执行环境 (Execution Environment)**。
+> - **Implementation**: `ToolRegistry` + `Tracing` (OpenTelemetry)
 > - **Core Value**: **Observability (可观测性：自省性)**、**Safety (安全性：标准化的执行环境、工具管理)**、**"Google's Framework, Flexible Infrastructure"**。
 > - **Align With**: Vertex AI Agent Engine (ADK on Agent Engine) + Extensions。
 
