@@ -127,19 +127,16 @@ tags:
 ### 2.2 预选型对照
 
 1. **PostgreSQL Ecosystem (Primary Target)**:
-
    - **定位**: **"The Golden Standard"**。
    - **构成**: PostgreSQL 16+ (Kernel) + `pgvector` (Vector) + `pg_cron` (Scheduler) + `pg_jsonschema` (Validation)。
    - **优势**: 极致的开箱即用体验 (DX) 与全栈一致性，架构熵最低。
 
 2. **Google Agent Engine Stack (Reference)**:
-
    - **定位**: **"The North Star"**。
    - **构成**: Open Agent Engine (适配 ADK)。
    - **价值**: 提供能力基准线 (Baseline Capabilities) 与 API 设计规范。
 
 3. **Specialized Vector DBs (VectorChord/Weaviate/Milvus)**:
-
    - **定位**: **"Specific Enhancer"**。
    - **场景**: 仅当 PG 在千万级 (10M+) 向量规模出现显著性能瓶颈，或需要特定多模态索引 (如 DiskANN) 时作为组件引入。
 

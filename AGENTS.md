@@ -69,26 +69,22 @@ Vibe Coding = 规划驱动 + 上下文固定 + AI 结对执行，让「从想法
 
 ## 常用导航
 
-- [🗺️ 项目路线](docs/000-roadmap.md) - 项目整体开发计划和进度
-- [📖 系统架构](docs/001-architecture.md) - 架构设计和技术栈
-- [💻 开发指南](docs/002-development.md) - 开发环境和代码规范
-- [👥 用户手册](docs/003-user-guide.md) - 安装部署和使用教程
-- [🧪 测试方案](docs/004-testing.md) - 测试框架和 CI/CD
-- [🚀 GitHub Actions](docs/005-github-actions.md) - 自动化工作流
-- [🤖 AI Agents](docs/006-agents.md) - Claude SDK 与 Google ADK 实现方案
-- [📡 API 文档](docs/007-apis.md) - RESTful API 和 WebSocket 详细文档
+- [🗺️ 产品需求与架构](docs/000-prd-architecture.md) - 产品需求与概要设计
+- [� 实施计划](docs/001-implementation-plan.md) - Agentic AI 学术研究与工程应用平台实施计划
+- [✅ 任务清单](docs/002-task-checklist.md) - 任务执行清单
 
 ---
 
 ## Cognizes Engine
 
-- [🗺️ 项目路线](docs/000-roadmap.md) - 项目整体开发计划和进度
-- [📖 任务清单](docs/001-task-checklist.md) - 任务清单
-- [🫀 脉搏系统](docs/010-the-pulse.md) - 脉搏系统
-- [🧠 仿生记忆](docs/020-the-hippocampus.md) - 仿生记忆
-- [👁️ 神经感知](docs/030-the-perception.md) - 神经感知
-- [🔮 心智空间](docs/040-the-realm-of-mind.md) - 心智空间
-- [🚀 集成验证](docs/050-integrated-demo.md) - 集成验证
+- [🗺️ Engine 路线图](docs/engine/000-roadmap.md) - 项目整体开发计划和进度
+- [📖 Engine 任务清单](docs/engine/001-task-checklist.md) - 任务清单
+- [🫀 脉搏系统](docs/engine/010-the-pulse.md) - 脉搏系统
+- [🧠 仿生记忆](docs/engine/020-the-hippocampus.md) - 仿生记忆
+- [👁️ 神经感知](docs/engine/030-the-perception.md) - 神经感知
+- [🔮 心智空间](docs/engine/040-the-realm-of-mind.md) - 心智空间
+- [🚀 集成验证](docs/engine/050-integrated-demo.md) - 集成验证
+- [🧩 Engine 架构记录](docs/engine/060-agentic-ai-engine.md) - Roadmap & TCO
 
 ### 研究
 
@@ -98,9 +94,13 @@ Vibe Coding = 规划驱动 + 上下文固定 + AI 结对执行，让「从想法
 - [📡 Vector Search Algorithm](docs/research/030-vector-search-algorithm.md) - Vector Search Algorithm
 - [📡 Vector Databases Selection](docs/research/031-vector-databases-selection.md) - Vector Databases Selection
 - [📡 Vector Databases](docs/research/032-vector-databases.md) - Vector Databases
+- [📡 OceanBase](docs/research/033-oceanbase.md) - OceanBase 调研
+- [📡 Knowledge Base](docs/research/034-knowledge-base.md) - RAG Pipeline & Hybrid Search
+- [📡 Knowledge Base Platform](docs/research/035-knowledge-base-platform.md) - 腾讯 WeKnora 深度调研
 - [📡 Cognee](docs/research/040-cognee.md) - Cognee
 - [📡 Neo4j](docs/research/050-neo4j.md) - Neo4j
 - [📡 Bettafish](docs/research/060-bettafish.md) - Bettafish
 - [📡 AG-UI](docs/research/070-ag-ui.md) - AG-UI
 - [📡 Agent Sandbox](docs/research/080-agent-sandbox.md) - Agent Sandbox
 - [📡 Agent Evaluation](docs/research/090-agent-evaluation.md) - Agent Evaluation
+- [📡 Agent Observability](docs/research/100-agent-obser.md) - Jaeger vs Langfuse
