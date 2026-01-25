@@ -870,29 +870,29 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 uv run pytest tests/unittests/pulse tests/integration/pulse -v
 ```
 
-## 5. Verification SOP (Phase 1：生命体征监测)
+## 5. 验证 SOP (Phase 1：生命体征监测)
 
 > [!TIP]
 >
 > **Metaphor: The Physical Examination (系统体检)**
 >
-> 本章节将 Phase 1 验证过程比作一次完整的外科体检。我们需要依次确认环境无菌 (Environment)、器官功能正常 (Unit Test)、血液循环畅通 (Integration) 以及心脏抗压能力 (Performance)。
+> 本章节将 Phase 1 验证过程比作一次完整的外科体检。我们需要依次确认环境无菌 (Environment)、器官功能正常 (Organ Function)、血液循环畅通 (Systemic Circulation) 以及心脏抗压能力 (Cardiac Stress)。
 
-### 5.1 Step 1: 环境检查 (Environment Check)
+### 5.1 Step 1: 环境检查 (Clinical Environment Check)
 
 > **Objective**: 确保手术室（运行环境）的各项指标符合生命维持标准。
 
 **检查清单**:
 
-1. **数据库 (The Soil)**: 确保统一存储基座就绪。
-2. **扩展 (The Nutrients)**: 确保向量与定时任务能力加载。
-3. **连接 (The Vessel)**: 确保 Python 到 PostgreSQL 通路顺畅。
+1. **数据库 (The Soil)**: 确保统一存储基座 (`cognizes-engine`) 就绪。
+2. **扩展 (The Nutrients)**: 确保 `vector` (记忆) 与 `pg_cron` (心跳) 能力加载。
+3. **连接 (The Vessel)**: 确保 Python 到 PostgreSQL 的 `asyncpg` 通路顺畅。
 
 ```bash
 # 1. 基础环境 (PG Version > 16)
 psql -d 'cognizes-engine' -c "SELECT version();"
 
-# 2. 核心机能 (Extensions: vector, pg_cron)
+# 2. 核心机能 (Extensions Check)
 psql -d 'cognizes-engine' -c "SELECT * FROM pg_available_extensions WHERE name IN ('vector', 'pg_cron');"
 
 # 3. 血管通路 (Connection Check)
@@ -933,20 +933,24 @@ curl http://localhost:8000/health
 
 ---
 
-### 5.2 Step 2: 心肺功能测试 (Cardiopulmonary Function Test)
+### 5.2 Step 2: 器官功能测试 (Organ Function Test)
 
-> **Objective**: 在隔离环境下，验证核心器官 (`StateManager`) 的收缩与舒张逻辑是否准确。这对应于 **Unit Testing**。
+> **Objective**: 验证核心器官 (`StateManager`) 的收缩与舒张逻辑是否准确。
+>
+> **Note**: 虽然归类为 Unit Test，但为了确保原子性与 OCC 机制的真实可靠性，以下测试会连接真实数据库进行验证。
 
 **测试范围**：
 
 - **State Transitions**: 状态能否正确更新、合并。
 - **Logic Validity**: 前缀作用域解析 (`user:`, `app:`) 是否精准。
+- **Atomic Transaction**: 确保 `Event` 追加与 `State` 更新在同一事务中提交。
 
 ```bash
-# 全面器官检查 (44 个测试用例，无外部依赖)
+# 1. 全面器官检查 (44 个测试用例)
 uv run pytest tests/unittests/pulse/ -v
 
-# 核心瓣膜专项检查 (仅 StateManager)
+# 2. 核心瓣膜专项检查 (StateManager Focus)
+# 包含 Session CRUD, OCC 冲突检测, 原子性验证
 uv run pytest tests/unittests/pulse/test_state_manager.py -v --tb=short
 ```
 
@@ -978,7 +982,7 @@ curl http://localhost:8000/api/test-notify
 
 #### 5.3.3 微循环测试 (SSE Stream)
 
-验证 SSE (Server-Sent Events) 单向高频流的稳定性。
+验证 SSE (Server-Sent Events) 单向高频流的稳定性，模拟 Run 执行过程中的 Token 流输出。
 
 ```bash
 # 终端 1: 接入微循环监测仪 (Listen to SSE)
@@ -1004,21 +1008,27 @@ curl http://localhost:8000/api/test-sse-notify/test-run
 
 - **Systolic Latency (收缩延迟)**: End-to-End < 50ms
 - **Cardiac Output (心输出量)**: > 100 msg/s throughput
+- **Rhythm Stability (节律稳定性)**: 并发写入无冲突丢失 (OCC Effective)
 
 ```bash
-# 1. 延迟专项测试 (Latency Check)
+# 1. 延迟与吞吐量专项测试 (Latency Check)
+# 覆盖: test_end_to_end_latency (<50ms), test_100_msg_per_second_throughput
 uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 
 # 2. 并发压力测试 (Stress Test)
-# 模拟 10 个 Agent 同时并发写入同一 Session，验证 OCC 乐观锁机制
-uv run pytest tests/integration/pulse/test_state_manager_db.py -v
+# 模拟 10 个 Agent 同时并发写入同一 Session，验证 OCC 乐观锁机制 (Zero Data Loss)
+# 覆盖: test_10_concurrent_writes_no_data_loss, test_100_qps_session_creation
+uv run pytest tests/unittests/pulse/test_state_manager.py -v -s -k "Concurrency or Performance"
 ```
 
 **验收标准 (Discharge Criteria)**：
 
-- [ ] **Reflex**: 收到 NOTIFY 事件延迟 < 100ms
-- [ ] **Rhythm**: 并发写入 0 丢失，OCC 版本控制生效
-- [ ] **Endurance**: 100 msg/s 持续高压下系统无崩溃
+| 指标           | 目标        | 验证用例 (Verified in Tests)                                              |
+| :------------- | :---------- | :------------------------------------------------------------------------ |
+| **Reflex**     | < 50ms      | `integration/test_notify_latency.py::test_end_to_end_latency`             |
+| **Throughput** | > 100 msg/s | `integration/test_notify_latency.py::test_100_msg_per_second_throughput`  |
+| **Endurance**  | 100 QPS     | `unittests/test_state_manager.py::test_100_qps_session_creation`          |
+| **Rhythm**     | 0 Loss      | `unittests/test_state_manager.py::test_10_concurrent_writes_no_data_loss` |
 
 ---
 
