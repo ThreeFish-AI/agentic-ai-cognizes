@@ -48,7 +48,6 @@ class TestHighSelectivityQueries:
     async def test_rare_user_query(self, integration_pool, setup_test_data, test_user_id):
         """稀有用户查询测试"""
         embedding = np.random.randn(1536).astype(float).tolist()
-        embedding_str = to_pgvector(embedding)
 
         # 配置迭代扫描
         async with integration_pool.acquire() as conn:
@@ -60,11 +59,11 @@ class TestHighSelectivityQueries:
                 """
                 SELECT id FROM memories
                 WHERE user_id = $1
-                ORDER BY embedding <=> $2::vector
+                ORDER BY embedding <=> $2
                 LIMIT 10
             """,
                 test_user_id,
-                embedding_str,
+                embedding,
             )
             latency_ms = (time.perf_counter() - start) * 1000
 
@@ -76,7 +75,6 @@ class TestHighSelectivityQueries:
     async def test_vector_search_with_filter(self, integration_pool, setup_test_data, test_user_id, test_app_name):
         """带过滤条件的向量检索测试"""
         embedding = np.random.randn(1536).astype(float).tolist()
-        embedding_str = to_pgvector(embedding)
 
         async with integration_pool.acquire() as conn:
             await conn.execute("SET hnsw.iterative_scan = relaxed_order")
@@ -86,12 +84,12 @@ class TestHighSelectivityQueries:
                 SELECT id, content
                 FROM memories
                 WHERE user_id = $1 AND app_name = $2
-                ORDER BY embedding <=> $3::vector
+                ORDER BY embedding <=> $3
                 LIMIT 10
             """,
                 test_user_id,
                 test_app_name,
-                embedding_str,
+                embedding,
             )
 
         assert len(rows) <= 10
@@ -103,7 +101,6 @@ class TestEfSearchImpact:
     async def test_ef_search_values(self, integration_pool, setup_test_data, test_user_id):
         """测试不同 ef_search 值"""
         embedding = np.random.randn(1536).astype(float).tolist()
-        embedding_str = to_pgvector(embedding)
         ef_values = [40, 100, 200]
         results = {}
 
@@ -117,11 +114,11 @@ class TestEfSearchImpact:
                     """
                     SELECT id FROM memories
                     WHERE user_id = $1
-                    ORDER BY embedding <=> $2::vector
+                    ORDER BY embedding <=> $2
                     LIMIT 10
                 """,
                     test_user_id,
-                    embedding_str,
+                    embedding,
                 )
                 latency_ms = (time.perf_counter() - start) * 1000
 

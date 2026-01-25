@@ -197,3 +197,75 @@ class TestConvenienceFunctions:
 
         pool = await get_pool()
         assert isinstance(pool, asyncpg.Pool)
+
+
+class TestVectorSearch:
+    """向量搜索封装测试"""
+
+    @pytest.mark.asyncio
+    async def test_vector_search_basic(self, db):
+        """测试 vector_search 基础功能"""
+        import numpy as np
+
+        embedding = np.random.randn(1536).astype(float).tolist()
+
+        # 调用 vector_search (即使没有匹配结果也应该正常运行)
+        rows = await db.vector_search(
+            "memories",
+            embedding,
+            filters={"user_id": "nonexistent_user"},
+            limit=10,
+            ef_search=100,
+        )
+
+        assert isinstance(rows, list)
+
+    @pytest.mark.asyncio
+    async def test_vector_search_columns(self, db):
+        """测试 vector_search 指定列"""
+        import numpy as np
+
+        embedding = np.random.randn(1536).astype(float).tolist()
+
+        rows = await db.vector_search(
+            "memories",
+            embedding,
+            columns="id, content",
+            limit=5,
+        )
+
+        assert isinstance(rows, list)
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search(self, db):
+        """测试 hybrid_search"""
+        import numpy as np
+
+        embedding = np.random.randn(1536).astype(float).tolist()
+
+        rows = await db.hybrid_search(
+            user_id="test_user",
+            app_name="test_app",
+            query="machine learning",
+            embedding=embedding,
+            limit=10,
+        )
+
+        assert isinstance(rows, list)
+
+    @pytest.mark.asyncio
+    async def test_rrf_search(self, db):
+        """测试 rrf_search"""
+        import numpy as np
+
+        embedding = np.random.randn(1536).astype(float).tolist()
+
+        rows = await db.rrf_search(
+            user_id="test_user",
+            app_name="test_app",
+            query="AI research",
+            embedding=embedding,
+            limit=10,
+        )
+
+        assert isinstance(rows, list)

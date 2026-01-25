@@ -35,35 +35,35 @@ class TestHybridSearchFunction:
     async def test_empty_results(self, integration_pool):
         """无匹配结果测试"""
         embedding = np.random.randn(1536).astype(float).tolist()
-        embedding_str = to_pgvector(embedding)
 
-        rows = await integration_pool.fetch(
-            """
-            SELECT * FROM hybrid_search($1, $2, $3, $4::vector, 10)
-        """,
-            "nonexistent_user",
-            "nonexistent_app",
-            "test",
-            embedding_str,
-        )
+        async with integration_pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM hybrid_search($1, $2, $3, $4, 10)
+            """,
+                "nonexistent_user",
+                "nonexistent_app",
+                "test",
+                embedding,
+            )
 
         assert len(rows) == 0
 
     async def test_returns_combined_score(self, integration_pool, setup_test_data, test_user_id, test_app_name):
         """验证返回合并分数"""
         embedding = np.random.randn(1536).astype(float).tolist()
-        embedding_str = to_pgvector(embedding)
 
-        rows = await integration_pool.fetch(
-            """
-            SELECT id, content, semantic_score, keyword_score, combined_score
-            FROM hybrid_search($1, $2, $3, $4::vector, 50)
-        """,
-            test_user_id,
-            test_app_name,
-            "machine learning",
-            embedding_str,
-        )
+        async with integration_pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, content, semantic_score, keyword_score, combined_score
+                FROM hybrid_search($1, $2, $3, $4, 50)
+            """,
+                test_user_id,
+                test_app_name,
+                "machine learning",
+                embedding,
+            )
 
         if len(rows) > 0:
             row = rows[0]
@@ -77,22 +77,22 @@ class TestHybridSearchFunction:
     async def test_latency_under_100ms(self, integration_pool, setup_test_data, test_user_id, test_app_name):
         """L0 延迟应小于 100ms"""
         embedding = np.random.randn(1536).astype(float).tolist()
-        embedding_str = to_pgvector(embedding)
 
         latencies = []
-        for _ in range(5):
-            start = time.perf_counter()
-            await integration_pool.fetch(
-                """
-                SELECT * FROM hybrid_search($1, $2, $3, $4::vector, 50)
-            """,
-                test_user_id,
-                test_app_name,
-                "test query",
-                embedding_str,
-            )
-            latency_ms = (time.perf_counter() - start) * 1000
-            latencies.append(latency_ms)
+        async with integration_pool.acquire() as conn:
+            for _ in range(5):
+                start = time.perf_counter()
+                await conn.fetch(
+                    """
+                    SELECT * FROM hybrid_search($1, $2, $3, $4, 50)
+                """,
+                    test_user_id,
+                    test_app_name,
+                    "test query",
+                    embedding,
+                )
+                latency_ms = (time.perf_counter() - start) * 1000
+                latencies.append(latency_ms)
 
         avg_latency = sum(latencies) / len(latencies)
         print(f"\n=== Hybrid Search 平均延迟: {avg_latency:.2f}ms ===")
@@ -116,17 +116,17 @@ class TestRRFSearchFunction:
     async def test_rrf_score_descending(self, integration_pool, setup_test_data, test_user_id, test_app_name):
         """验证 RRF 分数递减排序"""
         embedding = np.random.randn(1536).astype(float).tolist()
-        embedding_str = to_pgvector(embedding)
 
-        rows = await integration_pool.fetch(
-            """
-            SELECT id, rrf_score FROM rrf_search($1, $2, $3, $4::vector, 50)
-        """,
-            test_user_id,
-            test_app_name,
-            "machine learning",
-            embedding_str,
-        )
+        async with integration_pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, rrf_score FROM rrf_search($1, $2, $3, $4, 50)
+            """,
+                test_user_id,
+                test_app_name,
+                "machine learning",
+                embedding,
+            )
 
         if len(rows) > 1:
             scores = [row["rrf_score"] for row in rows]
@@ -135,17 +135,17 @@ class TestRRFSearchFunction:
     async def test_includes_rank_info(self, integration_pool, setup_test_data, test_user_id, test_app_name):
         """验证返回排名信息"""
         embedding = np.random.randn(1536).astype(float).tolist()
-        embedding_str = to_pgvector(embedding)
 
-        rows = await integration_pool.fetch(
-            """
-            SELECT semantic_rank, keyword_rank FROM rrf_search($1, $2, $3, $4::vector, 10)
-        """,
-            test_user_id,
-            test_app_name,
-            "AI",
-            embedding_str,
-        )
+        async with integration_pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT semantic_rank, keyword_rank FROM rrf_search($1, $2, $3, $4, 10)
+            """,
+                test_user_id,
+                test_app_name,
+                "AI",
+                embedding,
+            )
 
         if len(rows) > 0:
             row = rows[0]

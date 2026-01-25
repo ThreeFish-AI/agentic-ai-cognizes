@@ -51,19 +51,17 @@ async def setup_test_data(integration_pool, test_user_id, test_app_name):
     async with integration_pool.acquire() as conn:
         for i in range(10):
             embedding = np.random.randn(1536).astype(float).tolist()
-            # 转换为 pgvector 格式字符串
-            embedding_str = "[" + ",".join(str(x) for x in embedding) + "]"
             await conn.execute(
                 """
                 INSERT INTO memories (id, user_id, app_name, content, embedding, memory_type)
-                VALUES ($1, $2, $3, $4, $5::vector, 'episodic')
+                VALUES ($1, $2, $3, $4, $5, 'episodic')
                 ON CONFLICT (id) DO NOTHING
             """,
                 uuid.uuid4(),
                 test_user_id,
                 test_app_name,
                 f"Test memory {i} about machine learning and AI",
-                embedding_str,
+                embedding,
             )
 
     yield

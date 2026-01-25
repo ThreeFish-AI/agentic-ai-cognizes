@@ -259,6 +259,158 @@ class DatabaseManager:
             yield conn
 
     # ========================================
+    # 向量搜索封装
+    # ========================================
+
+    async def vector_search(
+        self,
+        table: str,
+        embedding: list[float],
+        *,
+        filters: dict[str, Any] | None = None,
+        columns: str = "*",
+        limit: int = 10,
+        ef_search: int = 200,
+        iterative_scan: str = "relaxed_order",
+    ) -> list[asyncpg.Record]:
+        """
+        向量相似度搜索
+
+        自动配置 HNSW 参数并执行向量相似度搜索。
+
+        Args:
+            table: 目标表名
+            embedding: 查询向量
+            filters: 过滤条件字典，如 {"user_id": "u1", "app_name": "app"}
+            columns: 返回的列，默认 "*"
+            limit: 返回数量限制
+            ef_search: HNSW ef_search 参数 (越大召回越高，但越慢)
+            iterative_scan: 迭代扫描模式，默认 "relaxed_order"
+
+        Returns:
+            查询结果列表
+
+        Usage:
+            rows = await db.vector_search(
+                "memories",
+                embedding,
+                filters={"user_id": "u1"},
+                limit=10,
+                ef_search=200
+            )
+        """
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            # 配置 HNSW 参数
+            await conn.execute(f"SET hnsw.ef_search = {ef_search}")
+            await conn.execute(f"SET hnsw.iterative_scan = {iterative_scan}")
+
+            # 构建动态 WHERE 子句
+            where_parts = []
+            params: list[Any] = [embedding]
+
+            if filters:
+                for i, (key, value) in enumerate(filters.items(), start=2):
+                    where_parts.append(f"{key} = ${i}")
+                    params.append(value)
+
+            where_clause = " AND ".join(where_parts) if where_parts else "1=1"
+
+            query = f"""
+                SELECT {columns}
+                FROM {table}
+                WHERE {where_clause}
+                ORDER BY embedding <=> $1
+                LIMIT {limit}
+            """
+
+            return await conn.fetch(query, *params)
+
+    async def hybrid_search(
+        self,
+        user_id: str,
+        app_name: str,
+        query: str,
+        embedding: list[float],
+        limit: int = 50,
+    ) -> list[asyncpg.Record]:
+        """
+        混合搜索 (语义 + 关键词)
+
+        调用 PostgreSQL 的 hybrid_search() 函数，结合向量相似度和全文检索。
+
+        Args:
+            user_id: 用户 ID
+            app_name: 应用名称
+            query: 关键词查询文本
+            embedding: 查询向量
+            limit: 返回数量限制
+
+        Returns:
+            包含 id, content, semantic_score, keyword_score, combined_score 的结果列表
+
+        Usage:
+            rows = await db.hybrid_search(
+                "user_001", "demo_app",
+                "machine learning",
+                embedding,
+                limit=50
+            )
+        """
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            return await conn.fetch(
+                "SELECT * FROM hybrid_search($1, $2, $3, $4, $5)",
+                user_id,
+                app_name,
+                query,
+                embedding,
+                limit,
+            )
+
+    async def rrf_search(
+        self,
+        user_id: str,
+        app_name: str,
+        query: str,
+        embedding: list[float],
+        limit: int = 50,
+    ) -> list[asyncpg.Record]:
+        """
+        RRF 融合搜索 (Reciprocal Rank Fusion)
+
+        调用 PostgreSQL 的 rrf_search() 函数，使用 RRF 算法融合多路召回结果。
+
+        Args:
+            user_id: 用户 ID
+            app_name: 应用名称
+            query: 关键词查询文本
+            embedding: 查询向量
+            limit: 返回数量限制
+
+        Returns:
+            包含 rrf_score, semantic_rank, keyword_rank 的结果列表
+
+        Usage:
+            rows = await db.rrf_search(
+                "user_001", "demo_app",
+                "AI research",
+                embedding,
+                limit=10
+            )
+        """
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            return await conn.fetch(
+                "SELECT * FROM rrf_search($1, $2, $3, $4, $5)",
+                user_id,
+                app_name,
+                query,
+                embedding,
+                limit,
+            )
+
+    # ========================================
     # 同步操作 (用于 OTEL 导出等场景)
     # ========================================
 
