@@ -5,9 +5,9 @@ title: "Phase 1: The Pulse"
 last_update:
   author: Aurelius Huang
   created_at: 2026-01-08
-  updated_at: 2026-01-24
-  version: 2.0
-  status: Reviewed
+  updated_at: 2026-01-25
+  version: 2.1
+  status: Final
 tags:
   - The Pulse
   - Session Engine
@@ -23,7 +23,7 @@ tags:
 
 ## 1. 执行摘要
 
-### 1.1 Phase 1 定位与目标
+### 1.1 定位与目标 (Phase 1)
 
 **Phase 1: Foundation & The Pulse** 是整个验证计划的基石阶段，核心目标是：
 
@@ -48,41 +48,50 @@ graph LR
     style P3 fill:#7c2d12,stroke:#fb923c,color:#fff
 ```
 
-### 1.2 对标分析：Google ADK Session 机制
+### 1.2 核心设计：ADK Session 机制复刻
 
-基于 Google ADK 官方文档<sup>[[1]](#ref1)</sup>的分析，我们需要复刻以下核心能力：
+基于 Google ADK 官方文档<sup>[[1]](#ref1)</sup>的深度分析，The Pulse 确立了以 **Session** 为核心容器，**State** 与 **Event** 为双轮驱动的架构模式。
 
-| ADK 核心概念       | 定义                                                | PostgreSQL 复刻策略         |
+#### 1.2.1 核心概念映射
+
+我们采用 PostgreSQL 全栈生态来承载 ADK 的抽象模型，实现像素级对标：
+
+| ADK 核心概念       | 定义                                                | PostgreSQL 落地策略         |
 | :----------------- | :-------------------------------------------------- | :-------------------------- |
-| **Session**        | 单次用户-Agent 交互的容器，包含 `events` 和 `state` | `threads` 表 + `events` 表  |
-| **State**          | 会话内的 Key-Value 数据，支持前缀作用域             | JSONB 列 + 前缀解析逻辑     |
-| **Event**          | 交互中的原子操作记录                                | `events` 表 (append-only)   |
+| **Session**        | 单次用户-Agent 交互的容器，包含 `events` 和 `state` | `threads` 表 (主容器)       |
+| **State**          | 会话内的 Key-Value 数据，支持分层作用域             | JSONB + 前缀解析 (Scoped)   |
+| **Event**          | 交互中的原子操作记录                                | `events` 表 (Append-only)   |
 | **SessionService** | Session 生命周期管理接口                            | `OpenSessionService` 类实现 |
 
-#### 1.2.1 ADK State 前缀机制
+#### 1.2.2 状态作用域与生命周期 (State Scopes)
 
-ADK 通过 Key 前缀实现不同作用域的状态管理：
+针对不同维度的状态管理需求，我们实现了 ADK 定义的分层作用域机制：
 
-| 前缀    | 作用域           | 生命周期              | 复刻策略                   |
-| :------ | :--------------- | :-------------------- | :------------------------- |
-| 无前缀  | Session Scope    | 取决于 SessionService | 存入 `threads.state` JSONB |
-| `user:` | User Scope       | 持久化                | 存入 `user_states` 表      |
-| `app:`  | App Scope        | 持久化                | 存入 `app_states` 表       |
-| `temp:` | Invocation Scope | 仅当前调用            | 内存缓存，不持久化         |
+| 前缀      | 作用域           | 生命周期           | 存储策略                |
+| :-------- | :--------------- | :----------------- | :---------------------- |
+| (Default) | Session Scope    | 随会话存续         | `threads.state` (JSONB) |
+| `user:`   | User Scope       | 跨会话持久化       | `user_states` 表        |
+| `app:`    | App Scope        | Global 持久化      | `app_states` 表         |
+| `temp:`   | Invocation Scope | 仅当前思维链路有效 | 内存缓存 (Volatile)     |
 
-#### 1.2.2 State Granularity (状态颗粒度)
+#### 1.2.3 状态颗粒度 (State Granularity)
 
 > [!IMPORTANT]
->
-> **对标 Roadmap Pillar I**：状态颗粒度是 The Pulse 的核心设计要素，决定了数据的存储层次和生命周期。
+> **对标 Roadmap Pillar I**：状态颗粒度设计决定了系统的记忆密度与回溯能力。
 
 ```mermaid
 graph TB
     subgraph "State Granularity"
-        T[Thread 会话容器<br/>持久化] --> R[Run 执行链路<br/>临时]
-        T --> E[Events 事件流<br/>不可变]
-        E --> M[Messages 消息<br/>带 Embedding]
-        T --> S[Snapshots 快照<br/>可恢复]
+        T["Thread 会话容器<br/>持久化 (Persistent)"]
+        R["Run 执行链路<br/>临时 (Ephemeral)"]
+        E["Events 事件流<br/>不可变 (Immutable)"]
+        M[Messages 消息<br/>Embedding]
+        S["Snapshots 快照<br/>可恢复 (Recoverable)"]
+
+        T --> R
+        T --> E
+        T --> S
+        E --> M
     end
 
     style T fill:#1e3a5f,stroke:#60a5fa,color:#fff
@@ -90,102 +99,137 @@ graph TB
     style E fill:#065f46,stroke:#34d399,color:#fff
 ```
 
-| 层次         | 表名        | 定义                                                  | 生命周期       | 对应 Roadmap             |
-| :----------- | :---------- | :---------------------------------------------------- | :------------- | :----------------------- |
-| **Thread**   | `threads`   | 持久化存储用户级交互历史 (Human-Agent Interaction)    | 长期持久化     | "作为长期记忆的输入源"   |
-| **Run**      | `runs`      | 临时存储单次推理过程中的 Thinking Steps 和 Tool Calls | 仅执行期间存活 | "保障推理的可观测性"     |
-| **Event**    | `events`    | 不可变事件记录 (Message, ToolCall, StateUpdate)       | Append-only    | "Immutable Stream"       |
-| **Message**  | `messages`  | 带 Embedding 的消息内容                               | 持久化         | "Content with Embedding" |
-| **Snapshot** | `snapshots` | 状态检查点，用于快速恢复会话                          | 按策略清理     | "State Checkpoints"      |
+| 层次         | 表名        | 核心职责                                            | 生命周期     | 架构价值                     |
+| :----------- | :---------- | :-------------------------------------------------- | :----------- | :--------------------------- |
+| **Thread**   | `threads`   | 交互历史的主容器 (Human-Agent Interaction)          | 长期持久化   | 长期记忆的输入源             |
+| **Run**      | `runs`      | 单次推理过程的思维链 (Thinking Steps / Tool Calls)  | 执行期间存活 | 推理过程的可观测性           |
+| **Event**    | `events`    | 不可变的原子事件流 (Message, ToolCall, StateUpdate) | Append-only  | 确定的系统状态回溯           |
+| **Message**  | `messages`  | 语义负载容器                                        | 持久化       | 向量检索的核心语料           |
+| **Snapshot** | `snapshots` | 状态检查点                                          | 策略性清理   | 快速灾难恢复 (Fast Recovery) |
 
-#### 1.2.3 任务-章节对照表
+### 1.3 执行导图 (Execution Map)
+
+为确保 Phase 1 的精准落地，我们将实施任务与技术文档进行了二维映射，并制定了基于 SOP 的工期计划。
+
+#### 1.3.1 任务-文档锚定
 
 > [!NOTE]
->
-> 以下表格将 [001-task-checklist.md](./001-task-checklist.md) 的任务 ID 与本文档章节进行对照，便于追踪执行进度。
+> 关联文档：[001-task-checklist.md](./001-task-checklist.md)
 
-| 任务模块            | 任务 ID 范围      | 对应章节                                                                                   |
-| :------------------ | :---------------- | :----------------------------------------------------------------------------------------- |
-| PostgreSQL 生态部署 | P1-1-1 ~ P1-1-5   | [4.1 Step 1: 环境部署](#41-step-1-环境部署与基础设施)                                      |
-| 开发环境配置        | P1-1-6 ~ P1-1-9   | [4.1.2 开发环境配置](#412-开发环境配置)                                                    |
-| ADK Schema 调研     | P1-2-1 ~ P1-2-6   | [2. 技术调研](#2-技术调研adk-sessionservice-深度分析)                                      |
-| PostgreSQL Schema   | P1-2-7 ~ P1-2-14  | [3. 架构设计](#3-架构设计unified-schema) + [4.2 Schema 部署](#42-step-2-schema-设计与部署) |
-| 原子状态流转        | P1-3-1 ~ P1-3-7   | [4.3.1 StateManager](#431-statemanager-类实现)                                             |
-| 乐观并发控制        | P1-3-8 ~ P1-3-12  | [4.3.1 StateManager (OCC)](#431-statemanager-类实现)                                       |
-| 实时事件流          | P1-3-13 ~ P1-3-17 | [4.3.2 PgNotifyListener](#432-pgnotifylistener-实现)                                       |
-| AG-UI 事件桥接      | P1-5-1 ~ P1-5-5   | [4.4 Step 4: AG-UI 事件桥接层](#44-step-4-ag-ui-事件桥接层)                                |
-| 验收与文档          | P1-4-1 ~ P1-4-4   | [4.5 Step 5: 测试](#45-step-5-测试) + [5. Phase 1 验证 SOP](#5-phase-1-验证-sop)           |
+| 任务模块          | 任务 ID 范围     | 核心章节索引                                                                               |
+| :---------------- | :--------------- | :----------------------------------------------------------------------------------------- |
+| **Foundation**    | P1-1-1 ~ P1-1-9  | [4.1 Step 1: 环境部署](#41-step-1-环境部署与基础设施)                                      |
+| **Schema Design** | P1-2-1 ~ P1-2-14 | [3. 架构设计](#3-架构设计unified-schema) / [4.2 Schema 部署](#42-step-2-schema-设计与部署) |
+| **Pulse Engine**  | P1-3-1 ~ P1-3-17 | [4.3 核心实现](#43-step-3-pulse-engine-核心实现)                                           |
+| **Event Bridge**  | P1-5-1 ~ P1-5-5  | [4.4 AG-UI 事件桥接](#44-step-4-ag-ui-事件桥接层)                                          |
+| **Verification**  | P1-4-1 ~ P1-4-4  | [4.5 测试](#45-step-5-测试) / [5. Phase 1 验证 SOP](#5-phase-1-验证-sop)                   |
 
-### 1.4 工期规划
+#### 1.3.2 工期规划 (3 Days)
 
-| 阶段 | 任务模块          | 任务 ID          | 预估工期 | 交付物                             |
-| :--- | :---------------- | :--------------- | :------- | :--------------------------------- |
-| 1.1  | 环境部署          | P1-1-1 ~ P1-1-9  | 0.5 Day  | PostgreSQL 16+ 环境就绪            |
-| 1.2  | Schema 设计       | P1-2-1 ~ P1-2-14 | 0.5 Day  | `agent_schema.sql`                 |
-| 1.3  | Pulse Engine 实现 | P1-3-1 ~ P1-3-17 | 1 Day    | `StateManager`, `PgNotifyListener` |
-| 1.4  | AG-UI 事件桥接    | P1-5-1 ~ P1-5-5  | 0.5 Day  | `EventBridge`, `StateDebugService` |
-| 1.5  | 测试              | P1-4-1 ~ P1-4-4  | 0.5 Day  | 测试报告 + 技术文档                |
+| 阶段 | 任务模块          | 任务 ID          | 预估工期 | 关键交付物 (Deliverables)           |
+| :--- | :---------------- | :--------------- | :------- | :---------------------------------- |
+| 1.1  | 环境部署          | P1-1-1 ~ P1-1-9  | 0.5 Day  | PostgreSQL 16+ (pgvector/pg_cron)   |
+| 1.2  | Schema 设计       | P1-2-1 ~ P1-2-14 | 0.5 Day  | `agent_schema.sql` (Unified Model)  |
+| 1.3  | Pulse Engine 实现 | P1-3-1 ~ P1-3-17 | 1.0 Day  | `StateManager` / `PgNotifyListener` |
+| 1.4  | AG-UI 事件桥接    | P1-5-1 ~ P1-5-5  | 0.5 Day  | `EventBridge` / `StateDebugService` |
+| 1.5  | 全链路验收        | P1-4-1 ~ P1-4-4  | 0.5 Day  | 自动化测试报告 / 技术白皮书         |
 
 ---
 
-## 2. 技术调研：ADK SessionService 深度分析
+## 2. 核心参考模型：Google ADK 契约与规范
 
-### 2.1 ADK Session 数据结构
+### 2.1 模型定位
 
-基于 ADK 源码分析<sup>[[2]](#ref2)</sup>，`Session` 对象的核心结构如下：
+本节定义了 Pulse Engine 必须遵循的 **Normative Reference Model (规范性参考模型)**。我们的设计并非凭空创造，而是通过严格复刻 Google GenAI ADK 的 `SessionService` 契约，确保系统具备行业标准的可扩展性与互操作性。
 
-```python
-# ADK Session 核心结构 (简化版)
-@dataclass
-class Session:
-    """代表一次用户-Agent 的交互会话"""
+### 2.2 ADK 核心对象建模
 
-    # 标识符
-    id: str                    # 会话唯一标识 (UUID)
-    app_name: str              # 应用名称
-    user_id: str               # 用户标识
+基于 ADK 源码<sup>[[2]](#ref2)</sup>，我们建立了如下对象关系模型，直接指导后续 Schema 设计：
 
-    # 状态数据
-    state: dict[str, Any]      # Key-Value 状态存储
+```mermaid
+classDiagram
+    direction LR
+    class Session {
+        +UUID id - 会话 ID
+        +String app_name - 应用名称
+        +String user_id - 用户标识
+        +Dict state - 状态数据
+        +List~Event~ events - 事件历史
+        +Float last_update_time - 最后更新时间
+    }
 
-    # 事件历史
-    events: list[Event]        # 交互事件序列 (append-only)
+    class Event {
+        +UUID id - 事件 ID
+        +String invocation_id - Trace ID
+        +String author - 事件作者
+        +Content content - 消息内容
+        +EventActions actions - 副作用
+        +Float timestamp - 时间戳
+    }
 
-    # 元数据
-    last_update_time: float    # 最后更新时间戳
+    class SessionService {
+        <<Interface>>
+        +create_session() - 创建会话
+        +get_session() - 获取会话
+        +append_event() - 追加事件
+    }
+
+    Session "1" *-- "0..*" Event : contains >
+    SessionService ..> Session : manages >
 ```
 
-### 2.2 ADK Event 数据结构
+### 2.3 核心数据结构契约
 
-`Event` 是 ADK 中记录交互的原子单元：
+#### 2.3.1 Session (会话容器)
+
+`Session` 是状态管理的主体容器，对应数据库中的 `threads` 表：
+
+```python
+@dataclass
+class Session:
+    """
+    Session Scope: 长期记忆容器
+    Mapped to: table `threads`
+    """
+    id: str                    # Primary Key
+    app_name: str              # Partition Key (Tenant)
+    user_id: str               # Partition Key (User)
+
+    # State Container (JSONB)
+    # 关键：通过 version 字段实现 OCC (Optimistic Concurrency Control)
+    state: dict[str, Any]
+
+    events: list[Event]        # Event Sourcing History
+```
+
+#### 2.3.2 Event (原子事件)
+
+`Event` 是不可变的交互记录，对应数据库中的 `events` 表：
 
 ```python
 @dataclass
 class Event:
-    """交互中的原子操作记录"""
+    """
+    Append-Only Ledger: 交互历史账本
+    Mapped to: table `events`
+    """
+    id: str
+    invocation_id: str         # Trace ID for Observability
+    author: str                # 'user' | 'model' | 'tool'
 
-    # 标识符
-    id: str                    # 事件唯一标识
-    invocation_id: str         # 调用标识 (一次用户请求)
-    author: str                # 事件作者 (user/agent/tool)
-
-    # 内容
-    content: Content           # 消息内容 (文本/多模态)
-
-    # 动作
-    actions: EventActions      # 状态变更、工具调用等
-
-    # 时间戳
-    timestamp: float           # 事件发生时间
+    content: Content           # Payload (Text/Image/...)
+    actions: EventActions      # Side Effects
 ```
 
-### 2.3 ADK SessionService 接口契约
+### 2.4 服务接口契约 (Interface Contract)
 
-我们需要实现的核心接口：
+`OpenSessionService` 必须完整实现以下抽象基类定义的操作原语：
 
 ```python
 class BaseSessionService(ABC):
-    """Session 管理服务抽象基类"""
+    """
+    Core Abstraction: 状态管理服务标准接口
+    """
 
     @abstractmethod
     async def create_session(
@@ -194,7 +238,7 @@ class BaseSessionService(ABC):
         user_id: str,
         state: dict | None = None
     ) -> Session:
-        """创建新会话"""
+        """初始化会话上下文"""
         ...
 
     @abstractmethod
@@ -204,7 +248,7 @@ class BaseSessionService(ABC):
         user_id: str,
         session_id: str
     ) -> Session | None:
-        """获取会话"""
+        """获取强一致性会话快照"""
         ...
 
     @abstractmethod
@@ -232,106 +276,117 @@ class BaseSessionService(ABC):
         session: Session,
         event: Event
     ) -> Event:
-        """追加事件并应用 state_delta"""
+        """
+        核心原子操作：
+        1. 持久化 Event
+        2. 应用 State Delta
+        3. 验证 OCC Version
+        """
         ...
 ```
 
-### 2.4 AG-UI 事件桥接
+### 2.5 前端集成规范：AG-UI 事件桥接
 
 > [!NOTE]
 >
-> **对标 AG-UI 协议**：本节实现 The Pulse 与 AG-UI 可视化层的事件桥接，确保所有会话状态变更、事件流都能实时推送到前端进行可视化展示。
+> **Protocol Alignment (协议对齐)**：本节定义 The Pulse 与 AG-UI 可视化层之间的 **Event Bridge Protocol (事件桥接协议)**，确保状态变更与交互事件能够以毫秒级延迟实时投影到前端。
 >
 > **参考资源**：
 >
 > - [AG-UI 协议调研](../research/070-ag-ui.md)
 > - [AG-UI 官方文档](https://docs.ag-ui.com/)
 
-#### 2.4.1 事件桥接架构
+#### 2.5.1 事件流架构概览
 
 ```mermaid
-graph TB
-    subgraph "The Pulse 存储层"
+graph BT
+    subgraph "Pulse Engine - Storage"
         TH[threads 表]
         EV[events 表]
         RN[runs 表]
     end
 
-    subgraph "事件桥接层"
-        PNL[PgNotifyListener]
-        EB[EventBridge]
-        SER[SSE/WebSocket 端点]
+    subgraph "Events Bridge Layer"
+        PNL[PgNotifyListener<br>PG 监听器]
+        EB[EventBridge<br>事件桥接器]
+        SER[SSE Endpoint<br>推送端点]
     end
 
-    subgraph "AG-UI 前端"
-        CK[CopilotKit]
-        UI[可视化面板]
+    subgraph "UI Layer (AG-UI)"
+        CK[CopilotKit<br>SDK]
+        UI[Visualization<br>可视化组件]
     end
 
-    EV -->|NOTIFY| PNL
-    TH -->|状态变更| PNL
+    EV -->|NOTIFY: agent_events| PNL
+    TH -->|NOTIFY: state_delta| PNL
     PNL --> EB
-    EB -->|AG-UI Events| SER
-    SER -->|Event Stream| CK
+    EB -->|Transform| SER
+    SER -->|Server-Sent Events| CK
     CK --> UI
 
     style EB fill:#4ade80,stroke:#16a34a,color:#000
+    style PNL fill:#fcd34d,stroke:#f59e0b,color:#000
 ```
 
-#### 2.4.2 AG-UI 事件映射表
+#### 2.5.2 事件映射契约 (Event Mapping Contract)
 
-| Pulse 事件源              | 触发条件     | AG-UI 事件类型         | 事件数据              |
-| :------------------------ | :----------- | :--------------------- | :-------------------- |
-| `runs` INSERT             | 新建执行链路 | `RUN_STARTED`          | `{run_id, thread_id}` |
-| `runs` UPDATE (complete)  | 执行完成     | `RUN_FINISHED`         | `{run_id, status}`    |
-| `events` INSERT (message) | 新消息创建   | `TEXT_MESSAGE_START`   | `{message_id}`        |
-| `events` INSERT (content) | 消息内容追加 | `TEXT_MESSAGE_CONTENT` | `{delta}`             |
-| `threads.state` UPDATE    | 状态变更     | `STATE_DELTA`          | `{json_patch}`        |
-| `events` INSERT (tool)    | 工具调用     | `TOOL_CALL_START`      | `{tool_name, args}`   |
+Pulse 产生的内部事件必须通过 `EventBridge` 转换为标准的 AG-UI 协议格式：
 
-### 2.5 关键行为分析
+| Pulse Source | Trigger Condition        | AG-UI Event Type       | Payload Schema (Lite)        |
+| :----------- | :----------------------- | :--------------------- | :--------------------------- |
+| `runs`       | INSERT (Link Start)      | `RUN_STARTED`          | `{ run_id, thread_id }`      |
+| `runs`       | UPDATE (Finalized)       | `RUN_FINISHED`         | `{ run_id, status, error? }` |
+| `events`     | INSERT (Role=user/agent) | `TEXT_MESSAGE_START`   | `{ message_id, role }`       |
+| `events`     | INSERT (Chunk Delta)     | `TEXT_MESSAGE_CONTENT` | `{ delta_content }`          |
+| `threads`    | UPDATE (State Change)    | `STATE_DELTA`          | `{ json_patch_diff }`        |
+| `events`     | INSERT (Tool Call)       | `TOOL_CALL_START`      | `{ tool_name, args_json }`   |
+
+### 2.6 状态一致性模型 (Consistency Model)
+
+#### 2.6.1 事务边界与可见性 (Transaction & Visibility)
 
 > [!IMPORTANT]
 >
-> **State Commit Timing (状态提交时机)**
+> **Read-Your-Writes Constraint (写后读约束)**
 >
-> 根据 ADK 文档<sup>[[3]](#ref3)</sup>，`state_delta` 仅在 Event 被 Runner 处理后才提交。这意味着：
->
-> - 执行逻辑在 yield Event **之后**才能看到其对 State 的更改生效
-> - 这类似数据库事务的 "read-your-writes" 保证需要等待 commit
->
-> ---
->
-> **⚠️ 常见代码误区 (The "Airborne" Trap)**
->
-> ```python
-> # ❌ 错误的直觉：认为 yield 后状态立刻改变
-> def my_agent_logic():
->     # 1. 发出指令：更新计数
->     yield UpdateState(key="count", value=100)
->
->     # 2. 立刻读取
->     # 此时指令还在“空中飞” (Airborne)，Runner 尚未落地执行
->     # 这里的 state.count 仍然是旧值（例如 0）
->     if state.count == 100:
->        logger.info("Success") # 永远不会执行！
-> ```
+> 根据 ADK 规范<sup>[[3]](#ref3)</sup>，状态变更 (`state_delta`) 仅在 `Event` 持久化事务提交后才对全局可见。这引入了**Visibility Latency (可见性延迟)**。
 
-> [!WARNING]
+- **Rule 1 (Persist-then-Visible)**: 任何 Agent 逻辑产生的状态变更，必须在 `yield Event` 被 Runner 捕获并 commit 到 DB 后，才能被新的 Session `get()` 操作读取。
+- **Engineering Pitfall**: "Airborne State" —— 开发者常错误地认为 `yield UpdateState(...)` 后，内存中的 `state` 对象会立即更新。实际上，在事务落地前，该指令处于“飞行中”状态，本地读取仍只能获取旧值。
+
+**⚠️ 常见代码误区 (The "Airborne" Trap)**
+
+```python
+# ❌ 错误的直觉：认为 yield 后状态立刻改变
+def my_agent_logic():
+    # 1. 发出指令：更新计数
+    yield UpdateState(key="count", value=100)
+
+    # 2. 立刻读取
+    # 此时指令还在“空中飞” (Airborne)，Runner 尚未落地执行
+    # 这里的 state.count 仍然是旧值（例如 0）
+    if state.count == 100:
+       logger.info("Success") # 永远不会执行！
+```
+
+#### 2.6.2 易失性状态与叠加视图 (Overlay View)
+
+为解决上述延迟问题，并在长链路调用（Invocation）中支持连续的状态依赖，Pulse Engine 必须在内存中维护一个叠加视图。
+
+> [!TIP]
 >
-> **Dirty Reads Risk (脏读风险)**
+> **Analogy: The Scratchpad (草稿纸机制)**
 >
-> 在同一 Invocation (执行调用) 的生命周期内，可能有多个步骤连续执行 (如: Agent -> Tool A -> Tool B)。
-> 后续步骤必须能看到前序步骤产生的**尚未 Commit 到数据库**的状态变更。
->
-> **💡 直观理解：草稿纸 (Scratchpad)**
->
-> - **场景**：考试时 (Invocation)，你在草稿纸 (Memory) 上演算出的中间结果 (State Delta)。
-> - **Dirty Read**：下一道题需要用到这个中间结果，你必须直接从草稿纸上看，而不能等考试结束交卷 (Commit) 后再看。
-> - **风险**：如果还没交卷就被“没收试卷” (Crash)，这些中间结果从未真正生效，但你后续的解题步骤已经依赖了它。
->
-> **工程实现要求**：
-> 我们的 `StateManager` 不能只读 DB，必须在内存中维护一个 **Overlay View (叠加视图)**，实现 `Get(Key) -> Delta | DB` 的透传读取机制。
+> - **Scenario**: 考试（Invocation）过程中，你在草稿纸（Memory Overlay）上写下中间步骤。
+> - **Requirement**: 下一题计算必须能直接引用草稿纸上的结果，而不需要等待考试结束（Commit）后再去查阅试卷。
+> - **Risk**: 如果考试中途被终止（Crash），草稿纸内容丢弃，不污染正式试卷（Database）。
+
+**核心实现要求**：
+`StateManager` 必须实现 **Overlay Read** 机制：
+
+$$
+    State*{effective} = State*{persistent} + \sum Delta\_{pending}
+$$
 
 ---
 
@@ -1008,6 +1063,7 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 ## 7. 限制与未来规划
 
 > [!WARNING]
+>
 > **Phase 1 工程边界**：以下限制是当前架构设计的已知约束，将在后续 Phase 2 中优化。
 
 | 组件/领域      | 限制描述                         | 影响评估                       | Phase 2 优化方向                          |
@@ -1041,7 +1097,7 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 
 ---
 
-## 参考文献
+## 9. 参考文献
 
 <a id="ref1"></a>1. Google. (2025). _ADK Sessions Documentation_. [https://google.github.io/adk-docs/sessions/](https://google.github.io/adk-docs/sessions/)
 
