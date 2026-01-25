@@ -102,7 +102,7 @@ async def create_websocket_endpoint():
     from fastapi import FastAPI, WebSocket
 
     app = FastAPI()
-    listener = PgNotifyListener(dsn="postgresql://user:pass@localhost/agent_db")
+    listener = PgNotifyListener(dsn="postgresql://aigc:@localhost/cognizes-engine")
 
     @app.on_event("startup")
     async def startup():
