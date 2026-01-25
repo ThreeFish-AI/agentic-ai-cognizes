@@ -12,6 +12,8 @@ DatabaseManager: PostgreSQL 数据库统一管理器
 from __future__ import annotations
 
 import asyncio
+import json
+import uuid
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -489,10 +491,37 @@ class DatabaseManager:
                 "error": str(e),
             }
 
+    # ========================================
+    # 便捷函数
+    # ========================================
 
-# ========================================
-# 便捷函数
-# ========================================
+    # ========================================
+    # Repository Accessors
+    # ========================================
+
+    @property
+    def sessions(self) -> "SessionRepository":
+        from cognizes.core.repositories import SessionRepository
+
+        return SessionRepository(self)
+
+    @property
+    def events(self) -> "EventRepository":
+        from cognizes.core.repositories import EventRepository
+
+        return EventRepository(self)
+
+    @property
+    def states(self) -> "StateRepository":
+        from cognizes.core.repositories import StateRepository
+
+        return StateRepository(self)
+
+    @property
+    def memories(self) -> "MemoryRepository":
+        from cognizes.core.repositories import MemoryRepository
+
+        return MemoryRepository(self)
 
 
 async def get_db() -> DatabaseManager:

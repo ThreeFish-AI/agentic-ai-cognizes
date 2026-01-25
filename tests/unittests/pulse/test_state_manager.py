@@ -24,18 +24,11 @@ from cognizes.core.database import DatabaseManager
 
 
 @pytest_asyncio.fixture
-async def pool():
-    """创建测试数据库连接池"""
-    db = DatabaseManager.get_instance()
-    pool = await db.get_pool()
-    yield pool
-    # Pool managed by DatabaseManager
-
-
-@pytest_asyncio.fixture
-async def state_manager(pool):
+async def state_manager():
     """创建 StateManager 实例"""
-    return StateManager(pool)
+    db = DatabaseManager.get_instance()
+    await db.get_pool()
+    return StateManager(db)
 
 
 class TestSessionCRUD:
@@ -136,7 +129,7 @@ class TestOptimisticConcurrencyControl:
         session = await state_manager.create_session(app_name="test_app", user_id="user_006")
 
         # 模拟另一个进程先更新了状态
-        async with state_manager.pool.acquire() as conn:
+        async with state_manager.db.acquire() as conn:
             await conn.execute(
                 "UPDATE threads SET version = version + 1 WHERE id = $1",
                 uuid.UUID(session.id),
@@ -208,7 +201,7 @@ class TestTransactionRollback:
                 actions={"state_delta": {"value": "modified"}},
             )
             # 人为制造冲突
-            async with state_manager.pool.acquire() as conn:
+            async with state_manager.db.acquire() as conn:
                 await conn.execute(
                     "UPDATE threads SET version = version + 100 WHERE id = $1",
                     uuid.UUID(session.id),
