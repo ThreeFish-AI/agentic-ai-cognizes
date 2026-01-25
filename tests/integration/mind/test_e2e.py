@@ -14,10 +14,24 @@ pytestmark = pytest.mark.asyncio
 class TestE2EIntegration:
     """端到端集成测试"""
 
-    async def test_complete_conversation_flow(self, db_pool):
+    @pytest.fixture
+    async def db_manager(self):
+        """获取数据库管理器"""
+        from cognizes.core.database import DatabaseManager
+
+        return DatabaseManager.get_instance()
+
+    @pytest.fixture
+    async def db_pool(self, db_manager):
+        """创建数据库连接池"""
+        pool = await db_manager.get_pool()
+        yield pool
+        # Pool managed by DatabaseManager
+
+    async def test_complete_conversation_flow(self, db_pool, db_manager):
         """测试完整对话流程"""
         session_svc = PostgresSessionService(pool=db_pool)
-        memory_svc = PostgresMemoryService(pool=db_pool)
+        memory_svc = PostgresMemoryService(db=db_manager)
         tool_registry = ToolRegistry(pool=db_pool, app_name="test_app")
 
         # 1. 创建会话
@@ -28,7 +42,6 @@ class TestE2EIntegration:
             name="calculator", func=lambda x, y: x + y, openapi_schema={"type": "function", "name": "calculator"}
         )
 
-        # 3. 模拟多轮对话
         # 3. 模拟多轮对话
         from google.adk.events import Event
 
@@ -66,10 +79,10 @@ class TestE2EIntegration:
         memories = await memory_svc.search_memory(app_name="test_app", user_id="e2e_user", query="Turn 2 message")
         assert len(memories.memories) > 0
 
-    async def test_cross_session_memory_recall(self, db_pool):
+    async def test_cross_session_memory_recall(self, db_pool, db_manager):
         """测试跨会话记忆召回"""
         session_svc = PostgresSessionService(pool=db_pool)
-        memory_svc = PostgresMemoryService(pool=db_pool)
+        memory_svc = PostgresMemoryService(db=db_manager)
 
         # 会话 1: 记录偏好
         from google.adk.events import Event

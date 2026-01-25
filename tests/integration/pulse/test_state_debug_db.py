@@ -37,8 +37,8 @@ async def debug_service(db):
 @pytest_asyncio.fixture
 async def state_manager(db):
     """创建 StateManager 实例"""
-    pool = await db.get_pool()
-    return StateManager(pool)
+    # StateManager expects DatabaseManager, not Pool
+    return StateManager(db)
 
 
 class TestStateDebugServiceDB:

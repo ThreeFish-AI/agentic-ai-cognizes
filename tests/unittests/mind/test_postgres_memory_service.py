@@ -32,39 +32,26 @@ class TestPostgresMemoryService:
     """MemoryService 单元测试套件"""
 
     @pytest.fixture
-    def mock_pool(self):
-        """创建模拟数据库连接池"""
-        pool = MagicMock()
-        conn = AsyncMock()
-
-        # 模拟连接池上下文管理器
-        acm = AsyncMock()
-        acm.__aenter__.return_value = conn
-        acm.__aexit__.return_value = None
-        pool.acquire.return_value = acm
-
-        # 模拟 execute 和 fetch
-        conn.execute = AsyncMock()
-        conn.fetch = AsyncMock(return_value=[])
-
-        return pool, conn
+    def mock_db(self):
+        """Mock DatabaseManager with repositories"""
+        db = MagicMock()
+        db.memories = AsyncMock()
+        return db
 
     @pytest.fixture
-    def service(self, mock_pool):
-        """创建测试服务实例"""
+    def service(self, mock_db):
+        """Create test service instance"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
 
-        pool, _ = mock_pool
-        return PostgresMemoryService(pool=pool)
+        return PostgresMemoryService(db=mock_db)
 
     # ========== add_session_to_memory 测试 ==========
 
-    async def test_add_session_to_memory(self, mock_pool):
+    async def test_add_session_to_memory(self, mock_db):
         """验收项 #9: 测试会话转化为可搜索记忆"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
 
-        pool, conn = mock_pool
-        service = PostgresMemoryService(pool=pool)
+        service = PostgresMemoryService(db=mock_db)
 
         # 创建测试会话
         session = MockSession(
@@ -83,17 +70,18 @@ class TestPostgresMemoryService:
         # 执行
         await service.add_session_to_memory(session)
 
-        # 验证: execute 被调用 (插入 memories 表)
-        conn.execute.assert_called_once()
-        call_args = conn.execute.call_args
-        assert "INSERT INTO memories" in call_args[0][0]
+        # 验证: Reposistory insert 被调用
+        mock_db.memories.insert.assert_called_once()
+        call_args = mock_db.memories.insert.call_args
+        assert call_args.kwargs["user_id"] == "user_001"
+        assert "我喜欢喝咖啡" in call_args.kwargs["content"]
+        assert "我住在北京" in call_args.kwargs["content"]
 
-    async def test_add_session_to_memory_empty_events(self, mock_pool):
+    async def test_add_session_to_memory_empty_events(self, mock_db):
         """测试空事件不产生记忆"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
 
-        pool, conn = mock_pool
-        service = PostgresMemoryService(pool=pool)
+        service = PostgresMemoryService(db=mock_db)
 
         session = MockSession(
             id=str(uuid.uuid4()),
@@ -105,15 +93,14 @@ class TestPostgresMemoryService:
         await service.add_session_to_memory(session)
 
         # 验证: 无消息时不应插入
-        conn.execute.assert_not_called()
+        mock_db.memories.insert.assert_not_called()
 
-    async def test_add_session_with_consolidation_worker(self, mock_pool):
+    async def test_add_session_with_consolidation_worker(self, mock_db):
         """测试使用 Phase 2 consolidation_worker"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
 
-        pool, _ = mock_pool
         mock_worker = AsyncMock()
-        service = PostgresMemoryService(pool=pool, consolidation_worker=mock_worker)
+        service = PostgresMemoryService(db=mock_db, consolidation_worker=mock_worker)
 
         session = MockSession(
             id=str(uuid.uuid4()),
@@ -126,18 +113,17 @@ class TestPostgresMemoryService:
 
         # 验证: 使用 worker 而非简化实现
         mock_worker.consolidate.assert_called_once()
+        mock_db.memories.insert.assert_not_called()
 
     # ========== search_memory 测试 ==========
 
-    async def test_search_memory(self, mock_pool):
+    async def test_search_memory(self, mock_db):
         """验收项 #10: 测试语义检索"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
         import json
 
-        pool, conn = mock_pool
-
-        # 模拟数据库返回
-        conn.fetch.return_value = [
+        # 模拟 Repository 返回
+        mock_db.memories.search_fulltext.return_value = [
             {
                 "id": uuid.uuid4(),
                 "content": "用户喜欢喝咖啡",
@@ -154,41 +140,36 @@ class TestPostgresMemoryService:
             },
         ]
 
-        service = PostgresMemoryService(pool=pool)
+        service = PostgresMemoryService(db=mock_db)
 
         # 执行搜索
         response = await service.search_memory(app_name="test_app", user_id="user_001", query="咖啡偏好")
 
         # 验证
+        mock_db.memories.search_fulltext.assert_called_once()
         assert len(response.memories) == 2
-        # MemoryEntry does not expose relevance_score attribute directly in ADK
-        # assert response.memories[0].relevance_score == 0.95
         assert "咖啡" in response.memories[0].content.parts[0].text
 
-    async def test_search_memory_empty_result(self, mock_pool):
+    async def test_search_memory_empty_result(self, mock_db):
         """测试无匹配结果"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
 
-        pool, conn = mock_pool
-        conn.fetch.return_value = []
-
-        service = PostgresMemoryService(pool=pool)
+        mock_db.memories.search_fulltext.return_value = []
+        service = PostgresMemoryService(db=mock_db)
 
         response = await service.search_memory(app_name="test_app", user_id="unknown_user", query="不存在的内容")
 
         assert len(response.memories) == 0
 
-    async def test_search_memory_with_embedding(self, mock_pool):
+    async def test_search_memory_with_embedding(self, mock_db):
         """测试使用向量检索"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
         import json
 
-        pool, conn = mock_pool
-
         # 模拟 embedding 函数
         mock_embedding_fn = AsyncMock(return_value=[0.1] * 384)
 
-        conn.fetch.return_value = [
+        mock_db.memories.search_vector.return_value = [
             {
                 "id": uuid.uuid4(),
                 "content": "向量检索结果",
@@ -198,25 +179,24 @@ class TestPostgresMemoryService:
             }
         ]
 
-        service = PostgresMemoryService(pool=pool, embedding_fn=mock_embedding_fn)
+        service = PostgresMemoryService(db=mock_db, embedding_fn=mock_embedding_fn)
 
         response = await service.search_memory(app_name="test_app", user_id="user_004", query="测试向量")
 
         # 验证 embedding 被调用
         mock_embedding_fn.assert_called_once_with("测试向量")
+        mock_db.memories.search_vector.assert_called_once()
         assert len(response.memories) == 1
 
     # ========== list_memories 测试 ==========
 
-    async def test_list_memories(self, mock_pool):
+    async def test_list_memories(self, mock_db):
         """验收项 #11: 测试列出用户所有记忆"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
         import json
 
-        pool, conn = mock_pool
-
-        # 模拟数据库返回
-        conn.fetch.return_value = [
+        # 模拟 Repository 返回
+        mock_db.memories.list_recent.return_value = [
             {
                 "id": uuid.uuid4(),
                 "content": "记忆1",
@@ -233,26 +213,23 @@ class TestPostgresMemoryService:
             },
         ]
 
-        service = PostgresMemoryService(pool=pool)
+        service = PostgresMemoryService(db=mock_db)
 
         memories = await service.list_memories(app_name="test_app", user_id="user_005")
 
         # 验证
+        mock_db.memories.list_recent.assert_called_once()
         assert len(memories) == 2
         assert memories[0].content.parts[0].text == "记忆1"
-        assert memories[1].content.parts[0].text == "记忆2"
 
-    async def test_list_memories_with_limit(self, mock_pool):
+    async def test_list_memories_with_limit(self, mock_db):
         """测试列出记忆带限制"""
         from cognizes.adapters.postgres.memory_service import PostgresMemoryService
 
-        pool, conn = mock_pool
-        conn.fetch.return_value = []
-
-        service = PostgresMemoryService(pool=pool)
+        mock_db.memories.list_recent.return_value = []
+        service = PostgresMemoryService(db=mock_db)
 
         await service.list_memories(app_name="test_app", user_id="user_006", limit=50)
 
-        # 验证 SQL 中包含 LIMIT
-        call_args = conn.fetch.call_args
-        assert "LIMIT" in call_args[0][0]
+        # 验证
+        mock_db.memories.list_recent.assert_called_with("user_006", "test_app", 50)

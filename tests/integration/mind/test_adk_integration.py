@@ -69,10 +69,14 @@ class TestAdkIntegration:
     """ADK 集成验收测试套件"""
 
     @pytest.fixture
-    async def db_pool(self):
+    async def db_manager(self):
+        """获取数据库管理器"""
+        return DatabaseManager.get_instance()
+
+    @pytest.fixture
+    async def db_pool(self, db_manager):
         """创建数据库连接池"""
-        db = DatabaseManager.get_instance()
-        pool = await db.get_pool()
+        pool = await db_manager.get_pool()
         yield pool
         # Pool managed by DatabaseManager
 
@@ -110,15 +114,17 @@ class TestAdkIntegration:
         not os.environ.get("GOOGLE_API_KEY") or not os.environ.get("DATABASE_URL"),
         reason="缺少 GOOGLE_API_KEY 或 DATABASE_URL 环境变量",
     )
-    async def test_adk_runner_with_postgres_session_service(self, db_pool):
+    async def test_adk_runner_with_postgres_session_service(self, db_pool, db_manager):
         """
         测试 ADK Runner 与 PostgresSessionService 集成
 
         验证 PostgresSessionService 可作为 ADK Runner 的后端存储
         """
         # 使用 PostgreSQL Session 服务 + PostgreSQL Memory 服务
+        # SessionService 仍使用 pool (尚未重构)
         session_svc = PostgresSessionService(pool=db_pool)
-        memory_svc = PostgresMemoryService(pool=db_pool)
+        # MemoryService 已重构使用 db_manager
+        memory_svc = PostgresMemoryService(db=db_manager)
 
         # 1. 创建 Agent (使用自定义模型支持代理端点)
         custom_model = create_custom_model("gemini-2.5-flash")
