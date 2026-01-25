@@ -594,9 +594,7 @@ stateDiagram-v2
 
 ---
 
-## 4. 实施计划：分步执行指南
-
-### 4.1 Step 1: 环境部署与基础设施
+## 4. 实施指南
 
 ### 4.1 Step 1: 环境部署与基础设施
 
@@ -711,67 +709,134 @@ print(f'✓ Key: {os.getenv(\"GOOGLE_API_KEY\", \"Not Set\")[:5]}...')
 "
 ```
 
-### 4.2 Step 2: Schema 部署与验证
+### 4.2 Step 2: The Blueprint - Schema 部署
+
+> [!TIP]
+>
+> **Metaphor: 绘制蓝图 (Drawing the Blueprint)**
+> 在土壤准备好后，我们需要在其中绘制数据的蓝图 (Schema)，定义 7 张核心表与 2 个触发器。
+
+**核心目标**：将 Unified Schema 物理化到数据库中。
+
+**部署流水线**：
 
 ```bash
-# 部署 Schema
-psql -d 'cognizes-engine' -f src/cognizes/engine/schema/agent_schema.sql
+# 1. Deploy (The Blueprint Execution)
+psql -d cognizes-engine -f src/cognizes/engine/schema/agent_schema.sql
 
-# 验证表创建
-psql -d 'cognizes-engine' -c "\dt"
+# 2. Verify Tables (7 Core Tables)
+psql -d cognizes-engine -c "\dt" | grep -E "threads|events|runs|messages|snapshots|user_states|app_states"
 
-# 验证触发器
-psql -d 'cognizes-engine' -c "\df notify_event_insert"
+# 3. Verify Triggers (The Pulse Mechanism)
+psql -d cognizes-engine -c "\df notify_event_insert"
 ```
 
----
+**验收标准**：
 
-### 4.3 Step 3: Pulse Engine 核心实现
-
-#### 4.3.1 StateManager 类实现
-
-参见：[`src/cognizes/engine/pulse/state_manager.py`](../../src/cognizes/engine/pulse/state_manager.py)
-
-#### 4.3.2 PgNotifyListener 实现
-
-参见：[`src/cognizes/engine/pulse/pg_notify_listener.py`](../../src/cognizes/engine/pulse/pg_notify_listener.py)
-
-#### 4.3.3 P1-3-15：实现 WebSocket 推送接口
-
-**目的**：前端通过 WebSocket 接收实时事件流。
-
-**实现路径**：
-
-- `src/cognizes/engine/api/main.py` - FastAPI 应用入口
-- `src/cognizes/engine/pulse/pg_notify_listener.py` - NOTIFY 监听器
+- ✓ 7 张表全部创建成功
+- ✓ `notify_event_insert` 触发器就绪
+- ✓ `update_updated_at` 触发器就绪
 
 ---
 
-### 4.4 Step 4: AG-UI 事件桥接层
+### 4.3 Step 3: The Heart - Pulse Engine 核心实现
 
-#### 4.4.1 EventBridge 实现 (AG-UI 事件类型定义)
+> [!TIP]
+>
+> **Metaphor: 安装心脏 (Installing the Heart)**
+> Schema 是骨架，Pulse Engine 是跳动的心脏。它负责状态管理 (StateManager) 和脉搏传导 (PgNotifyListener)。
 
-参见：[`src/cognizes/engine/pulse/event_bridge.py`](../../src/cognizes/engine/pulse/event_bridge.py)
+#### 4.3.1 The State Keeper: StateManager 实现
 
-#### 4.4.2 状态调试面板数据接口
+**核心职责**：
 
-参见：[`src/cognizes/engine/pulse/state_debug.py`](../../src/cognizes/engine/pulse/state_debug.py)
+- 原子状态流转 (Atomic State Transitions)
+- 乐观并发控制 (OCC with Version Check)
+- 前缀作用域解析 (`user:`, `app:`, `temp:`)
 
-#### 4.4.3 P1-5-3：实现 SSE 事件流端点
+**实现参考**：[`src/cognizes/engine/pulse/state_manager.py`](../../src/cognizes/engine/pulse/state_manager.py)
 
-**目的**：通过 Server-Sent Events 推送 AG-UI 事件流。
+#### 4.3.2 The Pulse Conductor: PgNotifyListener 实现
 
-参见：[`src/cognizes/engine/api/main.py`](../../src/cognizes/engine/api/main.py) - SSE 端点 `/api/runs/{run_id}/events`
+**核心职责**：
 
-#### 4.4.4 任务清单
+- 监听 PostgreSQL `NOTIFY` 信号
+- 解析事件 Payload 并分发
+- 驱动 EventBridge 进行实时推送
 
-| 任务 ID | 任务描述                   | 状态      | 验收标准                |
-| :------ | :------------------------- | :-------- | :---------------------- |
-| P1-5-1  | 实现 `PulseEventBridge` 类 | 🔲 待开始 | PostgreSQL 事件正确转换 |
-| P1-5-2  | 实现 AG-UI 事件映射逻辑    | 🔲 待开始 | 6 种事件类型覆盖        |
-| P1-5-3  | 实现 SSE 端点              | 🔲 待开始 | 事件流延迟 < 100ms      |
-| P1-5-4  | 实现 StateDebugService     | 🔲 待开始 | 调试信息完整            |
-| P1-5-5  | 编写事件桥接单元测试       | 🔲 待开始 | 覆盖率 > 80%            |
+**实现参考**：[`src/cognizes/engine/pulse/pg_notify_listener.py`](../../src/cognizes/engine/pulse/pg_notify_listener.py)
+
+#### 4.3.3 The Gateway: WebSocket 推送接口
+
+**核心目标**：为前端提供实时事件流的订阅通道。
+
+**关键组件**：
+
+- **FastAPI Endpoint**: `src/cognizes/engine/api/main.py`
+- **Event Router**: 基于 `thread_id` 的订阅路由
+- **Protocol**: WebSocket (实时双向) / SSE (单向流)
+
+---
+
+### 4.4 Step 4: The Meridian System - AG-UI 事件桥接
+
+> [!TIP]
+>
+> **Metaphor: 构建经络系统 (Building the Meridian System)**
+>
+> 如果把 Pulse Engine 比作心脏，EventBridge 则是遍布全身的经络——它把每一次心跳（DB 事件）转化为脉络中的血液流动（AG‑UI 协议），从而驱动可视化界面的即时响应。
+
+**核心目标**：实现 PostgreSQL 事件流与 AG-UI 协议的无缝转换。
+
+#### 4.4.1 The Translator: EventBridge 核心实现
+
+**核心职责**：
+
+- **Protocol Translation**: 将 PG `NOTIFY` Payload 转换为 AG-UI 标准事件格式
+- **Event Routing**: 根据 `event_type` 路由到不同的 UI 组件
+- **Type Safety**: 6 种核心事件类型的强类型定义
+
+**事件映射矩阵**：
+
+| PG Event Source             | AG-UI Event Type       | Trigger Condition |
+| :-------------------------- | :--------------------- | :---------------- |
+| `events` (role=user/agent)  | `TEXT_MESSAGE_START`   | 新消息创建        |
+| `events` (content delta)    | `TEXT_MESSAGE_CONTENT` | 流式内容追加      |
+| `runs` (INSERT)             | `RUN_STARTED`          | 执行链路启动      |
+| `runs` (UPDATE complete)    | `RUN_FINISHED`         | 执行完成          |
+| `threads.state` (via event) | `STATE_DELTA`          | 状态变更          |
+| `events` (tool_call)        | `TOOL_CALL_START`      | 工具调用          |
+
+**实现参考**：[`src/cognizes/engine/pulse/event_bridge.py`](../../src/cognizes/engine/pulse/event_bridge.py)
+
+#### 4.4.2 The Monitor: 状态调试面板
+
+**核心职责**：
+
+- **State Inspection**: 按前缀分组展示状态 (`user:`, `app:`, session)
+- **History Tracking**: 状态变更历史追溯
+- **Debug API**: RESTful 接口供开发工具调用
+
+**实现参考**：[`src/cognizes/engine/pulse/state_debug.py`](../../src/cognizes/engine/pulse/state_debug.py)
+
+#### 4.4.3 The Channel: SSE 事件流端点
+
+**核心目标**：为前端提供持久化的单向事件流通道。
+
+**关键特性**：
+
+- **Protocol**: Server-Sent Events (HTTP Long-Polling)
+- **Endpoint**: `/api/runs/{run_id}/events`
+- **Latency**: Target < 100ms (端到端)
+
+**实现参考**：[`src/cognizes/engine/api/main.py`](../../src/cognizes/engine/api/main.py)
+
+**验收标准**：
+
+- ✓ 6 种事件类型正确映射
+- ✓ SSE 流延迟 < 100ms
+- ✓ 状态调试 API 完整可用
+- ✓ 单元测试覆盖率 > 80%
 
 ---
 
@@ -779,9 +844,9 @@ psql -d 'cognizes-engine' -c "\df notify_event_insert"
 
 #### 4.5.1 单元测试套件
 
-参见：[`tests/unittests/pulse/test_state_manager.py`](../../tests/unittests/pulse/test_state_manager.py)
-
-执行测试：
+- **目标**：验证 `StateManager` 的核心业务逻辑与状态转换的正确性。
+- **位置**：[`tests/unittests/pulse/test_state_manager.py`](../../tests/unittests/pulse/test_state_manager.py)
+- **运行方式**：
 
 ```bash
 uv run pytest tests/unittests/pulse/test_state_manager.py -v
@@ -789,12 +854,20 @@ uv run pytest tests/unittests/pulse/test_state_manager.py -v
 
 #### 4.5.2 端到端延迟测试
 
-参见：[`tests/integration/pulse/test_notify_latency.py`](../../tests/integration/pulse/test_notify_latency.py)
-
-执行测试：
+- **目标**：评估 `EventBridge` 从 PostgreSQL `NOTIFY` 到前端 UI 事件的端到端时延，确保 <100 ms。
+- **位置**：[`tests/integration/pulse/test_notify_latency.py`](../../tests/integration/pulse/test_notify_latency.py)
+- **运行方式**：
 
 ```bash
 uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
+```
+
+#### 统一执行
+
+如需一次性运行全部 Pulse 相关测试：
+
+```bash
+uv run pytest tests/unittests/pulse tests/integration/pulse -v
 ```
 
 ## 5. Phase 1 验证 SOP
