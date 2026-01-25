@@ -870,203 +870,155 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 uv run pytest tests/unittests/pulse tests/integration/pulse -v
 ```
 
-## 5. Phase 1 验证 SOP
+## 5. Verification SOP (Phase 1：生命体征监测)
 
-### 5.1 环境验证
+> [!TIP]
+>
+> **Metaphor: The Physical Examination (系统体检)**
+>
+> 本章节将 Phase 1 验证过程比作一次完整的外科体检。我们需要依次确认环境无菌 (Environment)、器官功能正常 (Unit Test)、血液循环畅通 (Integration) 以及心脏抗压能力 (Performance)。
+
+### 5.1 Step 1: 环境检查 (Environment Check)
+
+> **Objective**: 确保手术室（运行环境）的各项指标符合生命维持标准。
+
+**检查清单**:
+
+1. **数据库 (The Soil)**: 确保统一存储基座就绪。
+2. **扩展 (The Nutrients)**: 确保向量与定时任务能力加载。
+3. **连接 (The Vessel)**: 确保 Python 到 PostgreSQL 通路顺畅。
 
 ```bash
-# PostgreSQL 版本验证
+# 1. 基础环境 (PG Version > 16)
 psql -d 'cognizes-engine' -c "SELECT version();"
 
-# 扩展状态检查
+# 2. 核心机能 (Extensions: vector, pg_cron)
 psql -d 'cognizes-engine' -c "SELECT * FROM pg_available_extensions WHERE name IN ('vector', 'pg_cron');"
 
-# 数据库连接测试
+# 3. 血管通路 (Connection Check)
 psql -d cognizes-engine -c "\dt"
 
-# Python 环境验证
+# 4. 脉搏接口 (Python Import)
 uv run python -c "from cognizes.engine.pulse.state_manager import StateManager; print('✓ Import OK')"
 ```
 
-#### 5.1.1 启动服务
+#### 5.1.1 激活心脏起搏器 (Service Startup)
+
+启动 API 服务，激活整个系统的脉搏监听器 (`PgNotifyListener`)。
 
 ```bash
-# 终端 1：启动 FastAPI 服务
+# 终端 1：启动 FastAPI 服务 (Start the Heartbeat Monitor)
 uv run uvicorn cognizes.engine.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-预期输出：
+**预期生命体征**：
 
-```
+```log
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     ✓ PgNotifyListener started
+INFO:     ✓ PgNotifyListener started  <-- 监听器启动，脉搏开始传导
 ```
 
-#### 5.1.2 验证健康检查
+#### 5.1.2 基础反射测试 (Health Check)
 
 ```bash
-# 终端 2：验证服务状态
+# 终端 2：测试膝跳反射 (Health Endpoint)
 curl http://localhost:8000/health
 ```
 
-预期输出：
+**预期反应**：
 
 ```json
 { "status": "ok", "listener_running": true }
 ```
 
-#### 5.1.3 验证 WebSocket 连接
+---
+
+### 5.2 Step 2: 心肺功能测试 (Cardiopulmonary Function Test)
+
+> **Objective**: 在隔离环境下，验证核心器官 (`StateManager`) 的收缩与舒张逻辑是否准确。这对应于 **Unit Testing**。
+
+**测试范围**：
+
+- **State Transitions**: 状态能否正确更新、合并。
+- **Logic Validity**: 前缀作用域解析 (`user:`, `app:`) 是否精准。
 
 ```bash
-# 方式 1：使用 websocat 工具 (需安装: brew install websocat)
-websocat ws://localhost:8000/ws/events/test-thread
-
-# 方式 2：使用 Python 脚本
-uv run python -c "
-import asyncio
-import websockets
-async def test():
-    async with websockets.connect('ws://localhost:8000/ws/events/test-thread') as ws:
-        print('✓ WebSocket connected')
-        msg = await asyncio.wait_for(ws.recv(), timeout=30)
-        print(f'Received: {msg}')
-asyncio.run(test())
-"
-```
-
-#### 5.1.4 触发测试事件
-
-```bash
-# 终端 3：发送测试 NOTIFY 消息
-curl http://localhost:8000/api/test-notify
-```
-
-预期输出：
-
-```json
-{ "status": "sent", "payload": "{\"thread_id\":\"test-thread\",...}" }
-```
-
-WebSocket 客户端应立即收到事件。
-
-#### 5.1.5 验证 SSE 连接
-
-```bash
-# 终端 1：订阅 SSE 事件流 (使用 curl -N 保持长连接)
-curl -N http://localhost:8000/api/runs/test-run/events
-```
-
-预期输出（立即收到连接事件）：
-
-```
-data: {"type":"CUSTOM","runId":"test-run","timestamp":...,"name":"connected","message":"SSE stream for run_id=test-run"}
-```
-
-#### 5.1.6 验证事件推送
-
-```bash
-# 终端 2：触发 SSE 测试事件
-curl http://localhost:8000/api/test-sse-notify/test-run
-```
-
-预期输出：
-
-```json
-{ "status": "sent", "run_id": "test-run", "payload": "..." }
-```
-
-同时，终端 1 的 SSE 客户端应收到：
-
-```
-data: {"type":"RAW","runId":"test-run","timestamp":...,"payload":{...}}
-
-```
-
-#### 5.1.7 验证响应头
-
-```bash
-# 验证 Content-Type (使用 -D - 打印响应头，而非 -I)
-curl -s -D - http://localhost:8000/api/runs/test-run/events 2>&1 | head -10
-```
-
-预期输出：
-
-```
-HTTP/1.1 200 OK
-...
-content-type: text/event-stream; charset=utf-8
-```
-
-> [!NOTE]
->
-> 使用 `curl -I` 会发送 `HEAD` 请求，SSE 端点不支持 HEAD，会返回 `405 Method Not Allowed`。
-
-#### 5.1.8 验证心跳机制
-
-保持 SSE 连接 30 秒不发送事件，客户端应收到心跳：
-
-```
-data: {"type":"CUSTOM","runId":"test-run","timestamp":...,"name":"heartbeat"}
-
-```
-
-**验收标准**：
-
-- [ ] 响应 Content-Type 为 `text/event-stream`
-- [ ] 事件格式符合 SSE 规范 (`data: {...}\n\n`)
-- [ ] 首事件延迟 < 100ms（连接事件立即返回）
-- [ ] 心跳每 30 秒发送一次
-
-### 5.2 单元测试验证
-
-```bash
-# 全部单元测试 (44 个测试用例，无数据库依赖)
+# 全面器官检查 (44 个测试用例，无外部依赖)
 uv run pytest tests/unittests/pulse/ -v
 
-# 快速回归 (仅核心逻辑)
+# 核心瓣膜专项检查 (仅 StateManager)
 uv run pytest tests/unittests/pulse/test_state_manager.py -v --tb=short
 ```
 
-### 5.3 集成测试验证
+---
+
+### 5.3 Step 3: 全身循环测试 (Systemic Circulation Test)
+
+> **Objective**: 验证血液（事件）能否从心脏（DB）泵出，经由动脉（EventBridge），最终到达末梢神经（UI Client）。这对应于 **Integration & E2E Testing**。
+
+#### 5.3.1 经络通路测试 (WebSocket)
+
+验证前端能否通过 WebSocket 建立长连接。
 
 ```bash
-# StateManager 数据库集成测试
+# 使用 websocat 探针 (需安装: brew install websocat)
+websocat ws://localhost:8000/ws/events/test-thread
+```
+
+#### 5.3.2 脉搏传导测试 (Notify -> Client)
+
+验证 "数据库插入 -> 触发 Notify -> 推送 WebSocket" 的完整反射弧。
+
+```bash
+# 终端 3: 注入刺激信号 (Trigger Test Event)
+curl http://localhost:8000/api/test-notify
+```
+
+**预期反应**：WebSocket 客户端应在 **< 100ms** 内“抽动”一下（收到 JSON 数据）。
+
+#### 5.3.3 微循环测试 (SSE Stream)
+
+验证 SSE (Server-Sent Events) 单向高频流的稳定性。
+
+```bash
+# 终端 1: 接入微循环监测仪 (Listen to SSE)
+curl -N http://localhost:8000/api/runs/test-run/events
+
+# 终端 2: 注入造影剂 (Trigger SSE Event)
+curl http://localhost:8000/api/test-sse-notify/test-run
+```
+
+**预期反应**：
+
+1.  **连接时**：立即收到 `connected` 事件。
+2.  **注入后**：立即流出 `RAW` 事件 payload。
+3.  **静置后**：每 30 秒收到有力的一次 `heartbeat` 跳动。
+
+---
+
+### 5.4 Step 4: 心脏负荷测试 (Cardiac Stress Test)
+
+> **Objective**: 在高压从下，验证心脏能否维持 50ms 以内的泵血延迟，且不发生心室颤动（数据竞争/丢失）。这对应于 **Performance Testing**。
+
+**关键指标 (Vital Signs Target)**：
+
+- **Systolic Latency (收缩延迟)**: End-to-End < 50ms
+- **Cardiac Output (心输出量)**: > 100 msg/s throughput
+
+```bash
+# 1. 延迟专项测试 (Latency Check)
+uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
+
+# 2. 并发压力测试 (Stress Test)
+# 模拟 10 个 Agent 同时并发写入同一 Session，验证 OCC 乐观锁机制
 uv run pytest tests/integration/pulse/test_state_manager_db.py -v
-
-# NOTIFY 延迟测试 (验证 < 50ms)
-uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
-
-# EventBridge 端到端测试
-uv run pytest tests/integration/pulse/test_event_bridge_e2e.py -v
-
-# StateDebug 数据库测试
-uv run pytest tests/integration/pulse/test_state_debug_db.py -v
-
-# 全部集成测试
-uv run pytest tests/integration/ -v
 ```
 
-### 5.4 性能指标验收
+**验收标准 (Discharge Criteria)**：
 
-```bash
-# 使用集成测试验证延迟 < 50ms
-uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
-```
-
-**验收标准**：
-
-- [ ] 服务启动成功，listener_running 为 true
-- [ ] 前端可通过 `ws://localhost:8000/ws/events/{thread_id}` 连接
-- [ ] 收到 NOTIFY 事件后延迟 < 100ms
-
-**验证指标**：
-
-| 指标         | 目标值 | 验证测试                                 | 验证命令                                                                                                                    |
-| :----------- | :----- | :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| NOTIFY 延迟  | < 50ms | `test_end_to_end_latency`                | `uv run pytest tests/integration/pulse/test_notify_latency.py::TestNotifyLatency::test_end_to_end_latency -v -s`            |
-| 吞吐量丢失率 | 0%     | `test_100_msg_per_second_throughput`     | `uv run pytest tests/integration/pulse/test_notify_latency.py::TestNotifyLatency::test_100_msg_per_second_throughput -v -s` |
-| OCC QPS      | > 100  | `test_100_qps_session_creation`          | `uv run pytest tests/unittests/pulse/test_state_manager.py::TestHighQPSPerformance -v -s`                                   |
-| 并发写入     | 0 丢失 | `test_10_concurrent_writes_no_data_loss` | `uv run pytest tests/unittests/pulse/test_state_manager.py::TestMultiAgentConcurrency -v -s`                                |
+- [ ] **Reflex**: 收到 NOTIFY 事件延迟 < 100ms
+- [ ] **Rhythm**: 并发写入 0 丢失，OCC 版本控制生效
+- [ ] **Endurance**: 100 msg/s 持续高压下系统无崩溃
 
 ---
 
