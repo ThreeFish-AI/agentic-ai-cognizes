@@ -328,6 +328,17 @@ graph BT
     style PNL fill:#fcd34d,stroke:#f59e0b,color:#000
 ```
 
+> [!TIP]
+>
+> **Metaphor: The Pulse of the System (系统脉搏)**
+>
+> 可以将整个架构想象成一个生命体监测系统：
+>
+> - **心脏 (Heart)**: `Pulse Engine` (PostgreSQL)，每一次数据变更 (`INSERT/UPDATE`) 就像一次心脏跳动。
+> - **脉搏波 (Pulse Wave)**: `NOTIFY` 机制，将心脏的跳动信号实时传导出去。
+> - **监护仪 (Monitor)**: `EventBridge`，捕捉微弱的脉搏信号，将其转化为可视化的波形数据 (AG-UI Events)。
+> - **屏幕 (Display)**: `AG-UI` 前端，实时显示生命体征，让用户看见系统的"存活"状态。
+
 #### 2.5.2 事件映射契约 (Event Mapping Contract)
 
 Pulse 产生的内部事件必须通过 `EventBridge` 转换为标准的 AG-UI 协议格式：
@@ -396,7 +407,8 @@ $$
 
 > [!NOTE]
 >
-> **设计原则**：严格对标 roadmap 1.1 中的 Schema 要求，实现 7 张核心表的统一存储架构。
+> **Design Principles**: Protocol-First, Unified Storage, Event-Driven.
+> 采用 "7 Tables + 2 Triggers" 的架构，实现 ADK Session 协议的完整持久化。
 
 ```mermaid
 erDiagram
@@ -404,6 +416,10 @@ erDiagram
     threads ||--o{ runs : has
     threads ||--o{ messages : stores
     threads ||--o{ snapshots : checkpoints
+
+    %% Real-time Mechanism
+    events ||--|| trigger_notify : "1. INSERT triggers"
+    trigger_notify ||--|| pg_notify : "2. Calls payload"
 
     threads {
         uuid id PK "会话唯一标识"
@@ -473,23 +489,24 @@ erDiagram
     }
 ```
 
-**表职责说明**：
+**Schema 规格说明 (Schema Specification)**：
 
-| 表名            | 职责                         | 对标 ADK 概念  | 生命周期   |
-| :-------------- | :--------------------------- | :------------- | :--------- |
-| **threads**     | 会话容器，存储用户级交互历史 | `Session`      | 持久化     |
-| **events**      | 不可变事件流 (append-only)   | `Event`        | 持久化     |
-| **runs**        | 临时执行链路 (Thinking Loop) | `Invocation`   | 执行期间   |
-| **messages**    | 带 Embedding 的消息内容      | `Content`      | 持久化     |
-| **snapshots**   | 状态检查点，用于快速恢复     | `Checkpoint`   | 按策略清理 |
-| **user_states** | `user:` 前缀状态             | `user:*` State | 持久化     |
-| **app_states**  | `app:` 前缀状态              | `app:*` State  | 持久化     |
+| Table           | Responsibilities  | Core Spec & Features                                                   | Key Constraints / Indexes                                   |
+| :-------------- | :---------------- | :--------------------------------------------------------------------- | :---------------------------------------------------------- |
+| **threads**     | Session Container | **OCC Check**: `version` field<br>**Data**: `state` (JSONB)            | Unique: `(app, user, id)`<br>Idx: `(app, user)`             |
+| **events**      | Immutable Stream  | **Trigger**: `notify_event_insert`<br>**Type**: Append-only Log        | Idx: `(thread_id, sequence_num)`<br>FK: `ON DELETE CASCADE` |
+| **runs**        | Execution Loop    | **Observability**: `thinking_steps`<br>**Status**: Async State Machine | Idx: `(thread_id)`, `(status)`                              |
+| **messages**    | Semantic Content  | **AI Ready**: `vector(1536)` field<br>**Role**: user / assistant       | Idx: `(thread_id)`, `(role)`<br>_(Phase 2: HNSW Index)_     |
+| **snapshots**   | State Checkpoints | **Recovery**: Fast-forward restore<br>**Freq**: Per N events / Runs    | Unique: `(thread_id, version)`                              |
+| **user_states** | User Persistence  | **Scope**: Cross-session memory<br>**Query**: GIN Indexing             | PK: `(user_id, app_name)`<br>Idx: `GIN(state)`              |
+| **app_states**  | Global Config     | **Scope**: App-level config<br>**Query**: GIN Indexing                 | PK: `(app_name)`<br>Idx: `GIN(state)`                       |
 
 ### 3.2 系统交互设计 (System Interaction)
 
 > [!TIP]
-> **Data Flow**: `Write -> Notify -> Bridge -> Push`
-> 本节描述从事件产生到端到端推送的完整时序。
+>
+> **Data Flow**: `Transaction (Write + Update) -> Notify -> Bridge -> Push`
+> 本节描述从事件产生到端到端推送的完整时序。**注意：所有的状态变更通知都是由 `events` 表的插入触发的。**
 
 ```mermaid
 sequenceDiagram
@@ -501,12 +518,17 @@ sequenceDiagram
     participant UI as AG-UI (Client)
 
     User->>API: 1. Send Message / Action
-    API->>DB: 2. INSERT into events (Generic Event)
-    activate DB
-    Note right of DB: Trigger: notify_event_insert
-    DB-->>L: 3. NOTIFY 'agent_events' (Payload)
-    DB-->>API: 4. Return Success
-    deactivate DB
+
+    rect rgb(35, 40, 50)
+        note right of API: Database Transaction
+        API->>DB: 2a. INSERT into events (Generic Event)
+        activate DB
+        Note right of DB: Trigger: notify_event_insert
+        API->>DB: 2b. UPDATE threads (State Change)
+        DB-->>L: 3. NOTIFY 'agent_events' (Payload)
+        DB-->>API: 4. Commit & Return Success
+        deactivate DB
+    end
 
     L->>B: 5. Parse Payload & Dispatch
     activate B
@@ -520,17 +542,29 @@ sequenceDiagram
 ### 3.3 状态管理与 OCC 机制
 
 > [!IMPORTANT]
+>
 > **乐观并发控制 (OCC)**：为了防止多 Agent 同时修改状态导致的数据覆盖，我们引入 `version` 字段进行 CAS (Compare-And-Swap) 控制。
+> **关键点**：`state` 的更新必须与记录该变更的 `event` 在同一个事务中提交。
 
-**核心逻辑**：
+**核心逻辑 (Atomic Transaction)**：
 
 ```sql
+BEGIN;
+
+-- 1. 尝试更新状态 (CAS)
 UPDATE threads
 SET
   state = state || $new_state,
   version = version + 1
 WHERE
-  id = $thread_id AND version = $expected_version;
+  id = $thread_id AND version = $expected_version
+RETURNING version; -- 如果返回空，说明版本不匹配（冲突）
+
+-- 2. 插入事件 record (触发 Notify)
+INSERT INTO events (thread_id, event_type, content)
+VALUES ($thread_id, 'state_update', $new_state);
+
+COMMIT;
 ```
 
 **状态流转图**：
@@ -540,16 +574,17 @@ stateDiagram-v2
     direction LR
     [*] --> Reading: Get Session
     Reading --> Computing: Logic Execution
-    Computing --> Committing: Update State
+    Computing --> Transaction: Begin Tx
 
-    state Committing {
-        [*] --> CheckVersion
-        CheckVersion --> Success: Version Match
-        CheckVersion --> Conflict: Version Mismatch
+    state Transaction {
+        [*] --> UpdateState
+        UpdateState --> Checks: RETURNING version
+        Checks --> InsertEvent: Success
+        Checks --> Conflict: Empty Result
     }
 
-    Success --> [*]: Notify State Delta
-    Conflict --> Retry: Reload & Re-compute
+    InsertEvent --> [*]: Commit & Notify
+    Conflict --> Retry: Rollback & Reload
     Retry --> Computing
 ```
 
@@ -563,134 +598,117 @@ stateDiagram-v2
 
 ### 4.1 Step 1: 环境部署与基础设施
 
-#### 4.1.1 PostgreSQL 生态部署
+### 4.1 Step 1: 环境部署与基础设施
+
+> [!TIP]
+>
+> **Metaphor: 夯实地基 (Building the Foundation)**
+>
+> 在开始编码前，我们需要先整理好土壤 (DB)、搭建好脚手架 (Python Env) 并拿到钥匙 (Secrets)。
+
+#### 4.1.1 The Soil: PostgreSQL 生态部署
+
+**核心目标**：为 Pulse Engine 准备肥沃的土壤。
 
 **任务清单**：
 
-| 任务 ID | 任务描述             | 验收标准                        | 参考命令                     |
-| :------ | :------------------- | :------------------------------ | :--------------------------- |
-| P1-1-1  | 部署 PostgreSQL 16+  | `SELECT version()` 返回 16.x+   | `brew install postgresql@16` |
-| P1-1-2  | 安装 pgvector 0.7.0+ | `CREATE EXTENSION vector` 成功  | 见下方安装指南               |
-| P1-1-3  | 安装 pg_cron         | `SELECT * FROM cron.job` 可执行 | 见下方安装指南               |
-| P1-1-4  | 配置连接池           | 支持 100+ 并发连接              | PgBouncer 或内置配置         |
+| 任务 ID | 任务描述     | 验收标准                   | 参考命令                     |
+| :------ | :----------- | :------------------------- | :--------------------------- |
+| P1-1-1  | 部署 PG 16+  | `SELECT version()` 16.x+   | `brew install postgresql@16` |
+| P1-1-2  | 初始化数据库 | 库 `cognizes-engine` 存在  | `createdb cognizes-engine`   |
+| P1-1-3  | 安装扩展     | `vector`, `uuid-ossp` 就绪 | 见下文安装指南               |
+| P1-1-4  | 安装 pg_cron | 定时任务调度器就绪         | 见下文安装指南               |
 
-**pgvector 安装指南**：
+**关键安装指南**：
 
 ```bash
-# macOS (Homebrew)
-brew install pgvector
+# 1. 基础安装 (macOS)
+brew install postgresql@16 pgvector
+brew services start postgresql@16
 
-# 或从源码编译
-git clone https://github.com/pgvector/pgvector.git
-cd pgvector
-make
-make install
+# 2. 创建数据库 (The Container)
+createdb cognizes-engine
 
-# 在 PostgreSQL 中启用
-psql -d your_database -c "CREATE EXTENSION IF NOT EXISTS vector;"
+# 3. 启用基础扩展 (The Nutrients)
+psql -d cognizes-engine -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+psql -d cognizes-engine -c "CREATE EXTENSION IF NOT EXISTS vector;"
 ```
 
-**pg_cron 安装指南 (源码编译)**：
+**pg_cron (The Clock) 深度部署指南**：
 
-> [!TIP]
+> [!IMPORTANT]
 >
-> **macOS 编译异常修复**
->
-> 在 Apple Silicon (M1/M2/M3) 环境下编译 `pg_cron` 时，常遇到链接器错误：
-> `Undefined symbols for architecture arm64: "_libintl_ngettext"`
->
-> **原因**: 链接器未能找到 `gettext` 国际化库。
-> **修复**: 需在 Makefile 中显式链接 `libintl`。修改 `Makefile` 第 22 行左右：
-> 原文: `SHLIB_LINK = $(libpq)`
-> 修改: `SHLIB_LINK = $(libpq) -L/opt/homebrew/opt/gettext/lib -lintl`
+> **Prerequisite: The Heartbeat Mechanism**
+> `pg_cron` 作为系统的后台调度器，必需在 `postgresql.conf` 中预加载 (`shared_preload_libraries`) 才能启动其后台进程。
+
+**关键路径：源码编译与配置 (macOS)**
+
+1. **修正编译参数 (Apple Silicon Only)**
+   - **现象**: 链接报错 `Undefined symbols: _libintl_ngettext`。
+   - **对策**: 编辑 `Makefile` (约第 22 行)，显式链接 `gettext` 库：
+     ```make
+     # Old: SHLIB_LINK = $(libpq)
+     SHLIB_LINK = $(libpq) -L/opt/homebrew/opt/gettext/lib -lintl
+     ```
+
+2. **执行安装流水线**
+
+   ```bash
+   # 1. Build & Install
+   git clone https://github.com/citusdata/pg_cron.git && cd pg_cron
+   # (Execute Makefile fix here if on M1/M2/M3)
+   export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
+   make clean && make && make install
+
+   # 2. Config (Find path: psql -c "SHOW config_file;")
+   # Add to postgresql.conf:
+   # shared_preload_libraries = 'pg_cron'
+   # cron.database_name = 'cognizes-engine'
+
+   # 3. Restart & Enable
+   brew services restart postgresql@16
+   psql -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_cron;"
+   ```
+
+#### 4.1.2 The Scaffold: 开发环境配置
+
+**核心目标**：搭建稳固的 Python 开发脚手架。
 
 ```bash
-# 1. 下载源码 (推荐使用稳定版分支)
-git clone https://github.com/citusdata/pg_cron.git
-cd pg_cron
-
-# 2. 修复 Makefile 链接问题 (macOS 必需，见上 Tip)
-# 或手动修改 Makefile 追加 -lintl 参数
-
-# 3. 编译与安装 (需确保 pg_config 指向目标 PG 版本)
-export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
-make clean
-make && make install
-
-# 4. 修改 postgresql.conf 配置
-# 路径通常在 /opt/homebrew/var/postgresql@16/postgresql.conf
-# 追加内容：
-# shared_preload_libraries = 'pg_cron'
-# cron.database_name = 'cognizes-engine'
-
-# 5. 重启 PostgreSQL
-brew services restart postgresql@16
-
-# 6. 在目标数据库中启用扩展
-psql -d postgres -c "CREATE EXTENSION IF NOT EXISTS pg_cron;"
-```
-
-> [!TIP]
->
-> **配置详解**
->
-> 1. **配置文件路径**: macOS 上通常位于 `/opt/homebrew/var/postgres@18/postgresql.conf` (Apple Silicon)。可通过 `psql -c "SHOW config_file;"` 精确查找。
-> 2. **`shared_preload_libraries = 'pg_cron'`**: 启动 `pg_cron` 的后台调度进程 (Background Worker)。如果不设置，扩展仅加载函数但调度器不运行。修改后必须重启 PG。
-> 3. **`cron.database_name`**: 指定存储 cron 元数据 (任务列表) 的主数据库。若不设置，默认只能在 `postgres` 库中管理任务。
-
-#### 4.1.2 开发环境配置
-
-**Python 环境**：
-
-```bash
-# 创建项目目录结构
-mkdir -p src/cognizes/engine/pulse
-mkdir -p src/cognizes/engine/schema
-mkdir -p tests/pulse
-
-# 创建虚拟环境
-# python -m venv .venv
-# source .venv/bin/activate
+# 1. 初始化项目 (The Frame)
+mkdir -p src/cognizes/engine/{pulse,schema} tests/pulse
 uv init --no-workspace .
 
-# 安装依赖
-uv add asyncpg 'psycopg[binary]' google-adk pydantic pytest pytest-asyncio
+# 2. 安装依赖 (The Tools)
+# Core: asyncpg (Driver), pydantic (Validation)
+# SDK: google-adk (Protocol)
+uv add asyncpg 'psycopg[binary]' google-adk pydantic
+uv add --dev pytest pytest-asyncio
 ```
 
-**依赖清单** (`pyproject.toml`):
+#### 4.1.3 The Keys: 配置与密钥管理
 
-```toml
-dependencies = [
-    # Core
-    "asyncpg>=0.31.0",
-    "psycopg[binary]>=3.3.2",
-    "pydantic>=2.12.5",
+**核心目标**：注入启动引擎所需的燃料。
 
-    # Google ADK
-    "google-adk>=1.22.0",
-
-    # Testing
-    "pytest>=9.0.2",
-    "pytest-asyncio>=1.3.0",
-
-    # Utilities
-    # "python-dotenv>=1.2.1",
-]
-```
-
-#### 4.1.3 P1-1-8：配置 GOOGLE_API_KEY
-
-**目的**：为 Google ADK 提供 API 认证。
+**配置清单**：
 
 ```bash
-# 方式 1：环境变量 (推荐)
-export GOOGLE_API_KEY="your-api-key-here"
+# .env 文件模板
+# 1. Database Connection (Soil Access)
+DATABASE_URL="postgresql://user:pass@localhost:5432/cognizes-engine"
 
-# 方式 2：.env 文件
-echo 'GOOGLE_API_KEY=your-api-key-here' >> .env
+# 2. Google ADK Auth (Identity)
+GOOGLE_API_KEY="your-gemini-api-key"
+```
 
-# 验证
-uv run python -c "import os; print('✓ API Key:', os.getenv('GOOGLE_API_KEY', 'NOT SET')[:10] + '...')"
+**验证命令**：
+
+```bash
+uv run python -c "
+import os
+print(f'✓ DB:  {os.getenv(\"DATABASE_URL\", \"Not Set\")}')
+print(f'✓ Key: {os.getenv(\"GOOGLE_API_KEY\", \"Not Set\")[:5]}...')
+"
 ```
 
 ### 4.2 Step 2: Schema 部署与验证
