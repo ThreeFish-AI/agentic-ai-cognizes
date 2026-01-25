@@ -20,7 +20,7 @@ class TestRetentionManagerDB:
 
     async def test_retention_score_distribution(
         self,
-        integration_pool,
+        integration_db,
         integration_thread,
         clean_integration_data,
     ):
@@ -30,7 +30,7 @@ class TestRetentionManagerDB:
         thread_id = uuid.UUID(integration_thread["thread_id"])
 
         # 插入不同保留分数的记忆
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             scores = [
                 0.9,  # high
                 0.8,  # high
@@ -55,7 +55,7 @@ class TestRetentionManagerDB:
                 clean_integration_data["memories"].append(memory_id)
 
         # 查询分布
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 SELECT
@@ -75,7 +75,7 @@ class TestRetentionManagerDB:
 
     async def test_access_count_increment(
         self,
-        integration_pool,
+        integration_db,
         integration_thread,
         clean_integration_data,
     ):
@@ -85,7 +85,7 @@ class TestRetentionManagerDB:
         thread_id = uuid.UUID(integration_thread["thread_id"])
 
         memory_id = uuid.uuid4()
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO memories (id, thread_id, user_id, app_name, memory_type, content, access_count)
@@ -100,7 +100,7 @@ class TestRetentionManagerDB:
         clean_integration_data["memories"].append(memory_id)
 
         # 模拟多次访问
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             for _ in range(5):
                 await conn.execute(
                     """
@@ -118,10 +118,10 @@ class TestRetentionManagerDB:
 
     async def test_retention_score_calculation_function(
         self,
-        integration_pool,
+        integration_db,
     ):
         """测试保留分数计算函数"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             # 测试新访问的高分记忆
             score_new = await conn.fetchval("""
                 SELECT calculate_retention_score(10, NOW(), 0.1)

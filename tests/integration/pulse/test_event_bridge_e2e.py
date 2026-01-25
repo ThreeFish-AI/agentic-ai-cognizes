@@ -10,7 +10,6 @@ import asyncio
 import json
 import pytest
 import pytest_asyncio
-import asyncpg
 
 from cognizes.engine.pulse.event_bridge import (
     AgUiEventType,
@@ -28,10 +27,9 @@ from cognizes.core.database import DatabaseManager
 async def conn():
     """创建测试连接"""
     db = DatabaseManager.get_instance()
-    pool = await db.get_pool()
-    conn = await pool.acquire()
-    yield conn
-    await pool.release(conn)
+    await db.get_pool()
+    async with db.acquire() as conn:
+        yield conn
 
 
 class TestEventBridgeE2E:

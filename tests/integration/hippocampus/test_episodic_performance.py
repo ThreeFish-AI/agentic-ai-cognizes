@@ -28,7 +28,7 @@ class TestEpisodicPerformance:
     MEMORY_COUNT_FULL = 100_000
     TEST_RUNS = 20
 
-    async def test_time_slice_query_quick(self, integration_pool):
+    async def test_time_slice_query_quick(self, integration_db):
         """
         快速时间切片查询测试 (1K 规模)
 
@@ -38,7 +38,7 @@ class TestEpisodicPerformance:
         app_name = "perf_test_app"
 
         # 创建测试数据
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             batch_size = 100
             base_time = datetime.now() - timedelta(days=30)
 
@@ -80,7 +80,7 @@ class TestEpisodicPerformance:
                 end_time = start_time + timedelta(days=7)
 
                 start = time.perf_counter()
-                async with integration_pool.acquire() as conn:
+                async with integration_db.acquire() as conn:
                     rows = await conn.fetch(
                         """
                         SELECT id, content, retention_score, created_at
@@ -114,16 +114,16 @@ class TestEpisodicPerformance:
 
         finally:
             # 清理测试数据
-            async with integration_pool.acquire() as conn:
+            async with integration_db.acquire() as conn:
                 await conn.execute("DELETE FROM memories WHERE user_id = $1", user_id)
 
-    async def test_index_usage_verification(self, integration_pool):
+    async def test_index_usage_verification(self, integration_db):
         """验证时间切片查询使用索引"""
         user_id = f"index_test_{uuid.uuid4().hex[:8]}"
         app_name = "index_test_app"
 
         # 插入少量测试数据
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             for i in range(10):
                 await conn.execute(
                     """
@@ -141,7 +141,7 @@ class TestEpisodicPerformance:
             start_time = datetime.now() - timedelta(days=7)
             end_time = datetime.now()
 
-            async with integration_pool.acquire() as conn:
+            async with integration_db.acquire() as conn:
                 plan = await conn.fetch(
                     """
                     EXPLAIN (FORMAT JSON)
@@ -171,10 +171,10 @@ class TestEpisodicPerformance:
                 # 注意: 小数据集可能使用 Seq Scan，这是正常的
 
         finally:
-            async with integration_pool.acquire() as conn:
+            async with integration_db.acquire() as conn:
                 await conn.execute("DELETE FROM memories WHERE user_id = $1", user_id)
 
-    async def test_time_slice_query_full(self, integration_pool):
+    async def test_time_slice_query_full(self, integration_db):
         """
         完整时间切片查询测试 (10 万规模)
 
@@ -187,7 +187,7 @@ class TestEpisodicPerformance:
         app_name = "perf_test_app"
 
         # 检查数据是否存在
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             count = await conn.fetchval("SELECT COUNT(*) FROM memories WHERE user_id = $1", user_id)
             if count < self.MEMORY_COUNT_FULL:
                 pytest.skip(
@@ -204,7 +204,7 @@ class TestEpisodicPerformance:
             end_time = start_time + timedelta(days=30)
 
             start = time.perf_counter()
-            async with integration_pool.acquire() as conn:
+            async with integration_db.acquire() as conn:
                 rows = await conn.fetch(
                     """
                     SELECT id, content, retention_score, created_at

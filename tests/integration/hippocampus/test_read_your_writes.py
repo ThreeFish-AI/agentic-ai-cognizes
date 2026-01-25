@@ -25,7 +25,7 @@ class TestReadYourWrites:
 
     async def test_memory_write_then_read_latency(
         self,
-        integration_pool,
+        integration_db,
         integration_thread,
         clean_integration_data,
     ):
@@ -48,7 +48,7 @@ class TestReadYourWrites:
             content = f"测试记忆内容 {i} - {uuid.uuid4().hex}"
 
             # 写入记忆
-            async with integration_pool.acquire() as conn:
+            async with integration_db.acquire() as conn:
                 await conn.execute(
                     """
                     INSERT INTO memories (id, thread_id, user_id, app_name, memory_type, content)
@@ -65,7 +65,7 @@ class TestReadYourWrites:
 
             # 立即读取并测量延迟
             start = time.perf_counter()
-            async with integration_pool.acquire() as conn:
+            async with integration_db.acquire() as conn:
                 row = await conn.fetchrow(
                     """
                     SELECT id, content FROM memories WHERE id = $1
@@ -95,7 +95,7 @@ class TestReadYourWrites:
 
     async def test_fact_upsert_visibility(
         self,
-        integration_pool,
+        integration_db,
         integration_thread,
         clean_integration_data,
     ):
@@ -112,7 +112,7 @@ class TestReadYourWrites:
         fact_key = f"test_fact_{uuid.uuid4().hex[:8]}"
 
         # 第一次插入
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO facts (id, thread_id, user_id, app_name, fact_type, key, value)
@@ -131,7 +131,7 @@ class TestReadYourWrites:
 
         # 立即更新 (Upsert)
         start = time.perf_counter()
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO facts (id, thread_id, user_id, app_name, fact_type, key, value)

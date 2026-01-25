@@ -435,6 +435,25 @@ class DatabaseManager:
             logger.error("psycopg not installed, cannot execute sync query")
             raise
 
+    def executemany_sync(self, query: str, params_list: list[tuple]) -> None:
+        """
+        同步批量执行 SQL 语句
+
+        Args:
+            query: SQL 查询语句
+            params_list: 参数元组列表
+        """
+        try:
+            import psycopg
+
+            with psycopg.connect(self._dsn) as conn:
+                with conn.cursor() as cur:
+                    cur.executemany(query, params_list)
+                conn.commit()
+        except ImportError:
+            logger.error("psycopg not installed, cannot execute sync batch query")
+            raise
+
     # ========================================
     # 健康检查
     # ========================================

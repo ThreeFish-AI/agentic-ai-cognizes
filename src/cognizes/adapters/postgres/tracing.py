@@ -53,39 +53,47 @@ class PostgresSpanExporter(SpanExporter):
     def export(self, spans: list[ReadableSpan]) -> SpanExportResult:
         """同步导出 Spans 到 PostgreSQL"""
         try:
-            # 使用 psycopg (同步驱动) 执行插入
-            import psycopg
+            # 使用 DatabaseManager 同步批量插入
+            from cognizes.core.database import DatabaseManager
 
             if not self._dsn:
+                # 兼容旧代码：如果只传了 pool，不仅无法同步导出，且逻辑错误
+                # 但此处我们假设 self._dsn 是必须的，因为 DatabaseManager 需要它
                 raise ValueError("PostgresSpanExporter 需要 dsn 参数")
 
-            with psycopg.connect(self._dsn) as conn:
-                with conn.cursor() as cur:
-                    for span in spans:
-                        cur.execute(
-                            """
-                            INSERT INTO traces
-                            (trace_id, span_id, parent_span_id, operation_name, span_kind,
-                             attributes, events, start_time, end_time, duration_ns,
-                             status_code, status_message)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            """,
-                            (
-                                format(span.context.trace_id, "032x"),
-                                format(span.context.span_id, "016x"),
-                                format(span.parent.span_id, "016x") if span.parent else None,
-                                span.name,
-                                span.kind.name if span.kind else "INTERNAL",
-                                json.dumps(dict(span.attributes or {})),
-                                json.dumps([self._event_to_dict(e) for e in (span.events or [])]),
-                                datetime.fromtimestamp(span.start_time / 1e9),
-                                datetime.fromtimestamp(span.end_time / 1e9) if span.end_time else None,
-                                (span.end_time - span.start_time) if span.end_time else None,
-                                span.status.status_code.name if span.status else "UNSET",
-                                span.status.description if span.status else None,
-                            ),
-                        )
-                conn.commit()
+            # 使用 DatabaseManager 实例（无需单例，直接实例化以传入特定 DSN）
+            # 或者复用 GetInstance，但要确保 DSN 一致
+            # 这里为了安全起见，传入 DSN
+            db = DatabaseManager.get_instance(dsn=self._dsn)
+
+            query = """
+                INSERT INTO traces
+                (trace_id, span_id, parent_span_id, operation_name, span_kind,
+                    attributes, events, start_time, end_time, duration_ns,
+                    status_code, status_message)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+
+            params_list = []
+            for span in spans:
+                params_list.append(
+                    (
+                        format(span.context.trace_id, "032x"),
+                        format(span.context.span_id, "016x"),
+                        format(span.parent.span_id, "016x") if span.parent else None,
+                        span.name,
+                        span.kind.name if span.kind else "INTERNAL",
+                        json.dumps(dict(span.attributes or {})),
+                        json.dumps([self._event_to_dict(e) for e in (span.events or [])]),
+                        datetime.fromtimestamp(span.start_time / 1e9),
+                        datetime.fromtimestamp(span.end_time / 1e9) if span.end_time else None,
+                        (span.end_time - span.start_time) if span.end_time else None,
+                        span.status.status_code.name if span.status else "UNSET",
+                        span.status.description if span.status else None,
+                    )
+                )
+
+            db.executemany_sync(query, params_list)
 
             return SpanExportResult.SUCCESS
         except Exception as e:

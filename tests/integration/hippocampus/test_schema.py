@@ -19,9 +19,9 @@ pytestmark = [pytest.mark.asyncio(loop_scope="function")]
 class TestHippocampusSchema:
     """Hippocampus Schema 集成测试"""
 
-    async def test_memories_table_exists(self, integration_pool):
+    async def test_memories_table_exists(self, integration_db):
         """验证 memories 表存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             exists = await conn.fetchval("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
@@ -30,9 +30,9 @@ class TestHippocampusSchema:
             """)
         assert exists, "memories 表应存在"
 
-    async def test_facts_table_exists(self, integration_pool):
+    async def test_facts_table_exists(self, integration_db):
         """验证 facts 表存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             exists = await conn.fetchval("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
@@ -41,9 +41,9 @@ class TestHippocampusSchema:
             """)
         assert exists, "facts 表应存在"
 
-    async def test_consolidation_jobs_table_exists(self, integration_pool):
+    async def test_consolidation_jobs_table_exists(self, integration_db):
         """验证 consolidation_jobs 表存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             exists = await conn.fetchval("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
@@ -52,9 +52,9 @@ class TestHippocampusSchema:
             """)
         assert exists, "consolidation_jobs 表应存在"
 
-    async def test_instructions_table_exists(self, integration_pool):
+    async def test_instructions_table_exists(self, integration_db):
         """验证 instructions 表存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             exists = await conn.fetchval("""
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables
@@ -63,9 +63,9 @@ class TestHippocampusSchema:
             """)
         assert exists, "instructions 表应存在"
 
-    async def test_calculate_retention_score_function(self, integration_pool):
+    async def test_calculate_retention_score_function(self, integration_db):
         """验证 calculate_retention_score 函数存在且可用"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             # 测试函数调用
             score = await conn.fetchval("""
                 SELECT calculate_retention_score(5, NOW() - INTERVAL '3 days', 0.1)
@@ -73,9 +73,9 @@ class TestHippocampusSchema:
             assert score is not None
             assert 0 <= score <= 1
 
-    async def test_cleanup_low_value_memories_function(self, integration_pool):
+    async def test_cleanup_low_value_memories_function(self, integration_db):
         """验证 cleanup_low_value_memories 函数存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             exists = await conn.fetchval("""
                 SELECT EXISTS (
                     SELECT FROM pg_proc
@@ -84,9 +84,9 @@ class TestHippocampusSchema:
             """)
         assert exists, "cleanup_low_value_memories 函数应存在"
 
-    async def test_vector_extension_enabled(self, integration_pool):
+    async def test_vector_extension_enabled(self, integration_db):
         """验证 vector 扩展已启用"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             exists = await conn.fetchval("""
                 SELECT EXISTS (
                     SELECT FROM pg_extension WHERE extname = 'vector'
@@ -94,9 +94,9 @@ class TestHippocampusSchema:
             """)
         assert exists, "vector 扩展应已启用"
 
-    async def test_memories_embedding_column(self, integration_pool):
+    async def test_memories_embedding_column(self, integration_db):
         """验证 memories.embedding 列类型正确"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             col_type = await conn.fetchval("""
                 SELECT data_type
                 FROM information_schema.columns
@@ -104,7 +104,7 @@ class TestHippocampusSchema:
             """)
         assert col_type == "USER-DEFINED", "embedding 列应为 vector 类型"
 
-    async def test_facts_unique_constraint(self, integration_pool, integration_thread):
+    async def test_facts_unique_constraint(self, integration_db, integration_thread):
         """验证 facts 表的唯一约束"""
         user_id = integration_thread["user_id"]
         app_name = integration_thread["app_name"]
@@ -113,7 +113,7 @@ class TestHippocampusSchema:
         fact_key = f"constraint_test_{uuid.uuid4().hex[:8]}"
         fact_id1 = uuid.uuid4()
 
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             # 第一次插入
             await conn.execute(
                 """

@@ -23,17 +23,18 @@ from cognizes.core.database import DatabaseManager
 
 
 @pytest_asyncio.fixture
-async def pool():
-    """创建测试数据库连接池"""
+async def db():
+    """创建测试数据库管理器"""
     db = DatabaseManager.get_instance()
-    pool = await db.get_pool()
-    yield pool
+    await db.get_pool()
+    yield db
     # Pool managed by DatabaseManager
 
 
 @pytest_asyncio.fixture
-async def state_manager(pool):
+async def state_manager(db):
     """创建 StateManager 实例"""
+    pool = await db.get_pool()
     return StateManager(pool)
 
 
@@ -146,13 +147,13 @@ class TestOptimisticConcurrencyControl:
     """乐观并发控制测试"""
 
     @pytest.mark.asyncio
-    async def test_version_conflict_detection(self, state_manager):
+    async def test_version_conflict_detection(self, state_manager, db):
         """测试版本冲突检测"""
         session = await state_manager.create_session(app_name="test_app", user_id="user_006")
 
         try:
             # 模拟另一个进程先更新了状态
-            async with state_manager.pool.acquire() as conn:
+            async with db.acquire() as conn:
                 await conn.execute(
                     "UPDATE threads SET version = version + 1 WHERE id = $1",
                     uuid.UUID(session.id),
@@ -178,7 +179,7 @@ class TestTransactionRollback:
     """事务回滚测试"""
 
     @pytest.mark.asyncio
-    async def test_rollback_on_error(self, state_manager):
+    async def test_rollback_on_error(self, state_manager, db):
         """测试异常时事务回滚，状态不变"""
         session = await state_manager.create_session(
             app_name="test_app",
@@ -188,7 +189,7 @@ class TestTransactionRollback:
 
         try:
             # 人为制造冲突
-            async with state_manager.pool.acquire() as conn:
+            async with db.acquire() as conn:
                 await conn.execute(
                     "UPDATE threads SET version = version + 100 WHERE id = $1",
                     uuid.UUID(session.id),

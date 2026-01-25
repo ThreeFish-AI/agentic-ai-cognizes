@@ -44,6 +44,7 @@ class PgNotifyListener:
         self.dsn = dsn
         self.channels = channels or ["event_stream"]
         self._connection: asyncpg.Connection | None = None
+        self._pool = None  # 保存连接池引用以便释放连接
         self._listeners: dict[str, list[Callable]] = {}
         self._running = False
 
@@ -53,15 +54,10 @@ class PgNotifyListener:
 
         self._running = True
 
-        # 使用 DatabaseManager 获取连接池，然后获取专用连接
-        if self.dsn:
-            # 如果提供了 dsn，使用指定的 dsn
-            self._connection = await asyncpg.connect(self.dsn)
-        else:
-            # 否则从 DatabaseManager 获取连接池并获取连接
-            db = DatabaseManager.get_instance()
-            pool = await db.get_pool()
-            self._connection = await pool.acquire()
+        # 统一使用 DatabaseManager 获取连接
+        db = DatabaseManager.get_instance(dsn=self.dsn)
+        self._pool = await db.get_pool()
+        self._connection = await self._pool.acquire()
 
         for channel in self.channels:
             await self._connection.add_listener(channel, self._handle_notification)
@@ -73,8 +69,11 @@ class PgNotifyListener:
         if self._connection:
             for channel in self.channels:
                 await self._connection.remove_listener(channel, self._handle_notification)
-            await self._connection.close()
+            # 通过连接池释放连接
+            if self._pool:
+                await self._pool.release(self._connection)
             self._connection = None
+            self._pool = None
 
     def on_event(self, channel: str, callback: Callable[[NotifyEvent], Coroutine[Any, Any, None]]) -> None:
         """注册事件回调"""

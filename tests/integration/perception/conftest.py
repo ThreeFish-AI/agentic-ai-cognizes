@@ -16,15 +16,16 @@ from cognizes.core.database import DatabaseManager
 
 
 @pytest_asyncio.fixture
-async def integration_pool():
+async def integration_db():
     """
-    函数级数据库连接池
+    函数级数据库管理器
 
     用于 Perception 集成测试。
     """
     db = DatabaseManager.get_instance()
-    pool = await db.get_pool()
-    yield pool
+    # 确保连接池已创建
+    await db.get_pool()
+    yield db
     # Pool managed by DatabaseManager
 
 
@@ -41,14 +42,14 @@ def test_app_name():
 
 
 @pytest_asyncio.fixture
-async def setup_test_data(integration_pool, test_user_id, test_app_name):
+async def setup_test_data(integration_db, test_user_id, test_app_name):
     """
     设置测试数据
 
     创建用于测试的记忆数据
     """
     # 插入测试数据
-    async with integration_pool.acquire() as conn:
+    async with integration_db.acquire() as conn:
         for i in range(10):
             embedding = np.random.randn(1536).astype(float).tolist()
             await conn.execute(
@@ -67,5 +68,5 @@ async def setup_test_data(integration_pool, test_user_id, test_app_name):
     yield
 
     # 清理测试数据
-    async with integration_pool.acquire() as conn:
+    async with integration_db.acquire() as conn:
         await conn.execute("DELETE FROM memories WHERE user_id = $1", test_user_id)

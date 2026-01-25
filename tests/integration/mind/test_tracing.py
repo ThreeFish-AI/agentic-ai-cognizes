@@ -84,8 +84,9 @@ class TestPostgresSpanExporter:
             # 验证结果
             assert result == SpanExportResult.SUCCESS
             mock_connect.assert_called_once()
-            mock_cursor.execute.assert_called_once()
-            assert "INSERT INTO traces" in mock_cursor.execute.call_args[0][0]
+            # 验证调用了 executemany 而不是 execute
+            mock_cursor.executemany.assert_called_once()
+            assert "INSERT INTO traces" in mock_cursor.executemany.call_args[0][0]
 
     def test_span_attributes_exported(self, mock_span):
         """测试 Span 属性正确导出"""
@@ -109,12 +110,14 @@ class TestPostgresSpanExporter:
 
             exporter.export([span])
 
-            # 验证 execute 被调用
-            assert mock_cursor.execute.called
-            # 验证 attributes 被序列化到参数中
-            call_args = mock_cursor.execute.call_args[0][1]
+            # 验证 executemany 被调用
+            assert mock_cursor.executemany.called
+            # 验证 attributes 被序列化到参数列表的第一个元素的相应位置
+            call_args = mock_cursor.executemany.call_args[0][1]
+            # list of tuples, get first tuple
+            first_row_params = call_args[0]
             # 第 6 个参数是 attributes JSON
-            assert '{"test.attr": "value"}' in call_args[5]
+            assert '{"test.attr": "value"}' in first_row_params[5]
 
     def test_trace_id_format(self, mock_span):
         """测试 trace_id 格式正确 (32 位十六进制)"""
@@ -138,9 +141,10 @@ class TestPostgresSpanExporter:
             exporter.export([span])
 
             # trace_id 应格式化为 32 位十六进制字符串
-            call_args = mock_cursor.execute.call_args[0][1]
+            call_args = mock_cursor.executemany.call_args[0][1]
+            first_row_params = call_args[0]
             expected_trace_id = "12345678901234567890123456789012"
-            assert call_args[0] == expected_trace_id
+            assert first_row_params[0] == expected_trace_id
 
 
 class TestSpanHierarchy:
@@ -217,8 +221,10 @@ class TestSpanHierarchy:
             # 导出两个 Span
             exporter.export([parent_span, child_span])
 
-            # 验证两次 INSERT 调用
-            assert mock_cursor.execute.call_count == 2
+            # 验证一次 executemany 调用，包含两个参数组
+            assert mock_cursor.executemany.call_count == 1
+            call_args = mock_cursor.executemany.call_args[0][1]
+            assert len(call_args) == 2
 
     def test_root_span_no_parent(self, mock_span_factory):
         """测试根 Span 无父节点"""
@@ -246,10 +252,11 @@ class TestSpanHierarchy:
             exporter.export([root_span])
 
             # parent_span_id 应为 None
-            mock_cursor.execute.assert_called_once()
-            call_args = mock_cursor.execute.call_args[0][1]
+            mock_cursor.executemany.assert_called_once()
+            call_args = mock_cursor.executemany.call_args[0][1]
+            first_row_params = call_args[0]
             # 第 3 个参数是 parent_span_id
-            assert call_args[2] is None
+            assert first_row_params[2] is None
 
 
 class TestTracingManager:
@@ -317,23 +324,28 @@ class TestTracingIntegration:
     """Tracing 集成测试 (需要真实 PostgreSQL)"""
 
     @pytest.fixture
+    def db_dsn(self):
+        """获取真实数据库 DSN"""
+        return os.environ.get("DATABASE_URL", "postgresql://aigc:@localhost/cognizes-engine")
+
+    @pytest.fixture
     async def db_pool(self):
-        """创建真实数据库连接池"""
+        """创建真实数据库连接池 (仅用于验证)"""
         from cognizes.core.database import DatabaseManager
 
         try:
             db = DatabaseManager.get_instance()
             pool = await db.get_pool()
             yield pool
-            # Pool managed by DatabaseManager
         except Exception:
             pytest.skip("需要 PostgreSQL 测试数据库")
 
-    async def test_full_trace_export(self, db_pool):
+    async def test_full_trace_export(self, db_dsn, db_pool):
         """完整 Trace 导出测试"""
         from cognizes.adapters.postgres.tracing import TracingManager
 
-        manager = TracingManager(service_name="integration_test", pg_pool=db_pool)
+        # 使用 pg_dsn 而非 pg_pool，以支持同步导出
+        manager = TracingManager(service_name="integration_test", pg_dsn=db_dsn)
 
         # 执行带追踪的操作
         async with manager.span("test_operation") as span:
@@ -344,11 +356,11 @@ class TestTracingIntegration:
             count = await conn.fetchval("SELECT COUNT(*) FROM traces")
             assert count > 0
 
-    async def test_trace_hierarchy_in_db(self, db_pool):
+    async def test_trace_hierarchy_in_db(self, db_dsn, db_pool):
         """验证数据库中的 Span 层级"""
         from cognizes.adapters.postgres.tracing import TracingManager
 
-        manager = TracingManager(service_name="hierarchy_test", pg_pool=db_pool)
+        manager = TracingManager(service_name="hierarchy_test", pg_dsn=db_dsn)
 
         # 创建嵌套 Span
         async with manager.span("parent") as parent_span:

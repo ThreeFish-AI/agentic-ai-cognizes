@@ -22,9 +22,9 @@ def to_pgvector(embedding: list[float]) -> str:
 class TestHybridSearchFunction:
     """hybrid_search() SQL 函数测试"""
 
-    async def test_function_exists(self, integration_pool):
+    async def test_function_exists(self, integration_db):
         """验证函数存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             result = await conn.fetchval("""
                 SELECT proname FROM pg_proc
                 WHERE proname = 'hybrid_search'
@@ -32,11 +32,11 @@ class TestHybridSearchFunction:
 
         assert result == "hybrid_search", "hybrid_search 函数不存在，请先部署 perception_schema.sql"
 
-    async def test_empty_results(self, integration_pool):
+    async def test_empty_results(self, integration_db):
         """无匹配结果测试"""
         embedding = np.random.randn(1536).astype(float).tolist()
 
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             rows = await conn.fetch(
                 """
                 SELECT * FROM hybrid_search($1, $2, $3, $4, 10)
@@ -49,11 +49,11 @@ class TestHybridSearchFunction:
 
         assert len(rows) == 0
 
-    async def test_returns_combined_score(self, integration_pool, setup_test_data, test_user_id, test_app_name):
+    async def test_returns_combined_score(self, integration_db, setup_test_data, test_user_id, test_app_name):
         """验证返回合并分数"""
         embedding = np.random.randn(1536).astype(float).tolist()
 
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             rows = await conn.fetch(
                 """
                 SELECT id, content, semantic_score, keyword_score, combined_score
@@ -74,12 +74,12 @@ class TestHybridSearchFunction:
             expected = row["semantic_score"] * 0.7 + row["keyword_score"] * 0.3
             assert abs(row["combined_score"] - expected) < 0.0001
 
-    async def test_latency_under_100ms(self, integration_pool, setup_test_data, test_user_id, test_app_name):
+    async def test_latency_under_100ms(self, integration_db, setup_test_data, test_user_id, test_app_name):
         """L0 延迟应小于 100ms"""
         embedding = np.random.randn(1536).astype(float).tolist()
 
         latencies = []
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             for _ in range(5):
                 start = time.perf_counter()
                 await conn.fetch(
@@ -103,9 +103,9 @@ class TestHybridSearchFunction:
 class TestRRFSearchFunction:
     """rrf_search() SQL 函数测试"""
 
-    async def test_function_exists(self, integration_pool):
+    async def test_function_exists(self, integration_db):
         """验证函数存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             result = await conn.fetchval("""
                 SELECT proname FROM pg_proc
                 WHERE proname = 'rrf_search'
@@ -113,11 +113,11 @@ class TestRRFSearchFunction:
 
         assert result == "rrf_search", "rrf_search 函数不存在，请先部署 perception_schema.sql"
 
-    async def test_rrf_score_descending(self, integration_pool, setup_test_data, test_user_id, test_app_name):
+    async def test_rrf_score_descending(self, integration_db, setup_test_data, test_user_id, test_app_name):
         """验证 RRF 分数递减排序"""
         embedding = np.random.randn(1536).astype(float).tolist()
 
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             rows = await conn.fetch(
                 """
                 SELECT id, rrf_score FROM rrf_search($1, $2, $3, $4, 50)
@@ -132,11 +132,11 @@ class TestRRFSearchFunction:
             scores = [row["rrf_score"] for row in rows]
             assert scores == sorted(scores, reverse=True), "RRF 分数应递减排序"
 
-    async def test_includes_rank_info(self, integration_pool, setup_test_data, test_user_id, test_app_name):
+    async def test_includes_rank_info(self, integration_db, setup_test_data, test_user_id, test_app_name):
         """验证返回排名信息"""
         embedding = np.random.randn(1536).astype(float).tolist()
 
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             rows = await conn.fetch(
                 """
                 SELECT semantic_rank, keyword_rank FROM rrf_search($1, $2, $3, $4, 10)
@@ -156,9 +156,9 @@ class TestRRFSearchFunction:
 class TestSearchVectorIndex:
     """全文搜索索引测试"""
 
-    async def test_search_vector_column_exists(self, integration_pool):
+    async def test_search_vector_column_exists(self, integration_db):
         """验证 search_vector 列存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             result = await conn.fetchval("""
                 SELECT column_name FROM information_schema.columns
                 WHERE table_name = 'memories' AND column_name = 'search_vector'
@@ -166,9 +166,9 @@ class TestSearchVectorIndex:
 
         assert result == "search_vector", "search_vector 列不存在"
 
-    async def test_gin_index_exists(self, integration_pool):
+    async def test_gin_index_exists(self, integration_db):
         """验证 GIN 索引存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             result = await conn.fetchval("""
                 SELECT indexname FROM pg_indexes
                 WHERE tablename = 'memories' AND indexname = 'idx_memories_search_vector'
@@ -176,9 +176,9 @@ class TestSearchVectorIndex:
 
         assert result is not None, "idx_memories_search_vector 索引不存在"
 
-    async def test_trigger_exists(self, integration_pool):
+    async def test_trigger_exists(self, integration_db):
         """验证 search_vector 触发器存在"""
-        async with integration_pool.acquire() as conn:
+        async with integration_db.acquire() as conn:
             result = await conn.fetchval("""
                 SELECT tgname FROM pg_trigger
                 WHERE tgname = 'trigger_memories_search_vector'

@@ -24,26 +24,26 @@ def event_loop():
 
 
 @pytest.fixture
-async def integration_pool():
+async def integration_db():
     """
-    创建集成测试数据库连接池
+    创建集成测试数据库管理器
 
     需要真实的 PostgreSQL 数据库
     """
     db = DatabaseManager.get_instance()
-    pool = await db.get_pool()
-    yield pool
+    await db.get_pool()
+    yield db
     # 不关闭连接池，由 DatabaseManager 管理
 
 
 @pytest.fixture
-async def clean_integration_data(integration_pool):
+async def clean_integration_data(integration_db):
     """测试后清理数据"""
     created_ids = {"threads": [], "memories": [], "facts": [], "jobs": []}
 
     yield created_ids
 
-    async with integration_pool.acquire() as conn:
+    async with integration_db.acquire() as conn:
         if created_ids["jobs"]:
             await conn.execute("DELETE FROM consolidation_jobs WHERE id = ANY($1::uuid[])", created_ids["jobs"])
         if created_ids["facts"]:
@@ -56,13 +56,13 @@ async def clean_integration_data(integration_pool):
 
 
 @pytest.fixture
-async def integration_thread(integration_pool, clean_integration_data):
+async def integration_thread(integration_db, clean_integration_data):
     """创建集成测试用的 Thread"""
     thread_id = uuid.uuid4()
     user_id = f"integration_test_{uuid.uuid4().hex[:8]}"
     app_name = "integration_test_app"
 
-    async with integration_pool.acquire() as conn:
+    async with integration_db.acquire() as conn:
         await conn.execute(
             """
             INSERT INTO threads (id, user_id, app_name, state)
@@ -83,11 +83,11 @@ async def integration_thread(integration_pool, clean_integration_data):
 
 
 @pytest.fixture
-async def integration_thread_with_events(integration_pool, integration_thread):
+async def integration_thread_with_events(integration_db, integration_thread):
     """创建带有事件的集成测试 Thread"""
     thread_id = uuid.UUID(integration_thread["thread_id"])
 
-    async with integration_pool.acquire() as conn:
+    async with integration_db.acquire() as conn:
         for i in range(5):
             await conn.execute(
                 """

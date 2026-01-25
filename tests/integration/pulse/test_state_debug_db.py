@@ -11,7 +11,7 @@ import json
 import uuid
 import pytest
 import pytest_asyncio
-import asyncpg
+
 
 from cognizes.engine.pulse.state_debug import StateDebugService, StateDebugInfo
 from cognizes.engine.pulse.state_manager import StateManager, Event
@@ -19,23 +19,25 @@ from cognizes.core.database import DatabaseManager
 
 
 @pytest_asyncio.fixture
-async def pool():
-    """创建测试数据库连接池"""
+async def db():
+    """创建测试数据库管理器"""
     db = DatabaseManager.get_instance()
-    pool = await db.get_pool()
-    yield pool
+    await db.get_pool()
+    yield db
     # Pool managed by DatabaseManager
 
 
 @pytest_asyncio.fixture
-async def debug_service(pool):
+async def debug_service(db):
     """创建 StateDebugService 实例"""
+    pool = await db.get_pool()
     return StateDebugService(pool)
 
 
 @pytest_asyncio.fixture
-async def state_manager(pool):
+async def state_manager(db):
     """创建 StateManager 实例"""
+    pool = await db.get_pool()
     return StateManager(pool)
 
 
@@ -122,7 +124,7 @@ class TestStateDebugServiceDB:
             await state_manager.delete_session(session.app_name, session.user_id, session.id)
 
     @pytest.mark.asyncio
-    async def test_empty_thread_returns_empty_state(self, debug_service, pool):
+    async def test_empty_thread_returns_empty_state(self, debug_service, db):
         """不存在的 thread 返回空状态"""
         fake_thread_id = str(uuid.uuid4())
 

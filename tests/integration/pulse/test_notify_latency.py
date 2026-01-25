@@ -10,7 +10,6 @@ import asyncio
 import time
 import uuid
 
-import asyncpg
 import pytest
 import pytest_asyncio
 
@@ -21,10 +20,15 @@ from cognizes.core.database import DatabaseManager
 async def conn():
     """创建测试连接"""
     db = DatabaseManager.get_instance()
-    pool = await db.get_pool()
-    conn = await pool.acquire()
-    yield conn
-    await pool.release(conn)
+    # 确保连接池已初始化
+    await db.get_pool()
+    # 使用 DatabaseManager 获取连接，并通过 release 释放
+    async with db.acquire() as conn:
+        yield conn
+        # conn return to pool managed by context manager of acquire?
+        # DatabaseManager.acquire is yield conn, context manager automatically releaseconn.
+        # But wait, db.acquire() is async context manager.
+        # Yielding inside context manager keeps connection open until test finishes.
 
 
 class TestNotifyLatency:
