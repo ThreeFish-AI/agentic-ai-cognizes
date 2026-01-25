@@ -114,7 +114,7 @@ graph TB
 | 乐观并发控制        | P1-3-8 ~ P1-3-12  | [4.3.1 StateManager (OCC)](#431-statemanager-类实现)                                       |
 | 实时事件流          | P1-3-13 ~ P1-3-17 | [4.3.2 PgNotifyListener](#432-pgnotifylistener-实现)                                       |
 | AG-UI 事件桥接      | P1-5-1 ~ P1-5-5   | [4.4 Step 4: AG-UI 事件桥接层](#44-step-4-ag-ui-事件桥接层)                                |
-| 验收与文档          | P1-4-1 ~ P1-4-4   | [4.5 Step 5: 测试与验收](#45-step-5-测试与验收) + [5. 验收标准](#5-验收标准)               |
+| 验收与文档          | P1-4-1 ~ P1-4-4   | [4.5 Step 5: 测试](#45-step-5-测试) + [5. Phase 1 验证 SOP](#5-phase-1-验证-sop)           |
 
 ### 1.4 工期规划
 
@@ -124,7 +124,7 @@ graph TB
 | 1.2  | Schema 设计       | P1-2-1 ~ P1-2-14 | 0.5 Day  | `agent_schema.sql`                 |
 | 1.3  | Pulse Engine 实现 | P1-3-1 ~ P1-3-17 | 1 Day    | `StateManager`, `PgNotifyListener` |
 | 1.4  | AG-UI 事件桥接    | P1-5-1 ~ P1-5-5  | 0.5 Day  | `EventBridge`, `StateDebugService` |
-| 1.5  | 测试与验收        | P1-4-1 ~ P1-4-4  | 0.5 Day  | 测试报告 + 技术文档                |
+| 1.5  | 测试              | P1-4-1 ~ P1-4-4  | 0.5 Day  | 测试报告 + 技术文档                |
 
 ---
 
@@ -418,7 +418,7 @@ erDiagram
     }
 ```
 
-### 3.2 表职责说明
+**表职责说明**：
 
 | 表名            | 职责                         | 对标 ADK 概念  | 生命周期   |
 | :-------------- | :--------------------------- | :------------- | :--------- |
@@ -430,7 +430,75 @@ erDiagram
 | **user_states** | `user:` 前缀状态             | `user:*` State | 持久化     |
 | **app_states**  | `app:` 前缀状态              | `app:*` State  | 持久化     |
 
-### 3.3 Schema 设计
+### 3.2 系统交互设计 (System Interaction)
+
+> [!TIP]
+> **Data Flow**: `Write -> Notify -> Bridge -> Push`
+> 本节描述从事件产生到端到端推送的完整时序。
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API as Pulse API
+    participant DB as PostgreSQL
+    participant L as PgNotifyListener
+    participant B as EventBridge
+    participant UI as AG-UI (Client)
+
+    User->>API: 1. Send Message / Action
+    API->>DB: 2. INSERT into events (Generic Event)
+    activate DB
+    Note right of DB: Trigger: notify_event_insert
+    DB-->>L: 3. NOTIFY 'agent_events' (Payload)
+    DB-->>API: 4. Return Success
+    deactivate DB
+
+    L->>B: 5. Parse Payload & Dispatch
+    activate B
+    B->>B: 6. Transform to AG-UI Event format
+    B->>UI: 7. Push Event (SSE / WebSocket)
+    deactivate B
+
+    UI->>User: 8. Render Update
+```
+
+### 3.3 状态管理与 OCC 机制
+
+> [!IMPORTANT]
+> **乐观并发控制 (OCC)**：为了防止多 Agent 同时修改状态导致的数据覆盖，我们引入 `version` 字段进行 CAS (Compare-And-Swap) 控制。
+
+**核心逻辑**：
+
+```sql
+UPDATE threads
+SET
+  state = state || $new_state,
+  version = version + 1
+WHERE
+  id = $thread_id AND version = $expected_version;
+```
+
+**状态流转图**：
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Reading: Get Session
+    Reading --> Computing: Logic Execution
+    Computing --> Committing: Update State
+
+    state Committing {
+        [*] --> CheckVersion
+        CheckVersion --> Success: Version Match
+        CheckVersion --> Conflict: Version Mismatch
+    }
+
+    Success --> [*]: Notify State Delta
+    Conflict --> Retry: Reload & Re-compute
+    Retry --> Computing
+```
+
+### 3.4 Schema 部署
 
 参见：[`src/cognizes/engine/schema/agent_schema.sql`](../../src/cognizes/engine/schema/agent_schema.sql)
 
@@ -634,7 +702,7 @@ psql -d 'cognizes-engine' -c "\df notify_event_insert"
 
 ---
 
-### 4.5 Step 5: 测试与验收
+### 4.5 Step 5: 测试
 
 #### 4.5.1 单元测试套件
 
@@ -937,7 +1005,21 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 
 ---
 
-## 7. 交付物清单
+## 7. 限制与未来规划
+
+> [!WARNING]
+> **Phase 1 工程边界**：以下限制是当前架构设计的已知约束，将在后续 Phase 2 中优化。
+
+| 组件/领域      | 限制描述                         | 影响评估                       | Phase 2 优化方向                          |
+| :------------- | :------------------------------- | :----------------------------- | :---------------------------------------- |
+| **PostgreSQL** | `NOTIFY` payload 最大 8000 bytes | 大消息可能被截断，需走回查机制 | 引入 Redis Pub/Sub 或 Hybrid Hybrid Queue |
+| **pg_cron**    | 调度精度最小 1 分钟              | 无法支持秒级定时任务           | 引入专用 Job Scheduler (如 Temporal)      |
+| **State**      | JSONB 整体读写                   | 状态过大时（>1MB）性能下降     | 引入 `jsonb_set` 局部更新或拆表存储       |
+| **Throughput** | 单节点 DB 瓶颈                   | 预估上限 ~5k TPS               | 引入 Read Replica 或 Sharding             |
+
+---
+
+## 8. 交付物清单
 
 | 类别         | 文件路径                                           | 描述                           | 对应任务    |
 | :----------- | :------------------------------------------------- | :----------------------------- | :---------- |
