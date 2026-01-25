@@ -113,7 +113,8 @@ graph TB
 | 原子状态流转        | P1-3-1 ~ P1-3-7   | [4.3.1 StateManager](#431-statemanager-类实现)                                             |
 | 乐观并发控制        | P1-3-8 ~ P1-3-12  | [4.3.1 StateManager (OCC)](#431-statemanager-类实现)                                       |
 | 实时事件流          | P1-3-13 ~ P1-3-17 | [4.3.2 PgNotifyListener](#432-pgnotifylistener-实现)                                       |
-| 验收与文档          | P1-4-1 ~ P1-4-4   | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)                                    |
+| AG-UI 事件桥接      | P1-5-1 ~ P1-5-5   | [4.4 Step 4: AG-UI 事件桥接层](#44-step-4-ag-ui-事件桥接层)                                |
+| 验收与文档          | P1-4-1 ~ P1-4-4   | [4.5 Step 5: 测试与验收](#45-step-5-测试与验收) + [5. 验收标准](#5-验收标准)               |
 
 ### 1.4 工期规划
 
@@ -122,7 +123,8 @@ graph TB
 | 1.1  | 环境部署          | P1-1-1 ~ P1-1-9  | 0.5 Day  | PostgreSQL 16+ 环境就绪            |
 | 1.2  | Schema 设计       | P1-2-1 ~ P1-2-14 | 0.5 Day  | `agent_schema.sql`                 |
 | 1.3  | Pulse Engine 实现 | P1-3-1 ~ P1-3-17 | 1 Day    | `StateManager`, `PgNotifyListener` |
-| 1.4  | 测试与验收        | P1-4-1 ~ P1-4-4  | 0.5 Day  | 测试报告 + 技术文档                |
+| 1.4  | AG-UI 事件桥接    | P1-5-1 ~ P1-5-5  | 0.5 Day  | `EventBridge`, `StateDebugService` |
+| 1.5  | 测试与验收        | P1-4-1 ~ P1-4-4  | 0.5 Day  | 测试报告 + 技术文档                |
 
 ---
 
@@ -234,7 +236,60 @@ class BaseSessionService(ABC):
         ...
 ```
 
-### 2.4 关键行为分析
+### 2.4 AG-UI 事件桥接
+
+> [!NOTE]
+>
+> **对标 AG-UI 协议**：本节实现 The Pulse 与 AG-UI 可视化层的事件桥接，确保所有会话状态变更、事件流都能实时推送到前端进行可视化展示。
+>
+> **参考资源**：
+>
+> - [AG-UI 协议调研](../research/070-ag-ui.md)
+> - [AG-UI 官方文档](https://docs.ag-ui.com/)
+
+#### 2.4.1 事件桥接架构
+
+```mermaid
+graph TB
+    subgraph "The Pulse 存储层"
+        TH[threads 表]
+        EV[events 表]
+        RN[runs 表]
+    end
+
+    subgraph "事件桥接层"
+        PNL[PgNotifyListener]
+        EB[EventBridge]
+        SER[SSE/WebSocket 端点]
+    end
+
+    subgraph "AG-UI 前端"
+        CK[CopilotKit]
+        UI[可视化面板]
+    end
+
+    EV -->|NOTIFY| PNL
+    TH -->|状态变更| PNL
+    PNL --> EB
+    EB -->|AG-UI Events| SER
+    SER -->|Event Stream| CK
+    CK --> UI
+
+    style EB fill:#4ade80,stroke:#16a34a,color:#000
+```
+
+#### 2.4.2 AG-UI 事件映射表
+
+| Pulse 事件源              | 触发条件     | AG-UI 事件类型         | 事件数据              |
+| :------------------------ | :----------- | :--------------------- | :-------------------- |
+| `runs` INSERT             | 新建执行链路 | `RUN_STARTED`          | `{run_id, thread_id}` |
+| `runs` UPDATE (complete)  | 执行完成     | `RUN_FINISHED`         | `{run_id, status}`    |
+| `events` INSERT (message) | 新消息创建   | `TEXT_MESSAGE_START`   | `{message_id}`        |
+| `events` INSERT (content) | 消息内容追加 | `TEXT_MESSAGE_CONTENT` | `{delta}`             |
+| `threads.state` UPDATE    | 状态变更     | `STATE_DELTA`          | `{json_patch}`        |
+| `events` INSERT (tool)    | 工具调用     | `TOOL_CALL_START`      | `{tool_name, args}`   |
+
+### 2.5 关键行为分析
 
 > [!IMPORTANT]
 >
@@ -527,92 +582,17 @@ psql -d 'cognizes-engine' -c "\df notify_event_insert"
 
 ---
 
-### 4.4 Step 4: 测试与验收
+### 4.4 Step 4: AG-UI 事件桥接层
 
-#### 4.4.1 单元测试套件
-
-参见：[`tests/unittests/pulse/test_state_manager.py`](../../tests/unittests/pulse/test_state_manager.py)
-
-执行测试：
-
-```bash
-uv run pytest tests/unittests/pulse/test_state_manager.py -v
-```
-
-#### 4.4.2 端到端延迟测试
-
-参见：[`tests/integration/pulse/test_notify_latency.py`](../../tests/integration/pulse/test_notify_latency.py)
-
-执行测试：
-
-```bash
-uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
-```
-
----
-
-### 4.5 Step 5: AG-UI 事件桥接层
-
-> [!NOTE]
->
-> **对标 AG-UI 协议**：本节实现 The Pulse 与 AG-UI 可视化层的事件桥接，确保所有会话状态变更、事件流都能实时推送到前端进行可视化展示。
->
-> **参考资源**：
->
-> - [AG-UI 协议调研](../research/070-ag-ui.md)
-> - [AG-UI 官方文档](https://docs.ag-ui.com/)
-
-#### 4.5.1 事件桥接架构
-
-```mermaid
-graph TB
-    subgraph "The Pulse 存储层"
-        TH[threads 表]
-        EV[events 表]
-        RN[runs 表]
-    end
-
-    subgraph "事件桥接层"
-        PNL[PgNotifyListener]
-        EB[EventBridge]
-        SER[SSE/WebSocket 端点]
-    end
-
-    subgraph "AG-UI 前端"
-        CK[CopilotKit]
-        UI[可视化面板]
-    end
-
-    EV -->|NOTIFY| PNL
-    TH -->|状态变更| PNL
-    PNL --> EB
-    EB -->|AG-UI Events| SER
-    SER -->|Event Stream| CK
-    CK --> UI
-
-    style EB fill:#4ade80,stroke:#16a34a,color:#000
-```
-
-#### 4.5.2 AG-UI 事件映射表
-
-| Pulse 事件源              | 触发条件     | AG-UI 事件类型         | 事件数据              |
-| :------------------------ | :----------- | :--------------------- | :-------------------- |
-| `runs` INSERT             | 新建执行链路 | `RUN_STARTED`          | `{run_id, thread_id}` |
-| `runs` UPDATE (complete)  | 执行完成     | `RUN_FINISHED`         | `{run_id, status}`    |
-| `events` INSERT (message) | 新消息创建   | `TEXT_MESSAGE_START`   | `{message_id}`        |
-| `events` INSERT (content) | 消息内容追加 | `TEXT_MESSAGE_CONTENT` | `{delta}`             |
-| `threads.state` UPDATE    | 状态变更     | `STATE_DELTA`          | `{json_patch}`        |
-| `events` INSERT (tool)    | 工具调用     | `TOOL_CALL_START`      | `{tool_name, args}`   |
-
-#### 4.5.3 EventBridge 实现
+#### 4.4.1 EventBridge 实现
 
 参见：[`src/cognizes/engine/pulse/event_bridge.py`](../../src/cognizes/engine/pulse/event_bridge.py)
 
-#### 4.5.4 状态调试面板数据接口
+#### 4.4.2 状态调试面板数据接口
 
 参见：[`src/cognizes/engine/pulse/state_debug.py`](../../src/cognizes/engine/pulse/state_debug.py)
 
-#### 4.5.5 任务清单
+#### 4.4.3 任务清单
 
 | 任务 ID | 任务描述                   | 状态      | 验收标准                |
 | :------ | :------------------------- | :-------- | :---------------------- |
@@ -622,14 +602,29 @@ graph TB
 | P1-5-4  | 实现 StateDebugService     | 🔲 待开始 | 调试信息完整            |
 | P1-5-5  | 编写事件桥接单元测试       | 🔲 待开始 | 覆盖率 > 80%            |
 
-#### 4.5.6 验收标准
+---
 
-| 验收项   | 验收标准                                 | 验证方法 |
-| :------- | :--------------------------------------- | :------- |
-| 事件转换 | PostgreSQL 6 类事件正确映射到 AG-UI 事件 | 单元测试 |
-| 延迟     | 事件从 DB 到前端延迟 < 100ms (P99)       | 性能测试 |
-| 可靠性   | 事件不丢失，顺序正确                     | 压力测试 |
-| 调试面板 | 状态分组正确，历史可追溯                 | 集成测试 |
+### 4.5 Step 5: 测试与验收
+
+#### 4.5.1 单元测试套件
+
+参见：[`tests/unittests/pulse/test_state_manager.py`](../../tests/unittests/pulse/test_state_manager.py)
+
+执行测试：
+
+```bash
+uv run pytest tests/unittests/pulse/test_state_manager.py -v
+```
+
+#### 4.5.2 端到端延迟测试
+
+参见：[`tests/integration/pulse/test_notify_latency.py`](../../tests/integration/pulse/test_notify_latency.py)
+
+执行测试：
+
+```bash
+uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
+```
 
 ---
 
@@ -652,16 +647,20 @@ graph TB
 | 原子状态流转        | P1-3-6~7   | 0 脏读/丢失                         | 并发测试      |
 | 乐观锁 (OCC)        | P1-3-8~12  | 版本冲突正确检测 + 10 并发 0 丢失   | 冲突测试      |
 | 实时事件流          | P1-3-13~17 | 端到端延迟 < 50ms, 100 msg/s 无丢失 | 延迟/压力测试 |
+| AG-UI 事件转换      | P1-5-1~2   | PostgreSQL 6 类事件正确映射         | 单元测试      |
+| AG-UI SSE 端点      | P1-5-3     | 端到端事件流延迟 < 100ms            | 性能测试      |
+| 状态调试面板        | P1-5-4~5   | 状态分组正确，历史可追溯            | 集成测试      |
 
 ### 5.2 性能基准
 
-| 指标             | 目标值    | 测试条件       | 对应任务 |
-| :--------------- | :-------- | :------------- | :------- |
-| Session 创建 QPS | > 1000    | 单节点         | P1-3-12  |
-| Event 追加 QPS   | > 500     | 含 state_delta | P1-3-12  |
-| NOTIFY 延迟 P99  | < 50ms    | 100 msg/s      | P1-3-16  |
-| 并发写入成功率   | 100%      | 10 并发        | P1-3-11  |
-| 消息吞吐量       | 100 msg/s | 稳定无丢失     | P1-3-17  |
+| 指标             | 目标值    | 测试条件               | 对应任务 |
+| :--------------- | :-------- | :--------------------- | :------- |
+| Session 创建 QPS | > 1000    | 单节点                 | P1-3-12  |
+| Event 追加 QPS   | > 500     | 含 state_delta         | P1-3-12  |
+| NOTIFY 延迟 P99  | < 50ms    | 100 msg/s              | P1-3-16  |
+| 并发写入成功率   | 100%      | 10 并发                | P1-3-11  |
+| 消息吞吐量       | 100 msg/s | 稳定无丢失             | P1-3-17  |
+| 事件流延迟 (SSE) | < 100ms   | 包含消息追加与状态变更 | P1-5-3   |
 
 ### 5.3 验收检查清单
 
@@ -700,28 +699,35 @@ graph TB
 - [ ] Session 创建 QPS > 1000
 - [ ] NOTIFY 延迟 P99 < 50ms
 - [ ] 100 msg/s 压力测试通过
+
+### AG-UI 事件桥接验证
+
+- [ ] EventBridge 事件映射测试通过
+- [ ] SSE 端点延迟测试 (< 100ms)
+- [ ] StateDebug 状态分组与历史查询验证
 ```
 
 ---
 
 ## 6. 交付物清单
 
-| 类别         | 文件路径                                           | 描述                           | 对应任务   |
-| :----------- | :------------------------------------------------- | :----------------------------- | :--------- |
-| **文档**     | `docs/010-the-pulse.md`                            | 本实施方案                     | P1-4-1     |
-| **Schema**   | `src/cognizes/engine/schema/agent_schema.sql`      | 统一建表脚本 (7 表 + 2 触发器) | P1-2-12    |
-| **代码**     | `src/cognizes/engine/pulse/state_manager.py`       | StateManager 实现              | P1-4-2     |
-|              | `src/cognizes/engine/pulse/pg_notify_listener.py`  | NOTIFY 监听器                  | P1-3-14    |
-|              | `src/cognizes/engine/pulse/event_bridge.py`        | 事件桥接器                     | P1-5-1     |
-|              | `src/cognizes/engine/pulse/state_debug.py`         | 状态调试服务                   | P1-5-4     |
-| **单元测试** | `tests/unittests/pulse/test_state_manager.py`      | 前缀解析、dataclass 纯逻辑     | P1-4-3     |
-|              | `tests/unittests/pulse/test_pg_notify_listener.py` | 回调注册、JSON 解析逻辑        | P1-3-15    |
-|              | `tests/unittests/pulse/test_event_bridge.py`       | SSE 格式、事件类型映射         | P1-5-2     |
-|              | `tests/unittests/pulse/test_state_debug.py`        | 前缀分组逻辑                   | P1-5-5     |
-| **集成测试** | `tests/integration/pulse/test_state_manager_db.py` | 数据库 CRUD、OCC、高并发       | P1-4-4     |
-|              | `tests/integration/pulse/test_notify_latency.py`   | NOTIFY 延迟 & 吞吐量           | P1-3-16~17 |
-|              | `tests/integration/pulse/test_event_bridge_e2e.py` | 端到端事件流测试               | P1-5-3     |
-|              | `tests/integration/pulse/test_state_debug_db.py`   | 状态历史查询测试               | P1-5-6     |
+| 类别         | 文件路径                                           | 描述                           | 对应任务    |
+| :----------- | :------------------------------------------------- | :----------------------------- | :---------- |
+| **文档**     | `docs/010-the-pulse.md`                            | 本实施方案                     | P1-4-1      |
+| **Schema**   | `src/cognizes/engine/schema/agent_schema.sql`      | 统一建表脚本 (7 表 + 2 触发器) | P1-2-12     |
+| **代码**     | `src/cognizes/engine/pulse/state_manager.py`       | StateManager 实现              | P1-4-2      |
+|              | `src/cognizes/engine/pulse/pg_notify_listener.py`  | NOTIFY 监听器                  | P1-3-14     |
+|              | `src/cognizes/engine/pulse/event_bridge.py`        | 事件桥接器                     | P1-5-1      |
+|              | `src/cognizes/engine/pulse/state_debug.py`         | 状态调试服务                   | P1-5-4      |
+|              | `src/cognizes/engine/api/main.py`                  | FastAPI 服务入口 (WS & SSE)    | P1-3-15/5-3 |
+| **单元测试** | `tests/unittests/pulse/test_state_manager.py`      | 前缀解析、dataclass 纯逻辑     | P1-4-3      |
+|              | `tests/unittests/pulse/test_pg_notify_listener.py` | 回调注册、JSON 解析逻辑        | P1-3-15     |
+|              | `tests/unittests/pulse/test_event_bridge.py`       | SSE 格式、事件类型映射         | P1-5-2      |
+|              | `tests/unittests/pulse/test_state_debug.py`        | 前缀分组逻辑                   | P1-5-5      |
+| **集成测试** | `tests/integration/pulse/test_state_manager_db.py` | 数据库 CRUD、OCC、高并发       | P1-4-4      |
+|              | `tests/integration/pulse/test_notify_latency.py`   | NOTIFY 延迟 & 吞吐量           | P1-3-16~17  |
+|              | `tests/integration/pulse/test_event_bridge_e2e.py` | 端到端事件流测试               | P1-5-3      |
+|              | `tests/integration/pulse/test_state_debug_db.py`   | 状态历史查询测试               | P1-5-6      |
 
 ---
 
