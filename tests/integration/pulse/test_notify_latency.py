@@ -14,13 +14,17 @@ import asyncpg
 import pytest
 import pytest_asyncio
 
+from cognizes.core.database import DatabaseManager
+
 
 @pytest_asyncio.fixture
 async def conn():
     """创建测试连接"""
-    conn = await asyncpg.connect("postgresql://aigc:@localhost/cognizes-engine")
+    db = DatabaseManager.get_instance()
+    pool = await db.get_pool()
+    conn = await pool.acquire()
     yield conn
-    await conn.close()
+    await pool.release(conn)
 
 
 class TestNotifyLatency:

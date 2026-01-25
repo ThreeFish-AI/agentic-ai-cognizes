@@ -419,12 +419,12 @@ class TestPostgresSessionServiceIntegration:
     @pytest.fixture
     async def db_pool(self):
         """创建测试数据库连接池"""
-        import asyncpg
+        from cognizes.core.database import DatabaseManager
 
-        dsn = os.getenv("DATABASE_URL", "postgresql://aigc:@localhost:5432/cognizes-engine")
-        pool = await asyncpg.create_pool(dsn, min_size=1, max_size=5)
+        db = DatabaseManager.get_instance()
+        pool = await db.get_pool()
         yield pool
-        await pool.close()
+        # Pool managed by DatabaseManager
 
     async def test_create_session_basic(self, service):
         """测试基础会话创建"""

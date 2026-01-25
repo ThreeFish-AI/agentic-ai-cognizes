@@ -5,19 +5,20 @@ Mind Integration Test Fixtures
 import os
 import pytest
 import pytest_asyncio
-import asyncpg
+
+from cognizes.core.database import DatabaseManager
 
 
 @pytest_asyncio.fixture
 async def db_pool():
     """
     Database connection pool for Mind integration tests.
-    Connects to local Postgres instance.
+    Connects to local Postgres instance via DatabaseManager.
     """
-    database_url = os.environ.get("DATABASE_URL", "postgresql://aigc:@localhost/cognizes-engine")
     try:
-        pool = await asyncpg.create_pool(database_url, min_size=2, max_size=10)
+        db = DatabaseManager.get_instance()
+        pool = await db.get_pool()
         yield pool
-        await pool.close()
+        # Pool is managed by DatabaseManager
     except Exception as e:
         pytest.skip(f"Database unavailable: {e}")

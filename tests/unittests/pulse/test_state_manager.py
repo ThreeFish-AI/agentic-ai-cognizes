@@ -20,14 +20,16 @@ from cognizes.engine.pulse.state_manager import (
     Event,
     StateManager,
 )
+from cognizes.core.database import DatabaseManager
 
 
 @pytest_asyncio.fixture
 async def pool():
     """创建测试数据库连接池"""
-    pool = await asyncpg.create_pool("postgresql://aigc:@localhost/cognizes-engine")
+    db = DatabaseManager.get_instance()
+    pool = await db.get_pool()
     yield pool
-    await pool.close()
+    # Pool managed by DatabaseManager
 
 
 @pytest_asyncio.fixture

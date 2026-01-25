@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 import asyncpg
 import pytest
 
+from cognizes.core.database import DatabaseManager
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -28,10 +30,10 @@ async def integration_pool():
 
     需要真实的 PostgreSQL 数据库
     """
-    database_url = os.getenv("DATABASE_URL", "postgresql://aigc:@localhost/cognizes-engine")
-    pool = await asyncpg.create_pool(database_url, min_size=2, max_size=10)
+    db = DatabaseManager.get_instance()
+    pool = await db.get_pool()
     yield pool
-    await pool.close()
+    # 不关闭连接池，由 DatabaseManager 管理
 
 
 @pytest.fixture

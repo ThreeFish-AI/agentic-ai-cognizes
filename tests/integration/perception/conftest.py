@@ -12,6 +12,8 @@ import numpy as np
 import pytest
 import pytest_asyncio
 
+from cognizes.core.database import DatabaseManager
+
 
 @pytest_asyncio.fixture
 async def integration_pool():
@@ -20,10 +22,10 @@ async def integration_pool():
 
     用于 Perception 集成测试。
     """
-    database_url = os.environ.get("DATABASE_URL", "postgresql://aigc:@localhost/cognizes-engine")
-    pool = await asyncpg.create_pool(database_url, min_size=2, max_size=10)
+    db = DatabaseManager.get_instance()
+    pool = await db.get_pool()
     yield pool
-    await pool.close()
+    # Pool managed by DatabaseManager
 
 
 @pytest.fixture

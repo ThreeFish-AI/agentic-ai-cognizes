@@ -15,6 +15,7 @@ from google.genai import Client
 from google.genai import types
 from cognizes.adapters.postgres.session_service import PostgresSessionService
 from cognizes.adapters.postgres.memory_service import PostgresMemoryService
+from cognizes.core.database import DatabaseManager
 
 pytestmark = pytest.mark.asyncio
 
@@ -70,12 +71,10 @@ class TestAdkIntegration:
     @pytest.fixture
     async def db_pool(self):
         """创建数据库连接池"""
-        import asyncpg
-
-        database_url = os.environ.get("DATABASE_URL", "postgresql://aigc:@localhost/cognizes-engine")
-        pool = await asyncpg.create_pool(database_url)
+        db = DatabaseManager.get_instance()
+        pool = await db.get_pool()
         yield pool
-        await pool.close()
+        # Pool managed by DatabaseManager
 
     # ========== PostgresSessionService 独立测试 ==========
 
@@ -167,10 +166,8 @@ class TestAdkIntegration:
 # 保留原始脚本入口
 async def verify_adk_integration():
     """ADK 集成验收 (独立执行，使用 PostgresSessionService)"""
-    import asyncpg
-
-    database_url = os.environ.get("DATABASE_URL", "postgresql://aigc:@localhost/cognizes-engine")
-    pool = await asyncpg.create_pool(database_url)
+    db = DatabaseManager.get_instance()
+    pool = await db.get_pool()
 
     try:
         session_svc = PostgresSessionService(pool=pool)
@@ -202,7 +199,8 @@ async def verify_adk_integration():
                 print(f"✅ ADK 集成验收通过: {text[:50]}...")
                 break
     finally:
-        await pool.close()
+        # Pool managed by DatabaseManager
+        pass
 
 
 if __name__ == "__main__":

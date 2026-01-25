@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 import asyncpg
 import pytest
 
+from cognizes.core.database import DatabaseManager
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -29,10 +31,10 @@ async def test_db_pool():
     环境变量:
     - TEST_DATABASE_URL: 测试数据库连接字符串
     """
-    database_url = os.getenv("TEST_DATABASE_URL", "postgresql://aigc:@localhost/cognizes-engine")
-    pool = await asyncpg.create_pool(database_url, min_size=2, max_size=10)
+    db = DatabaseManager.get_instance()
+    pool = await db.get_pool()
     yield pool
-    await pool.close()
+    # Pool managed by DatabaseManager
 
 
 @pytest.fixture

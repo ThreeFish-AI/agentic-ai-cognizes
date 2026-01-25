@@ -134,6 +134,8 @@ async def verify_data_distribution(pool: asyncpg.Pool):
 
 
 async def main():
+    from cognizes.core.database import DatabaseManager
+
     parser = argparse.ArgumentParser(description="生成 High-Selectivity 测试数据")
     parser.add_argument("--scale", choices=["quick", "full"], default="quick", help="数据规模: quick=10万, full=1000万")
     parser.add_argument("--db-url", default="postgresql://aigc:@localhost/cognizes-engine", help="数据库连接 URL")
@@ -143,7 +145,8 @@ async def main():
     config = SCALE_CONFIG[args.scale]
     print(f"🚀 {config['description']}")
 
-    pool = await asyncpg.create_pool(args.db_url, min_size=2, max_size=10)
+    db = DatabaseManager.get_instance(dsn=args.db_url)
+    pool = await db.get_pool()
 
     if args.clean:
         print("\n🗑️ 清理现有测试数据...")
@@ -156,7 +159,7 @@ async def main():
     print("\n💡 下一步: 运行基准测试验证 Recall@10")
     print("   python benchmark.py --user-id rare_user_001")
 
-    await pool.close()
+    # Pool managed by DatabaseManager
 
 
 if __name__ == "__main__":

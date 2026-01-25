@@ -16,9 +16,10 @@ async def run_agent_with_postgres():
     """使用 PostgreSQL 后端运行 ADK Agent"""
 
     # 1. 初始化 PostgreSQL 服务
-    import asyncpg
+    from cognizes.core.database import DatabaseManager
 
-    pool = await asyncpg.create_pool("postgresql://aigc:@localhost/cognizes-engine")
+    db = DatabaseManager.get_instance()
+    pool = await db.get_pool()
 
     session_service = PostgresSessionService(pool=pool)
     memory_service = PostgresMemoryService(pool=pool)
@@ -70,7 +71,7 @@ async def run_agent_with_postgres():
     # 7. 可选: 将会话存入长期记忆
     await memory_service.add_session_to_memory(updated_session)
 
-    await pool.close()
+    # Pool managed by DatabaseManager
 
 
 # Function Tool 示例

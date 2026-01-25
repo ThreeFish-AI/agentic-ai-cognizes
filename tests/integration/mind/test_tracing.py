@@ -319,14 +319,13 @@ class TestTracingIntegration:
     @pytest.fixture
     async def db_pool(self):
         """创建真实数据库连接池"""
-        import asyncpg
+        from cognizes.core.database import DatabaseManager
 
         try:
-            # 使用环境变量中的数据库连接字符串
-            dsn = os.getenv("DATABASE_URL", "postgresql://aigc:@localhost:5432/cognizes-engine")
-            pool = await asyncpg.create_pool(dsn, min_size=1, max_size=2)
+            db = DatabaseManager.get_instance()
+            pool = await db.get_pool()
             yield pool
-            await pool.close()
+            # Pool managed by DatabaseManager
         except Exception:
             pytest.skip("需要 PostgreSQL 测试数据库")
 

@@ -18,18 +18,20 @@ from cognizes.engine.pulse.event_bridge import (
     PulseEventBridge,
 )
 from cognizes.engine.pulse.pg_notify_listener import PgNotifyListener
+from cognizes.core.database import DatabaseManager
 
 
 # 注意：此测试需要运行中的 PostgreSQL 数据库
-DB_DSN = "postgresql://aigc:@localhost/cognizes-engine"
 
 
 @pytest_asyncio.fixture
 async def conn():
     """创建测试连接"""
-    conn = await asyncpg.connect(DB_DSN)
+    db = DatabaseManager.get_instance()
+    pool = await db.get_pool()
+    conn = await pool.acquire()
     yield conn
-    await conn.close()
+    await pool.release(conn)
 
 
 class TestEventBridgeE2E:

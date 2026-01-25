@@ -40,7 +40,7 @@ class PgNotifyListener:
     - 回调处理
     """
 
-    def __init__(self, dsn: str, channels: list[str] | None = None):
+    def __init__(self, dsn: str | None = None, channels: list[str] | None = None):
         self.dsn = dsn
         self.channels = channels or ["event_stream"]
         self._connection: asyncpg.Connection | None = None
@@ -49,8 +49,19 @@ class PgNotifyListener:
 
     async def start(self) -> None:
         """启动监听器"""
+        from cognizes.core.database import DatabaseManager
+
         self._running = True
-        self._connection = await asyncpg.connect(self.dsn)
+
+        # 使用 DatabaseManager 获取连接池，然后获取专用连接
+        if self.dsn:
+            # 如果提供了 dsn，使用指定的 dsn
+            self._connection = await asyncpg.connect(self.dsn)
+        else:
+            # 否则从 DatabaseManager 获取连接池并获取连接
+            db = DatabaseManager.get_instance()
+            pool = await db.get_pool()
+            self._connection = await pool.acquire()
 
         for channel in self.channels:
             await self._connection.add_listener(channel, self._handle_notification)
