@@ -1032,84 +1032,54 @@ uv run pytest tests/unittests/pulse/test_state_manager.py -v -s -k "Concurrency 
 
 ---
 
-## 6. 验收基准
+## 6. 验收基准 (出院评估, Discharge Summary)
 
 ### 6.1 功能验收矩阵
 
-> [!NOTE]
->
-> 以下验收项与 [001-task-checklist.md](./001-task-checklist.md) 中的任务 ID 对应，确保每项需求都有验证。
+> **对标任务**: [001-task-checklist.md](./001-task-checklist.md)
 
-| 验收项              | 任务 ID    | 验收标准                            | 验证方法      |
-| :------------------ | :--------- | :---------------------------------- | :------------ |
-| PostgreSQL 16+ 部署 | P1-1-1     | `SELECT version()` 返回 16.x+       | 命令行验证    |
-| pgvector 安装       | P1-1-2     | `CREATE EXTENSION vector` 成功      | SQL 执行      |
-| pg_cron 安装        | P1-1-3     | `SELECT * FROM cron.job` 可执行     | SQL 执行      |
-| 连接池配置          | P1-1-5     | 支持 100+ 并发连接                  | 压力测试      |
-| Schema 部署         | P1-2-12    | 7 张表 + 2 个触发器创建成功         | `\dt` + `\df` |
-| Session CRUD        | P1-3-1~5   | 创建/读取/列表/删除操作正确         | 单元测试      |
-| 原子状态流转        | P1-3-6~7   | 0 脏读/丢失                         | 并发测试      |
-| 乐观锁 (OCC)        | P1-3-8~12  | 版本冲突正确检测 + 10 并发 0 丢失   | 冲突测试      |
-| 实时事件流          | P1-3-13~17 | 端到端延迟 < 50ms, 100 msg/s 无丢失 | 延迟/压力测试 |
-| AG-UI 事件转换      | P1-5-1~2   | PostgreSQL 6 类事件正确映射         | 单元测试      |
-| AG-UI SSE 端点      | P1-5-3     | 端到端事件流延迟 < 100ms            | 性能测试      |
-| 状态调试面板        | P1-5-4~5   | 状态分组正确，历史可追溯            | 集成测试      |
+| Category        | Indicator (验收项)    | Target (目标值)                | Verification Method (验证方法)           |
+| :-------------- | :-------------------- | :----------------------------- | :--------------------------------------- |
+| **Anatomy**     | **Schema Integrity**  | 7 Tables + 2 Triggers          | `\dt` (Tables) + `\df` (Triggers)        |
+| **Physiology**  | **Atomic State**      | 0 Dirty Reads / Lost Updates   | `test_state_manager.py` (Unit/DB)        |
+|                 | **OCC Resilience**    | 100% Concurrent Write Success  | `test_10_concurrent_writes_no_data_loss` |
+| **Circulation** | **Systolic Latency**  | P99 < 50ms                     | `test_end_to_end_latency`                |
+|                 | **Stream Continuity** | 100% Delivery (No Loss)        | `test_100_msg_per_second_throughput`     |
+| **Neurology**   | **Event Integration** | 6 Event Types Correctly Mapped | `test_event_bridge.py`                   |
+|                 | **SSE Reflex**        | Response < 100ms               | `test_event_bridge_e2e.py`               |
 
-### 6.2 性能基准
+### 6.2 Stress Test Limits (负荷极限)
 
-| 指标             | 目标值    | 测试条件               | 对应任务 |
-| :--------------- | :-------- | :--------------------- | :------- |
-| Session 创建 QPS | > 1000    | 单节点                 | P1-3-12  |
-| Event 追加 QPS   | > 500     | 含 state_delta         | P1-3-12  |
-| NOTIFY 延迟 P99  | < 50ms    | 100 msg/s              | P1-3-16  |
-| 并发写入成功率   | 100%      | 10 并发                | P1-3-11  |
-| 消息吞吐量       | 100 msg/s | 稳定无丢失             | P1-3-17  |
-| 事件流延迟 (SSE) | < 100ms   | 包含消息追加与状态变更 | P1-5-3   |
+> **Objective**: 确立系统的安全运行边界 (Operational Boundaries)。
 
-### 6.3 验收检查清单
+| Metric                | Threshold | Condition                  | Corresponding Test                          |
+| :-------------------- | :-------- | :------------------------- | :------------------------------------------ |
+| **Session Gen Rate**  | > 100 QPS | Single Node, Empty State   | `test_100_qps_session_creation`             |
+| **Event Pulse Rate**  | > 500 QPS | Single Node, Small Payload | `test_append_event_with_state_delta` (Est.) |
+| **Notification Lag**  | < 50 ms   | @ 100 msg/s                | `test_end_to_end_latency`                   |
+| **Write Concurrency** | 10 Agents | Same Session, No Data Loss | `test_multi_agent_concurrency`              |
+| **Stream Latency**    | < 100 ms  | Event -> SSE Client        | `test_sse_reflex` (E2E)                     |
 
-```markdown
-## Phase 1 验收检查清单
+### 6.3. 交付物清单 (Deliverables)
 
-### 环境部署
-
-- [ ] PostgreSQL 16+ 安装并运行
-- [ ] pgvector 扩展安装成功
-- [ ] pg_cron 扩展安装成功 (可选)
-- [ ] 连接池配置完成
-
-### Schema 设计
-
-- [ ] threads 表创建成功
-- [ ] events 表创建成功
-- [ ] runs 表创建成功
-- [ ] messages 表创建成功
-- [ ] snapshots 表创建成功
-- [ ] user_states 表创建成功
-- [ ] app_states 表创建成功
-- [ ] NOTIFY 触发器创建成功
-- [ ] updated_at 触发器创建成功
-
-### 功能验证
-
-- [ ] Session CRUD 测试通过
-- [ ] 原子状态流转测试通过
-- [ ] 乐观锁冲突检测测试通过
-- [ ] 事务回滚测试通过
-- [ ] 多 Agent 并发写测试通过
-
-### 性能验证
-
-- [ ] Session 创建 QPS > 1000
-- [ ] NOTIFY 延迟 P99 < 50ms
-- [ ] 100 msg/s 压力测试通过
-
-### AG-UI 事件桥接验证
-
-- [ ] EventBridge 事件映射测试通过
-- [ ] SSE 端点延迟测试 (< 100ms)
-- [ ] StateDebug 状态分组与历史查询验证
-```
+| Category        | File Path                                          | Description                     | Task ID |
+| :-------------- | :------------------------------------------------- | :------------------------------ | :------ |
+| **Theory**      | `docs/010-the-pulse.md`                            | 本实施方案与 SOP                | P1-4-1  |
+| **Blueprint**   | `src/cognizes/engine/schema/agent_schema.sql`      | 统一建表脚本 (7 表 + 2 触发器)  | P1-2-12 |
+| **Organs**      | `src/cognizes/engine/pulse/state_manager.py`       | StateManager (Heart)            | P1-4-2  |
+|                 | `src/cognizes/engine/pulse/pg_notify_listener.py`  | Notify Listener (Pulse Node)    | P1-3-14 |
+|                 | `src/cognizes/engine/pulse/event_bridge.py`        | Event Bridge (Translator)       | P1-5-1  |
+|                 | `src/cognizes/engine/pulse/state_debug.py`         | Debug Service (Monitor)         | P1-5-4  |
+|                 | `src/cognizes/engine/api/main.py`                  | FastAPI Entry (Gateway)         | P1-3-15 |
+| **Diagnostics** | **Type: Unit / Logic**                             |                                 |         |
+|                 | `tests/unittests/pulse/test_state_manager.py`      | Session CRUD, OCC, Concurrency  | P1-4-3  |
+|                 | `tests/unittests/pulse/test_pg_notify_listener.py` | Listener Logic                  | P1-3-15 |
+|                 | `tests/unittests/pulse/test_event_bridge.py`       | Event Mapping & Schema          | P1-5-2  |
+|                 | **Type: Integration / Systemic**                   |                                 |         |
+|                 | `tests/integration/pulse/test_state_manager_db.py` | Full DB Transactions            | P1-4-4  |
+|                 | `tests/integration/pulse/test_notify_latency.py`   | End-to-End Latency & Throughput | P1-3-16 |
+|                 | `tests/integration/pulse/test_event_bridge_e2e.py` | SSE Stream Verification         | P1-5-3  |
+|                 | `tests/integration/pulse/test_state_debug_db.py`   | State History Query             | P1-5-6  |
 
 ---
 
@@ -1128,29 +1098,7 @@ uv run pytest tests/unittests/pulse/test_state_manager.py -v -s -k "Concurrency 
 
 ---
 
-## 8. 交付物清单
-
-| 类别         | 文件路径                                           | 描述                           | 对应任务    |
-| :----------- | :------------------------------------------------- | :----------------------------- | :---------- |
-| **文档**     | `docs/010-the-pulse.md`                            | 本实施方案                     | P1-4-1      |
-| **Schema**   | `src/cognizes/engine/schema/agent_schema.sql`      | 统一建表脚本 (7 表 + 2 触发器) | P1-2-12     |
-| **代码**     | `src/cognizes/engine/pulse/state_manager.py`       | StateManager 实现              | P1-4-2      |
-|              | `src/cognizes/engine/pulse/pg_notify_listener.py`  | NOTIFY 监听器                  | P1-3-14     |
-|              | `src/cognizes/engine/pulse/event_bridge.py`        | 事件桥接器                     | P1-5-1      |
-|              | `src/cognizes/engine/pulse/state_debug.py`         | 状态调试服务                   | P1-5-4      |
-|              | `src/cognizes/engine/api/main.py`                  | FastAPI 服务入口 (WS & SSE)    | P1-3-15/5-3 |
-| **单元测试** | `tests/unittests/pulse/test_state_manager.py`      | 前缀解析、dataclass 纯逻辑     | P1-4-3      |
-|              | `tests/unittests/pulse/test_pg_notify_listener.py` | 回调注册、JSON 解析逻辑        | P1-3-15     |
-|              | `tests/unittests/pulse/test_event_bridge.py`       | SSE 格式、事件类型映射         | P1-5-2      |
-|              | `tests/unittests/pulse/test_state_debug.py`        | 前缀分组逻辑                   | P1-5-5      |
-| **集成测试** | `tests/integration/pulse/test_state_manager_db.py` | 数据库 CRUD、OCC、高并发       | P1-4-4      |
-|              | `tests/integration/pulse/test_notify_latency.py`   | NOTIFY 延迟 & 吞吐量           | P1-3-16~17  |
-|              | `tests/integration/pulse/test_event_bridge_e2e.py` | 端到端事件流测试               | P1-5-3      |
-|              | `tests/integration/pulse/test_state_debug_db.py`   | 状态历史查询测试               | P1-5-6      |
-
----
-
-## 9. 参考文献
+## 8. 参考文献
 
 <a id="ref1"></a>1. Google. (2025). _ADK Sessions Documentation_. [https://google.github.io/adk-docs/sessions/](https://google.github.io/adk-docs/sessions/)
 
