@@ -555,6 +555,21 @@ dependencies = [
 ]
 ```
 
+#### 4.1.3 P1-1-8：配置 GOOGLE_API_KEY
+
+**目的**：为 Google ADK 提供 API 认证。
+
+```bash
+# 方式 1：环境变量 (推荐)
+export GOOGLE_API_KEY="your-api-key-here"
+
+# 方式 2：.env 文件
+echo 'GOOGLE_API_KEY=your-api-key-here' >> .env
+
+# 验证
+uv run python -c "import os; print('✓ API Key:', os.getenv('GOOGLE_API_KEY', 'NOT SET')[:10] + '...')"
+```
+
 ### 4.2 Step 2: Schema 部署与验证
 
 ```bash
@@ -580,11 +595,20 @@ psql -d 'cognizes-engine' -c "\df notify_event_insert"
 
 参见：[`src/cognizes/engine/pulse/pg_notify_listener.py`](../../src/cognizes/engine/pulse/pg_notify_listener.py)
 
+#### 4.3.3 P1-3-15：实现 WebSocket 推送接口
+
+**目的**：前端通过 WebSocket 接收实时事件流。
+
+**实现路径**：
+
+- `src/cognizes/engine/api/main.py` - FastAPI 应用入口
+- `src/cognizes/engine/pulse/pg_notify_listener.py` - NOTIFY 监听器
+
 ---
 
 ### 4.4 Step 4: AG-UI 事件桥接层
 
-#### 4.4.1 EventBridge 实现
+#### 4.4.1 EventBridge 实现 (AG-UI 事件类型定义)
 
 参见：[`src/cognizes/engine/pulse/event_bridge.py`](../../src/cognizes/engine/pulse/event_bridge.py)
 
@@ -592,7 +616,13 @@ psql -d 'cognizes-engine' -c "\df notify_event_insert"
 
 参见：[`src/cognizes/engine/pulse/state_debug.py`](../../src/cognizes/engine/pulse/state_debug.py)
 
-#### 4.4.3 任务清单
+#### 4.4.3 P1-5-3：实现 SSE 事件流端点
+
+**目的**：通过 Server-Sent Events 推送 AG-UI 事件流。
+
+参见：[`src/cognizes/engine/api/main.py`](../../src/cognizes/engine/api/main.py) - SSE 端点 `/api/runs/{run_id}/events`
+
+#### 4.4.4 任务清单
 
 | 任务 ID | 任务描述                   | 状态      | 验收标准                |
 | :------ | :------------------------- | :-------- | :---------------------- |
@@ -626,11 +656,209 @@ uv run pytest tests/unittests/pulse/test_state_manager.py -v
 uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 ```
 
+## 5. Phase 1 验证 SOP
+
+### 5.1 环境验证
+
+```bash
+# PostgreSQL 版本验证
+psql -d 'cognizes-engine' -c "SELECT version();"
+
+# 扩展状态检查
+psql -d 'cognizes-engine' -c "SELECT * FROM pg_available_extensions WHERE name IN ('vector', 'pg_cron');"
+
+# 数据库连接测试
+psql -d cognizes-engine -c "\dt"
+
+# Python 环境验证
+uv run python -c "from cognizes.engine.pulse.state_manager import StateManager; print('✓ Import OK')"
+```
+
+#### 5.1.1 启动服务
+
+```bash
+# 终端 1：启动 FastAPI 服务
+uv run uvicorn cognizes.engine.api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+预期输出：
+
+```
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     ✓ PgNotifyListener started
+```
+
+#### 5.1.2 验证健康检查
+
+```bash
+# 终端 2：验证服务状态
+curl http://localhost:8000/health
+```
+
+预期输出：
+
+```json
+{ "status": "ok", "listener_running": true }
+```
+
+#### 5.1.3 验证 WebSocket 连接
+
+```bash
+# 方式 1：使用 websocat 工具 (需安装: brew install websocat)
+websocat ws://localhost:8000/ws/events/test-thread
+
+# 方式 2：使用 Python 脚本
+uv run python -c "
+import asyncio
+import websockets
+async def test():
+    async with websockets.connect('ws://localhost:8000/ws/events/test-thread') as ws:
+        print('✓ WebSocket connected')
+        msg = await asyncio.wait_for(ws.recv(), timeout=30)
+        print(f'Received: {msg}')
+asyncio.run(test())
+"
+```
+
+#### 5.1.4 触发测试事件
+
+```bash
+# 终端 3：发送测试 NOTIFY 消息
+curl http://localhost:8000/api/test-notify
+```
+
+预期输出：
+
+```json
+{ "status": "sent", "payload": "{\"thread_id\":\"test-thread\",...}" }
+```
+
+WebSocket 客户端应立即收到事件。
+
+#### 5.1.5 验证 SSE 连接
+
+```bash
+# 终端 1：订阅 SSE 事件流 (使用 curl -N 保持长连接)
+curl -N http://localhost:8000/api/runs/test-run/events
+```
+
+预期输出（立即收到连接事件）：
+
+```
+data: {"type":"CUSTOM","runId":"test-run","timestamp":...,"name":"connected","message":"SSE stream for run_id=test-run"}
+```
+
+#### 5.1.6 验证事件推送
+
+```bash
+# 终端 2：触发 SSE 测试事件
+curl http://localhost:8000/api/test-sse-notify/test-run
+```
+
+预期输出：
+
+```json
+{ "status": "sent", "run_id": "test-run", "payload": "..." }
+```
+
+同时，终端 1 的 SSE 客户端应收到：
+
+```
+data: {"type":"RAW","runId":"test-run","timestamp":...,"payload":{...}}
+
+```
+
+#### 5.1.7 验证响应头
+
+```bash
+# 验证 Content-Type (使用 -D - 打印响应头，而非 -I)
+curl -s -D - http://localhost:8000/api/runs/test-run/events 2>&1 | head -10
+```
+
+预期输出：
+
+```
+HTTP/1.1 200 OK
+...
+content-type: text/event-stream; charset=utf-8
+```
+
+> [!NOTE]
+>
+> 使用 `curl -I` 会发送 `HEAD` 请求，SSE 端点不支持 HEAD，会返回 `405 Method Not Allowed`。
+
+#### 5.1.8 验证心跳机制
+
+保持 SSE 连接 30 秒不发送事件，客户端应收到心跳：
+
+```
+data: {"type":"CUSTOM","runId":"test-run","timestamp":...,"name":"heartbeat"}
+
+```
+
+**验收标准**：
+
+- [ ] 响应 Content-Type 为 `text/event-stream`
+- [ ] 事件格式符合 SSE 规范 (`data: {...}\n\n`)
+- [ ] 首事件延迟 < 100ms（连接事件立即返回）
+- [ ] 心跳每 30 秒发送一次
+
+### 5.2 单元测试验证
+
+```bash
+# 全部单元测试 (44 个测试用例，无数据库依赖)
+uv run pytest tests/unittests/pulse/ -v
+
+# 快速回归 (仅核心逻辑)
+uv run pytest tests/unittests/pulse/test_state_manager.py -v --tb=short
+```
+
+### 5.3 集成测试验证
+
+```bash
+# StateManager 数据库集成测试
+uv run pytest tests/integration/pulse/test_state_manager_db.py -v
+
+# NOTIFY 延迟测试 (验证 < 50ms)
+uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
+
+# EventBridge 端到端测试
+uv run pytest tests/integration/pulse/test_event_bridge_e2e.py -v
+
+# StateDebug 数据库测试
+uv run pytest tests/integration/pulse/test_state_debug_db.py -v
+
+# 全部集成测试
+uv run pytest tests/integration/ -v
+```
+
+### 5.4 性能指标验收
+
+```bash
+# 使用集成测试验证延迟 < 50ms
+uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
+```
+
+**验收标准**：
+
+- [ ] 服务启动成功，listener_running 为 true
+- [ ] 前端可通过 `ws://localhost:8000/ws/events/{thread_id}` 连接
+- [ ] 收到 NOTIFY 事件后延迟 < 100ms
+
+**验证指标**：
+
+| 指标         | 目标值 | 验证测试                                 | 验证命令                                                                                                                    |
+| :----------- | :----- | :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| NOTIFY 延迟  | < 50ms | `test_end_to_end_latency`                | `uv run pytest tests/integration/pulse/test_notify_latency.py::TestNotifyLatency::test_end_to_end_latency -v -s`            |
+| 吞吐量丢失率 | 0%     | `test_100_msg_per_second_throughput`     | `uv run pytest tests/integration/pulse/test_notify_latency.py::TestNotifyLatency::test_100_msg_per_second_throughput -v -s` |
+| OCC QPS      | > 100  | `test_100_qps_session_creation`          | `uv run pytest tests/unittests/pulse/test_state_manager.py::TestHighQPSPerformance -v -s`                                   |
+| 并发写入     | 0 丢失 | `test_10_concurrent_writes_no_data_loss` | `uv run pytest tests/unittests/pulse/test_state_manager.py::TestMultiAgentConcurrency -v -s`                                |
+
 ---
 
-## 5. 验收标准
+## 6. 验收基准
 
-### 5.1 功能验收矩阵
+### 6.1 功能验收矩阵
 
 > [!NOTE]
 >
@@ -651,7 +879,7 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 | AG-UI SSE 端点      | P1-5-3     | 端到端事件流延迟 < 100ms            | 性能测试      |
 | 状态调试面板        | P1-5-4~5   | 状态分组正确，历史可追溯            | 集成测试      |
 
-### 5.2 性能基准
+### 6.2 性能基准
 
 | 指标             | 目标值    | 测试条件               | 对应任务 |
 | :--------------- | :-------- | :--------------------- | :------- |
@@ -662,7 +890,7 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 | 消息吞吐量       | 100 msg/s | 稳定无丢失             | P1-3-17  |
 | 事件流延迟 (SSE) | < 100ms   | 包含消息追加与状态变更 | P1-5-3   |
 
-### 5.3 验收检查清单
+### 6.3 验收检查清单
 
 ```markdown
 ## Phase 1 验收检查清单
@@ -709,7 +937,7 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 
 ---
 
-## 6. 交付物清单
+## 7. 交付物清单
 
 | 类别         | 文件路径                                           | 描述                           | 对应任务    |
 | :----------- | :------------------------------------------------- | :----------------------------- | :---------- |
@@ -728,251 +956,6 @@ uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
 |              | `tests/integration/pulse/test_notify_latency.py`   | NOTIFY 延迟 & 吞吐量           | P1-3-16~17  |
 |              | `tests/integration/pulse/test_event_bridge_e2e.py` | 端到端事件流测试               | P1-5-3      |
 |              | `tests/integration/pulse/test_state_debug_db.py`   | 状态历史查询测试               | P1-5-6      |
-
----
-
-## 7. Phase 1 验证 SOP
-
-### 7.1 环境验证
-
-```bash
-# PostgreSQL 版本验证
-psql -d 'cognizes-engine' -c "SELECT version();"
-
-# 扩展状态检查
-psql -d 'cognizes-engine' -c "SELECT * FROM pg_available_extensions WHERE name IN ('vector', 'pg_cron');"
-
-# 数据库连接测试
-psql -d cognizes-engine -c "\dt"
-
-# Python 环境验证
-uv run python -c "from cognizes.engine.pulse.state_manager import StateManager; print('✓ Import OK')"
-```
-
-### 7.2 单元测试验证
-
-```bash
-# 全部单元测试 (44 个测试用例，无数据库依赖)
-uv run pytest tests/unittests/pulse/ -v
-
-# 快速回归 (仅核心逻辑)
-uv run pytest tests/unittests/pulse/test_state_manager.py -v --tb=short
-```
-
-### 7.3 集成测试验证
-
-```bash
-# StateManager 数据库集成测试
-uv run pytest tests/integration/pulse/test_state_manager_db.py -v
-
-# NOTIFY 延迟测试 (验证 < 50ms)
-uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
-
-# EventBridge 端到端测试
-uv run pytest tests/integration/pulse/test_event_bridge_e2e.py -v
-
-# StateDebug 数据库测试
-uv run pytest tests/integration/pulse/test_state_debug_db.py -v
-
-# 全部集成测试
-uv run pytest tests/integration/ -v
-```
-
-### 7.4 性能指标验收
-
-| 指标         | 目标值 | 验证测试                                 | 验证命令                                                                                                                    |
-| :----------- | :----- | :--------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| NOTIFY 延迟  | < 50ms | `test_end_to_end_latency`                | `uv run pytest tests/integration/pulse/test_notify_latency.py::TestNotifyLatency::test_end_to_end_latency -v -s`            |
-| 吞吐量丢失率 | 0%     | `test_100_msg_per_second_throughput`     | `uv run pytest tests/integration/pulse/test_notify_latency.py::TestNotifyLatency::test_100_msg_per_second_throughput -v -s` |
-| OCC QPS      | > 100  | `test_100_qps_session_creation`          | `uv run pytest tests/unittests/pulse/test_state_manager.py::TestHighQPSPerformance -v -s`                                   |
-| 并发写入     | 0 丢失 | `test_10_concurrent_writes_no_data_loss` | `uv run pytest tests/unittests/pulse/test_state_manager.py::TestMultiAgentConcurrency -v -s`                                |
-
----
-
-## 8. 遗留任务指引
-
-> [!NOTE]
->
-> 以下任务需在 Phase 1 验收前完成。
-
-### 8.1 P1-1-8：配置 GOOGLE_API_KEY
-
-**目的**：为 Google ADK 提供 API 认证。
-
-```bash
-# 方式 1：环境变量 (推荐)
-export GOOGLE_API_KEY="your-api-key-here"
-
-# 方式 2：.env 文件
-echo 'GOOGLE_API_KEY=your-api-key-here' >> .env
-
-# 验证
-uv run python -c "import os; print('✓ API Key:', os.getenv('GOOGLE_API_KEY', 'NOT SET')[:10] + '...')"
-```
-
-### 8.2 P1-3-15：实现 WebSocket 推送接口
-
-**目的**：前端通过 WebSocket 接收实时事件流。
-
-**实现路径**：
-
-- `src/cognizes/engine/api/main.py` - FastAPI 应用入口
-- `src/cognizes/engine/pulse/pg_notify_listener.py` - NOTIFY 监听器
-
-#### 8.2.1 启动服务
-
-```bash
-# 终端 1：启动 FastAPI 服务
-uv run uvicorn cognizes.engine.api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-预期输出：
-
-```
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     ✓ PgNotifyListener started
-```
-
-#### 8.2.2 验证健康检查
-
-```bash
-# 终端 2：验证服务状态
-curl http://localhost:8000/health
-```
-
-预期输出：
-
-```json
-{ "status": "ok", "listener_running": true }
-```
-
-#### 8.2.3 验证 WebSocket 连接
-
-```bash
-# 方式 1：使用 websocat 工具 (需安装: brew install websocat)
-websocat ws://localhost:8000/ws/events/test-thread
-
-# 方式 2：使用 Python 脚本
-uv run python -c "
-import asyncio
-import websockets
-async def test():
-    async with websockets.connect('ws://localhost:8000/ws/events/test-thread') as ws:
-        print('✓ WebSocket connected')
-        msg = await asyncio.wait_for(ws.recv(), timeout=30)
-        print(f'Received: {msg}')
-asyncio.run(test())
-"
-```
-
-#### 8.2.4 触发测试事件
-
-```bash
-# 终端 3：发送测试 NOTIFY 消息
-curl http://localhost:8000/api/test-notify
-```
-
-预期输出：
-
-```json
-{ "status": "sent", "payload": "{\"thread_id\":\"test-thread\",...}" }
-```
-
-WebSocket 客户端应立即收到事件。
-
-#### 8.2.5 验证延迟
-
-```bash
-# 使用集成测试验证延迟 < 50ms
-uv run pytest tests/integration/pulse/test_notify_latency.py -v -s
-```
-
-**验收标准**：
-
-- [ ] 服务启动成功，listener_running 为 true
-- [ ] 前端可通过 `ws://localhost:8000/ws/events/{thread_id}` 连接
-- [ ] 收到 NOTIFY 事件后延迟 < 100ms
-
-### 8.3 P1-5-3：实现 SSE 事件流端点
-
-**目的**：通过 Server-Sent Events 推送 AG-UI 事件流。
-
-**实现路径**：
-
-- `src/cognizes/engine/api/main.py` - SSE 端点 `/api/runs/{run_id}/events`
-- `src/cognizes/engine/pulse/event_bridge.py` - AG-UI 事件类型定义
-
-#### 8.3.1 验证服务已启动
-
-确保 FastAPI 服务正在运行（见 8.2.1）。
-
-#### 8.3.2 验证 SSE 连接
-
-```bash
-# 终端 1：订阅 SSE 事件流 (使用 curl -N 保持长连接)
-curl -N http://localhost:8000/api/runs/test-run/events
-```
-
-预期输出（立即收到连接事件）：
-
-```
-data: {"type":"CUSTOM","runId":"test-run","timestamp":...,"name":"connected","message":"SSE stream for run_id=test-run"}
-```
-
-#### 8.3.3 验证事件推送
-
-```bash
-# 终端 2：触发 SSE 测试事件
-curl http://localhost:8000/api/test-sse-notify/test-run
-```
-
-预期输出：
-
-```json
-{ "status": "sent", "run_id": "test-run", "payload": "..." }
-```
-
-同时，终端 1 的 SSE 客户端应收到：
-
-```
-data: {"type":"RAW","runId":"test-run","timestamp":...,"payload":{...}}
-
-```
-
-#### 8.3.4 验证响应头
-
-```bash
-# 验证 Content-Type (使用 -D - 打印响应头，而非 -I)
-curl -s -D - http://localhost:8000/api/runs/test-run/events 2>&1 | head -10
-```
-
-预期输出：
-
-```
-HTTP/1.1 200 OK
-...
-content-type: text/event-stream; charset=utf-8
-```
-
-> [!NOTE]
->
-> 使用 `curl -I` 会发送 `HEAD` 请求，SSE 端点不支持 HEAD，会返回 `405 Method Not Allowed`。
-
-#### 8.3.5 验证心跳机制
-
-保持 SSE 连接 30 秒不发送事件，客户端应收到心跳：
-
-```
-data: {"type":"CUSTOM","runId":"test-run","timestamp":...,"name":"heartbeat"}
-
-```
-
-**验收标准**：
-
-- [ ] 响应 Content-Type 为 `text/event-stream`
-- [ ] 事件格式符合 SSE 规范 (`data: {...}\n\n`)
-- [ ] 首事件延迟 < 100ms（连接事件立即返回）
-- [ ] 心跳每 30 秒发送一次
 
 ---
 
