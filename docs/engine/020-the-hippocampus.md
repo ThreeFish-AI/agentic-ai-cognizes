@@ -24,9 +24,9 @@ tags:
 
 ---
 
-## 1. 执行概览
+## 1. 执行摘要
 
-### 1.1 Phase 2 定位与目标
+### 1.1 定位与目标 (Phase 2)
 
 **Phase 2: The Hippocampus** 是整个验证计划的记忆核心阶段，对标人类大脑的**海马体 (Hippocampus)** —— 负责将短期记忆转化为长期记忆的关键脑区。核心目标是：
 
@@ -52,7 +52,7 @@ graph LR
     style H3 fill:#7c2d12,stroke:#fb923c,color:#fff
 ```
 
-### 1.2 核心概念解析
+### 1.2 核心设计
 
 #### 1.2.1 记忆类型与生物学类比
 
@@ -67,7 +67,7 @@ graph LR
 #### 1.2.2 记忆生命周期
 
 ```mermaid
-graph TB
+graph LR
     subgraph "记忆形成 (Memory Formation)"
         E[Events 事件流] --> FR[Fast Replay<br>快回放]
         FR --> S[Summary 摘要]
@@ -97,7 +97,38 @@ graph TB
     style CW fill:#7c2d12,stroke:#fb923c,color:#fff
 ```
 
-### 1.3 对标分析：Google ADK MemoryService
+### 1.3 执行导图 (Execution Map)
+
+#### 1.3.1 任务-章节对照表
+
+> [!NOTE]
+>
+> 以下表格将 [001-task-checklist.md](./001-task-checklist.md) 的任务 ID 与本文档章节进行对照，便于追踪执行进度。
+
+| 任务模块             | 任务 ID 范围     | 对应章节                                                        |
+| :------------------- | :--------------- | :-------------------------------------------------------------- |
+| 记忆机制调研         | P2-1-1 ~ P2-1-5  | [2. 技术调研](#2-技术调研记忆机制深度分析)                      |
+| Memory Consolidation | P2-2-1 ~ P2-2-14 | [4.2 记忆巩固实现](#42-step-2-memory-consolidation-worker-实现) |
+| Biological Retention | P2-3-1 ~ P2-3-11 | [4.3 遗忘与保持实现](#43-step-3-biological-retention-实现)      |
+| 验收与文档           | P2-4-1 ~ P2-4-4  | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)         |
+
+#### 1.3.2 工期规划
+
+| 阶段 | 任务模块             | 任务 ID          | 预估工期 | 交付物                         |
+| :--- | :------------------- | :--------------- | :------- | :----------------------------- |
+| 2.1  | 记忆机制调研         | P2-1-1 ~ P2-1-5  | 0.25 Day | 调研笔记 + 对比分析表          |
+| 2.2  | Schema 扩展          | P2-2-1 ~ P2-2-2  | 0.25 Day | `memories` 表, `facts` 表 DDL  |
+| 2.3  | Consolidation Worker | P2-2-3 ~ P2-2-14 | 0.75 Day | `consolidation_worker.py`      |
+| 2.4  | Biological Retention | P2-3-1 ~ P2-3-11 | 0.5 Day  | 衰减算法 + Context Window 函数 |
+| 2.5  | 测试与验收           | P2-4-1 ~ P2-4-4  | 0.25 Day | 测试报告 + 技术文档            |
+
+---
+
+## 2. 核心参考模型：记忆机制深度分析
+
+### 2.1 Google ADK
+
+#### 2.1.1 对标分析：Google ADK MemoryService
 
 基于 Google ADK 官方文档<sup>[[3]](#ref3)</sup>的分析，我们需要复刻以下核心能力：
 
@@ -109,7 +140,7 @@ graph TB
 | **search_memory()**           | 基于 Query 检索相关记忆                              | PGVector 向量检索 + JSONB 过滤  |
 | **VertexAiMemoryBankService** | Google 托管的 Memory Bank 实现 (Vector Search + LLM) | PostgreSQL 自建等价实现         |
 
-#### 1.3.1 ADK MemoryService 接口契约
+#### 2.1.2 ADK MemoryService 接口契约
 
 ```python
 class BaseMemoryService(ABC):
@@ -135,43 +166,7 @@ class BaseMemoryService(ABC):
         ...
 ```
 
-#### 1.3.2 对标 LangGraph Memory 机制
-
-LangGraph 提供两套互补的持久化机制<sup>[[2]](#ref2)</sup>：
-
-| 机制             | 范围        | 用途                            | 我们的复刻策略                       |
-| :--------------- | :---------- | :------------------------------ | :----------------------------------- |
-| **Checkpointer** | 单个 Thread | 对话历史、状态快照 (Short-term) | Phase 1 已实现 (`threads`, `events`) |
-| **Store**        | 跨 Thread   | 用户偏好、学习知识 (Long-term)  | Phase 2 实现 (`memories`, `facts`)   |
-
-### 1.4 任务-章节对照表
-
-> [!NOTE]
->
-> 以下表格将 [001-task-checklist.md](./001-task-checklist.md) 的任务 ID 与本文档章节进行对照，便于追踪执行进度。
-
-| 任务模块             | 任务 ID 范围     | 对应章节                                                        |
-| :------------------- | :--------------- | :-------------------------------------------------------------- |
-| 记忆机制调研         | P2-1-1 ~ P2-1-5  | [2. 技术调研](#2-技术调研记忆机制深度分析)                      |
-| Memory Consolidation | P2-2-1 ~ P2-2-14 | [4.2 记忆巩固实现](#42-step-2-memory-consolidation-worker-实现) |
-| Biological Retention | P2-3-1 ~ P2-3-11 | [4.3 遗忘与保持实现](#43-step-3-biological-retention-实现)      |
-| 验收与文档           | P2-4-1 ~ P2-4-4  | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)         |
-
-### 1.5 工期规划
-
-| 阶段 | 任务模块             | 任务 ID          | 预估工期 | 交付物                         |
-| :--- | :------------------- | :--------------- | :------- | :----------------------------- |
-| 2.1  | 记忆机制调研         | P2-1-1 ~ P2-1-5  | 0.25 Day | 调研笔记 + 对比分析表          |
-| 2.2  | Schema 扩展          | P2-2-1 ~ P2-2-2  | 0.25 Day | `memories` 表, `facts` 表 DDL  |
-| 2.3  | Consolidation Worker | P2-2-3 ~ P2-2-14 | 0.75 Day | `consolidation_worker.py`      |
-| 2.4  | Biological Retention | P2-3-1 ~ P2-3-11 | 0.5 Day  | 衰减算法 + Context Window 函数 |
-| 2.5  | 测试与验收           | P2-4-1 ~ P2-4-4  | 0.25 Day | 测试报告 + 技术文档            |
-
----
-
-## 2. 技术调研：记忆机制深度分析
-
-### 2.1 Google ADK Memory Bank 工作流程
+#### 2.1.3 ADK MemoryBank 工作流程
 
 基于 ADK 文档分析<sup>[[3]](#ref3)</sup>，Memory Bank 的核心工作流程如下：
 
@@ -209,7 +204,16 @@ sequenceDiagram
 
 LangGraph 的 Memory 设计采用了更灵活的**三层记忆模型**<sup>[[2]](#ref2)</sup>：
 
-#### 2.2.1 Semantic Memory (语义记忆)
+#### 2.2.1 对标 LangGraph Memory 机制
+
+LangGraph 提供两套互补的持久化机制<sup>[[2]](#ref2)</sup>：
+
+| 机制             | 范围        | 用途                            | 我们的复刻策略                       |
+| :--------------- | :---------- | :------------------------------ | :----------------------------------- |
+| **Checkpointer** | 单个 Thread | 对话历史、状态快照 (Short-term) | Phase 1 已实现 (`threads`, `events`) |
+| **Store**        | 跨 Thread   | 用户偏好、学习知识 (Long-term)  | Phase 2 实现 (`memories`, `facts`)   |
+
+#### 2.2.2 Semantic Memory (语义记忆)
 
 存储用户的**偏好、规则、Profile** 等结构化信息：
 
@@ -227,7 +231,7 @@ store.put(
 - **Profile Style**: 单一 JSON 对象，适合用户画像
 - **Collection Style**: 多个独立记录，适合持续积累的偏好
 
-#### 2.2.2 Episodic Memory (情景记忆)
+#### 2.2.3 Episodic Memory (情景记忆)
 
 存储**过去的对话片段**，用于 Few-shot 引导：
 
@@ -245,7 +249,7 @@ prompt = f"Here are some similar interactions:\n{memories}"
 - 保留**完整的对话切片**而非摘要，便于上下文重建
 - 支持**按时间**和**按语义**双重检索
 
-#### 2.2.3 Procedural Memory (程序性记忆)
+#### 2.2.4 Procedural Memory (程序性记忆)
 
 存储**Agent 的行为规则和指令**，支持自我进化：
 
@@ -689,7 +693,7 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-## 4. 实施计划：分步执行指南
+## 4. 实施指南
 
 ### 4.1 Step 1: 记忆 Schema 扩展部署
 
@@ -2981,9 +2985,316 @@ class MemoryVisualizer:
 
 ---
 
-## 5. 验收标准
+## 5. 验证 SOP (Phase 2)
 
-### 5.1 功能验收矩阵
+> [!IMPORTANT]
+>
+> 本节提供 Phase 2: The Hippocampus 完整验收流程，请按顺序逐步执行。
+
+### 5.1 Step 1: Schema 部署验证
+
+```bash
+# 1.1 确保 Phase 1 Schema 已部署
+psql -d 'cognizes-engine' -c "\dt threads"
+# 应显示 threads 表
+
+# 1.2 部署 Hippocampus Schema
+psql -d 'cognizes-engine' -f src/cognizes/engine/schema/hippocampus_schema.sql
+
+# 1.3 验证表创建
+psql -d 'cognizes-engine' -c "\dt"
+# 应显示: memories, facts, consolidation_jobs, instructions
+
+# 1.4 验证索引
+psql -d 'cognizes-engine' -c "\di" | grep -E "(memories|facts)"
+
+# 1.5 验证函数
+psql -d 'cognizes-engine' -c "\df calculate_retention_score"
+psql -d 'cognizes-engine' -c "\df cleanup_low_value_memories"
+
+# 1.6 测试衰减函数
+psql -d 'cognizes-engine' -c "SELECT calculate_retention_score(5, NOW() - INTERVAL '3 days', 0.1);"
+# 应返回 0.x 的浮点数
+```
+
+**验收标准**：
+
+- [ ] `memories`, `facts`, `consolidation_jobs`, `instructions` 表存在
+- [ ] HNSW 向量索引已创建
+- [ ] `calculate_retention_score` 函数可正常调用
+- [ ] `cleanup_low_value_memories` 函数存在
+
+---
+
+#### 5.1.1 Step 1.1: pg_cron 定时任务配置 (P2-2-8, P2-3-4)
+
+> [!IMPORTANT]
+>
+> pg_cron 定时任务用于自动触发记忆巩固和低价值记忆清理，需配置后 Phase 2 验收才能完整通过。
+
+```bash
+# 1.1 检查 pg_cron 扩展是否已安装 (Phase 1 已完成)
+psql -d 'cognizes-engine' -c "SELECT * FROM pg_extension WHERE extname = 'pg_cron';"
+# 应返回 1 行记录
+
+# 1.2 配置定时任务 - 每天凌晨 2 点清理低价值记忆 (P2-3-4)
+psql -d 'cognizes-engine' -c "
+SELECT cron.schedule(
+    'cleanup_memories',
+    '0 2 * * *',
+    \$\$SELECT cleanup_low_value_memories(0.1, 7)\$\$
+);
+"
+# 应返回任务 ID (如 1)
+
+# 1.3 配置定时任务 - 每小时触发记忆巩固检查 (P2-2-8)
+psql -d 'cognizes-engine' -c "
+SELECT cron.schedule(
+    'trigger_consolidation',
+    '0 * * * *',
+    \$\$
+    INSERT INTO consolidation_jobs (thread_id, job_type, status)
+    SELECT id, 'full_consolidation', 'pending'
+    FROM threads
+    WHERE updated_at > NOW() - INTERVAL '1 hour'
+      AND id NOT IN (
+          SELECT thread_id FROM consolidation_jobs
+          WHERE created_at > NOW() - INTERVAL '1 hour'
+      )
+    \$\$
+);
+"
+# 应返回任务 ID (如 2)
+
+# 1.4 验证定时任务创建成功
+psql -d 'cognizes-engine' -c "SELECT jobid, jobname, schedule, command FROM cron.job;"
+# 应显示 cleanup_memories 和 trigger_consolidation 两个任务
+
+# 1.5 查看任务执行日志 (首次配置后可能为空)
+psql -d 'cognizes-engine' -c "SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5;"
+
+# 1.6 手动测试清理函数 (可选)
+psql -d 'cognizes-engine' -c "SELECT cleanup_low_value_memories(0.1, 7);"
+# 应返回清理的记录数 (可能为 0)
+```
+
+**验收标准**：
+
+- [ ] pg_cron 扩展已安装
+- [ ] `cleanup_memories` 定时任务已创建 (每天 02:00)
+- [ ] `trigger_consolidation` 定时任务已创建 (每小时)
+- [ ] `cron.job` 表显示 2 个任务
+
+**删除任务 (如需重新配置)**：
+
+```bash
+# 删除指定任务
+psql -d 'cognizes-engine' -c "SELECT cron.unschedule('cleanup_memories');"
+psql -d 'cognizes-engine' -c "SELECT cron.unschedule('trigger_consolidation');"
+```
+
+---
+
+### 5.2 Step 2: 单元测试验证
+
+```bash
+# 2.1 运行 Hippocampus 单元测试
+uv run pytest tests/unittests/hippocampus/ -v --tb=short
+
+# 2.2 查看测试覆盖率 (可选，需先安装 pytest-cov)
+# uv add pytest-cov --dev
+uv run pytest tests/unittests/hippocampus/ -v --cov=src/cognizes/engine/hippocampus --cov-report=term-missing
+```
+
+**验收标准**：
+
+- [ ] 35 个单元测试全部通过
+- [ ] 覆盖以下模块:
+  - `consolidation_worker.py` (数据类、枚举、格式化逻辑)
+  - `retention_manager.py` (保留分数分布)
+  - `context_assembler.py` (Token 估算、上下文格式化)
+  - `memory_service.py` (服务参数验证)
+  - `memory_visualizer.py` (事件类型、进度计算)
+
+---
+
+### 5.3 Step 3: 集成测试验证
+
+```bash
+# 3.1 运行 Hippocampus 集成测试
+uv run pytest tests/integration/hippocampus/ -v -s --tb=short
+
+# 3.2 查看详细输出 (含性能指标)
+uv run pytest tests/integration/hippocampus/ -v -s
+```
+
+**验收标准**：
+
+- [ ] 16 个集成测试全部通过
+- [ ] Schema 测试通过: 表结构、索引、函数、约束
+- [ ] Read-Your-Writes 延迟 < 100ms
+- [ ] 情景分块检索性能 P99 < 50ms (1K 规模)
+- [ ] 保留分数分布统计正确
+- [ ] 访问计数递增正确
+- [ ] Fact Upsert 约束生效
+
+---
+
+### 5.4 Step 4: 性能测试 (可选, 10 万规模)
+
+```bash
+# 4.0 清理历史性能测试数据 (避免存量数据影响结果)
+uv run python -c "
+import asyncio
+import asyncpg
+
+async def cleanup():
+    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
+    user_id = 'perf_test_user'
+
+    async with pool.acquire() as conn:
+        # 统计现有数据
+        count = await conn.fetchval(
+            'SELECT COUNT(*) FROM memories WHERE user_id = \$1', user_id
+        )
+        if count == 0:
+            print('✓ 无历史测试数据，无需清理')
+            return
+
+        # 清理性能测试数据
+        deleted = await conn.fetchval('''
+            DELETE FROM memories WHERE user_id = \$1 RETURNING COUNT(*)
+        ''', user_id)
+        print(f'✓ 已清理 {count} 条历史测试数据')
+    await pool.close()
+
+asyncio.run(cleanup())
+"
+
+# 4.1 生成大规模测试数据
+uv run python -c "
+import asyncio
+import asyncpg
+import uuid
+import random
+from datetime import datetime, timedelta
+
+async def seed():
+    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
+    user_id = 'perf_test_user'
+    app_name = 'perf_test_app'
+
+    async with pool.acquire() as conn:
+        count = await conn.fetchval(
+            'SELECT COUNT(*) FROM memories WHERE user_id = \$1', user_id
+        )
+        if count >= 100000:
+            print(f'已有 {count} 条数据，跳过')
+            return
+
+        print('开始生成 100K 测试数据...')
+        batch_size = 1000
+        base_time = datetime.now() - timedelta(days=365)
+
+        for batch in range(100):
+            rows = []
+            for i in range(batch_size):
+                created_at = base_time + timedelta(minutes=random.randint(0, 525600))
+                rows.append((
+                    uuid.uuid4(), user_id, app_name, 'episodic',
+                    f'测试记忆 {batch * batch_size + i}',
+                    random.random(), random.randint(0, 100), created_at
+                ))
+            await conn.executemany('''
+                INSERT INTO memories (id, user_id, app_name, memory_type, content,
+                                     retention_score, access_count, created_at)
+                VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8)
+            ''', rows)
+            if (batch + 1) % 10 == 0:
+                print(f'  已插入 {(batch + 1) * batch_size}')
+    await pool.close()
+
+asyncio.run(seed())
+"
+
+# 4.2 运行性能测试
+uv run pytest tests/integration/hippocampus/test_episodic_performance.py -v -s -k "full"
+# === 完整性能测试 (100,000 条) ===
+# 平均延迟: 1.01 ms
+# P99 延迟: 2.38 ms
+```
+
+**验收标准**：
+
+- [ ] 10 万规模时间切片查询 P99 < 100ms
+- [ ] 查询使用索引扫描 (非全表扫描)
+
+---
+
+### 5.5 Step 5: 模块导入验证
+
+```bash
+# 5.1 验证模块可导入
+uv run python -c "
+from cognizes.engine.hippocampus.consolidation_worker import (
+    MemoryConsolidationWorker, JobType, JobStatus
+)
+from cognizes.engine.hippocampus.retention_manager import MemoryRetentionManager
+from cognizes.engine.hippocampus.context_assembler import ContextAssembler
+from cognizes.engine.hippocampus.memory_service import OpenMemoryService
+from cognizes.engine.hippocampus.memory_visualizer import MemoryVisualizer
+
+print('✅ 所有模块导入成功')
+"
+```
+
+**验收标准**：
+
+- [ ] 所有 5 个模块可正常导入
+- [ ] 无循环依赖错误
+
+---
+
+### 5.6 Step 6: 全量测试验证
+
+```bash
+# 6.1 运行所有测试 (包括 Phase 1)
+uv run pytest tests/ -v --tb=line
+
+# 6.2 查看测试统计
+uv run pytest tests/ -v --tb=line 2>&1 | tail -5
+```
+
+**验收标准**：
+
+- [ ] Phase 1 测试: 61 passed
+- [ ] Phase 2 单元测试: 35 passed
+- [ ] Phase 2 集成测试: 16 passed
+- [ ] **总计: 112+ passed**
+
+---
+
+### 5.7 验收总结清单
+
+| 验收项           | 状态 | 说明                          |
+| :--------------- | :--: | :---------------------------- |
+| Schema 部署      |  ⬜  | 4 张表 + 2 个函数 + HNSW 索引 |
+| pg_cron 定时任务 |  ⬜  | 2 个任务 (清理 + 巩固)        |
+| 单元测试         |  ⬜  | 35 tests passed               |
+| 集成测试         |  ⬜  | 17 tests passed               |
+| Read-Your-Writes |  ⬜  | P99 < 100ms                   |
+| 模块导入         |  ⬜  | 5 模块无错误                  |
+| 全量回归         |  ⬜  | 113+ tests passed             |
+
+> [!TIP]
+>
+> 完成上述所有验收项后，勾选状态为 ✅，Phase 2: The Hippocampus 验收通过，可进入 Phase 3: The Perception。
+
+---
+
+## 6. 验收基准
+
+### 6.1 功能验收矩阵
 
 | 验收项                | 任务 ID           | 验收标准                                                 | 验证方法                |
 | :-------------------- | :---------------- | :------------------------------------------------------- | :---------------------- |
@@ -2996,7 +3307,7 @@ class MemoryVisualizer:
 | **Context Window**    | P2-3-8 ~ P2-3-11  | 动态组装 Context 不超出 Token 预算，超限时自动截断       | Token 统计测试          |
 | **OpenMemoryService** | Phase 2 综合      | 实现 `add_session_to_memory()` 和 `search_memory()` 接口 | 接口兼容性测试          |
 
-### 5.2 性能验收指标
+### 6.2 性能验收指标
 
 | 指标                 | 目标值    | 测试条件                      |
 | :------------------- | :-------- | :---------------------------- |
@@ -3006,7 +3317,7 @@ class MemoryVisualizer:
 | **Read-Your-Writes** | < 100ms   | 新记忆可见延迟                |
 | **Context 组装延迟** | < 100ms   | 8000 Token 预算               |
 
-### 5.3 兼容性验收
+### 6.3 兼容性验收
 
 | 验收项                     | 验收标准                                                |
 | :------------------------- | :------------------------------------------------------ |
@@ -3014,13 +3325,13 @@ class MemoryVisualizer:
 | **Phase 1 兼容**           | 与 `threads`/`events` 表无缝关联                        |
 | **向量格式兼容**           | 使用与 Phase 1 相同的 1536 维向量 (Gemini embedding)    |
 
-### 5.4 验证测试代码
+### 6.4 验证测试代码
 
 > [!NOTE]
 >
 > 本节提供关键验证测试的代码实现，对应任务 P2-2-13~14, P2-3-7, P2-4-3。
 
-#### 5.4.1 Read-Your-Writes 延迟测试 (P2-2-13, P2-2-14)
+#### 6.4.1 Read-Your-Writes 延迟测试 (P2-2-13, P2-2-14)
 
 创建 `tests/hippocampus/test_read_your_writes.py`：
 
@@ -3146,7 +3457,7 @@ class TestReadYourWrites:
 # 运行: pytest -v tests/hippocampus/test_read_your_writes.py
 ```
 
-#### 5.4.2 情景分块检索性能测试 (P2-3-7)
+#### 6.4.2 情景分块检索性能测试 (P2-3-7)
 
 创建 `tests/hippocampus/test_episodic_performance.py`：
 
@@ -3323,7 +3634,7 @@ class TestEpisodicPerformance:
 # 运行: pytest -v tests/hippocampus/test_episodic_performance.py
 ```
 
-#### 5.4.3 单元测试框架 (P2-4-3)
+#### 6.4.3 单元测试框架 (P2-4-3)
 
 创建 `tests/hippocampus/conftest.py` (pytest 配置):
 
@@ -3496,15 +3807,15 @@ class TestConsolidationWorker:
 
 ---
 
-## 6. 交付物清单
+### 6.5. 交付物清单
 
-### 6.1 Schema 文件
+#### 6.5.1 Schema 文件
 
 | 文件路径                                            | 描述                    | 状态      |
 | :-------------------------------------------------- | :---------------------- | :-------- |
 | `src/cognizes/engine/schema/hippocampus_schema.sql` | Hippocampus 扩展 Schema | 🔲 待开始 |
 
-### 6.2 代码文件
+#### 6.5.2 代码文件
 
 | 文件路径                                                  | 描述            | 状态      |
 | :-------------------------------------------------------- | :-------------- | :-------- |
@@ -3514,7 +3825,7 @@ class TestConsolidationWorker:
 | `src/cognizes/engine/hippocampus/context_assembler.py`    | 上下文组装器    | 🔲 待开始 |
 | `src/cognizes/engine/hippocampus/memory_service.py`       | ADK 适配器      | 🔲 待开始 |
 
-### 6.3 测试文件
+#### 6.5.3 测试文件
 
 | 文件路径                                                     | 描述                       | 状态      |
 | :----------------------------------------------------------- | :------------------------- | :-------- |
@@ -3523,7 +3834,7 @@ class TestConsolidationWorker:
 | `tests/integration/hippocampus/test_context_assembler.py`    | 上下文组装器单元测试       | 🔲 待开始 |
 | `tests/integration/hippocampus/test_memory_service.py`       | OpenMemoryService 集成测试 | 🔲 待开始 |
 
-### 6.4 目录结构
+#### 6.5.4 目录结构
 
 ```
 src/cognizes/engine/
@@ -3642,314 +3953,7 @@ tests/
 
 ---
 
-## 9. Phase 2 验证 SOP
-
-> [!IMPORTANT]
->
-> 本节提供 Phase 2: The Hippocampus 完整验收流程，请按顺序逐步执行。
-
-### 9.1 Step 1: Schema 部署验证
-
-```bash
-# 1.1 确保 Phase 1 Schema 已部署
-psql -d 'cognizes-engine' -c "\dt threads"
-# 应显示 threads 表
-
-# 1.2 部署 Hippocampus Schema
-psql -d 'cognizes-engine' -f src/cognizes/engine/schema/hippocampus_schema.sql
-
-# 1.3 验证表创建
-psql -d 'cognizes-engine' -c "\dt"
-# 应显示: memories, facts, consolidation_jobs, instructions
-
-# 1.4 验证索引
-psql -d 'cognizes-engine' -c "\di" | grep -E "(memories|facts)"
-
-# 1.5 验证函数
-psql -d 'cognizes-engine' -c "\df calculate_retention_score"
-psql -d 'cognizes-engine' -c "\df cleanup_low_value_memories"
-
-# 1.6 测试衰减函数
-psql -d 'cognizes-engine' -c "SELECT calculate_retention_score(5, NOW() - INTERVAL '3 days', 0.1);"
-# 应返回 0.x 的浮点数
-```
-
-**验收标准**：
-
-- [ ] `memories`, `facts`, `consolidation_jobs`, `instructions` 表存在
-- [ ] HNSW 向量索引已创建
-- [ ] `calculate_retention_score` 函数可正常调用
-- [ ] `cleanup_low_value_memories` 函数存在
-
----
-
-### 9.1.1 Step 1.1: pg_cron 定时任务配置 (P2-2-8, P2-3-4)
-
-> [!IMPORTANT]
->
-> pg_cron 定时任务用于自动触发记忆巩固和低价值记忆清理，需配置后 Phase 2 验收才能完整通过。
-
-```bash
-# 1.1 检查 pg_cron 扩展是否已安装 (Phase 1 已完成)
-psql -d 'cognizes-engine' -c "SELECT * FROM pg_extension WHERE extname = 'pg_cron';"
-# 应返回 1 行记录
-
-# 1.2 配置定时任务 - 每天凌晨 2 点清理低价值记忆 (P2-3-4)
-psql -d 'cognizes-engine' -c "
-SELECT cron.schedule(
-    'cleanup_memories',
-    '0 2 * * *',
-    \$\$SELECT cleanup_low_value_memories(0.1, 7)\$\$
-);
-"
-# 应返回任务 ID (如 1)
-
-# 1.3 配置定时任务 - 每小时触发记忆巩固检查 (P2-2-8)
-psql -d 'cognizes-engine' -c "
-SELECT cron.schedule(
-    'trigger_consolidation',
-    '0 * * * *',
-    \$\$
-    INSERT INTO consolidation_jobs (thread_id, job_type, status)
-    SELECT id, 'full_consolidation', 'pending'
-    FROM threads
-    WHERE updated_at > NOW() - INTERVAL '1 hour'
-      AND id NOT IN (
-          SELECT thread_id FROM consolidation_jobs
-          WHERE created_at > NOW() - INTERVAL '1 hour'
-      )
-    \$\$
-);
-"
-# 应返回任务 ID (如 2)
-
-# 1.4 验证定时任务创建成功
-psql -d 'cognizes-engine' -c "SELECT jobid, jobname, schedule, command FROM cron.job;"
-# 应显示 cleanup_memories 和 trigger_consolidation 两个任务
-
-# 1.5 查看任务执行日志 (首次配置后可能为空)
-psql -d 'cognizes-engine' -c "SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 5;"
-
-# 1.6 手动测试清理函数 (可选)
-psql -d 'cognizes-engine' -c "SELECT cleanup_low_value_memories(0.1, 7);"
-# 应返回清理的记录数 (可能为 0)
-```
-
-**验收标准**：
-
-- [ ] pg_cron 扩展已安装
-- [ ] `cleanup_memories` 定时任务已创建 (每天 02:00)
-- [ ] `trigger_consolidation` 定时任务已创建 (每小时)
-- [ ] `cron.job` 表显示 2 个任务
-
-**删除任务 (如需重新配置)**：
-
-```bash
-# 删除指定任务
-psql -d 'cognizes-engine' -c "SELECT cron.unschedule('cleanup_memories');"
-psql -d 'cognizes-engine' -c "SELECT cron.unschedule('trigger_consolidation');"
-```
-
----
-
-### 9.2 Step 2: 单元测试验证
-
-```bash
-# 2.1 运行 Hippocampus 单元测试
-uv run pytest tests/unittests/hippocampus/ -v --tb=short
-
-# 2.2 查看测试覆盖率 (可选，需先安装 pytest-cov)
-# uv add pytest-cov --dev
-uv run pytest tests/unittests/hippocampus/ -v --cov=src/cognizes/engine/hippocampus --cov-report=term-missing
-```
-
-**验收标准**：
-
-- [ ] 35 个单元测试全部通过
-- [ ] 覆盖以下模块:
-  - `consolidation_worker.py` (数据类、枚举、格式化逻辑)
-  - `retention_manager.py` (保留分数分布)
-  - `context_assembler.py` (Token 估算、上下文格式化)
-  - `memory_service.py` (服务参数验证)
-  - `memory_visualizer.py` (事件类型、进度计算)
-
----
-
-### 9.3 Step 3: 集成测试验证
-
-```bash
-# 3.1 运行 Hippocampus 集成测试
-uv run pytest tests/integration/hippocampus/ -v -s --tb=short
-
-# 3.2 查看详细输出 (含性能指标)
-uv run pytest tests/integration/hippocampus/ -v -s
-```
-
-**验收标准**：
-
-- [ ] 16 个集成测试全部通过
-- [ ] Schema 测试通过: 表结构、索引、函数、约束
-- [ ] Read-Your-Writes 延迟 < 100ms
-- [ ] 情景分块检索性能 P99 < 50ms (1K 规模)
-- [ ] 保留分数分布统计正确
-- [ ] 访问计数递增正确
-- [ ] Fact Upsert 约束生效
-
----
-
-### 9.4 Step 4: 性能测试 (可选, 10 万规模)
-
-```bash
-# 4.0 清理历史性能测试数据 (避免存量数据影响结果)
-uv run python -c "
-import asyncio
-import asyncpg
-
-async def cleanup():
-    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
-    user_id = 'perf_test_user'
-
-    async with pool.acquire() as conn:
-        # 统计现有数据
-        count = await conn.fetchval(
-            'SELECT COUNT(*) FROM memories WHERE user_id = \$1', user_id
-        )
-        if count == 0:
-            print('✓ 无历史测试数据，无需清理')
-            return
-
-        # 清理性能测试数据
-        deleted = await conn.fetchval('''
-            DELETE FROM memories WHERE user_id = \$1 RETURNING COUNT(*)
-        ''', user_id)
-        print(f'✓ 已清理 {count} 条历史测试数据')
-    await pool.close()
-
-asyncio.run(cleanup())
-"
-
-# 4.1 生成大规模测试数据
-uv run python -c "
-import asyncio
-import asyncpg
-import uuid
-import random
-from datetime import datetime, timedelta
-
-async def seed():
-    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
-    user_id = 'perf_test_user'
-    app_name = 'perf_test_app'
-
-    async with pool.acquire() as conn:
-        count = await conn.fetchval(
-            'SELECT COUNT(*) FROM memories WHERE user_id = \$1', user_id
-        )
-        if count >= 100000:
-            print(f'已有 {count} 条数据，跳过')
-            return
-
-        print('开始生成 100K 测试数据...')
-        batch_size = 1000
-        base_time = datetime.now() - timedelta(days=365)
-
-        for batch in range(100):
-            rows = []
-            for i in range(batch_size):
-                created_at = base_time + timedelta(minutes=random.randint(0, 525600))
-                rows.append((
-                    uuid.uuid4(), user_id, app_name, 'episodic',
-                    f'测试记忆 {batch * batch_size + i}',
-                    random.random(), random.randint(0, 100), created_at
-                ))
-            await conn.executemany('''
-                INSERT INTO memories (id, user_id, app_name, memory_type, content,
-                                     retention_score, access_count, created_at)
-                VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8)
-            ''', rows)
-            if (batch + 1) % 10 == 0:
-                print(f'  已插入 {(batch + 1) * batch_size}')
-    await pool.close()
-
-asyncio.run(seed())
-"
-
-# 4.2 运行性能测试
-uv run pytest tests/integration/hippocampus/test_episodic_performance.py -v -s -k "full"
-# === 完整性能测试 (100,000 条) ===
-# 平均延迟: 1.01 ms
-# P99 延迟: 2.38 ms
-```
-
-**验收标准**：
-
-- [ ] 10 万规模时间切片查询 P99 < 100ms
-- [ ] 查询使用索引扫描 (非全表扫描)
-
----
-
-### 9.5 Step 5: 模块导入验证
-
-```bash
-# 5.1 验证模块可导入
-uv run python -c "
-from cognizes.engine.hippocampus.consolidation_worker import (
-    MemoryConsolidationWorker, JobType, JobStatus
-)
-from cognizes.engine.hippocampus.retention_manager import MemoryRetentionManager
-from cognizes.engine.hippocampus.context_assembler import ContextAssembler
-from cognizes.engine.hippocampus.memory_service import OpenMemoryService
-from cognizes.engine.hippocampus.memory_visualizer import MemoryVisualizer
-
-print('✅ 所有模块导入成功')
-"
-```
-
-**验收标准**：
-
-- [ ] 所有 5 个模块可正常导入
-- [ ] 无循环依赖错误
-
----
-
-### 9.6 Step 6: 全量测试验证
-
-```bash
-# 6.1 运行所有测试 (包括 Phase 1)
-uv run pytest tests/ -v --tb=line
-
-# 6.2 查看测试统计
-uv run pytest tests/ -v --tb=line 2>&1 | tail -5
-```
-
-**验收标准**：
-
-- [ ] Phase 1 测试: 61 passed
-- [ ] Phase 2 单元测试: 35 passed
-- [ ] Phase 2 集成测试: 16 passed
-- [ ] **总计: 112+ passed**
-
----
-
-### 9.7 验收总结清单
-
-| 验收项           | 状态 | 说明                          |
-| :--------------- | :--: | :---------------------------- |
-| Schema 部署      |  ⬜  | 4 张表 + 2 个函数 + HNSW 索引 |
-| pg_cron 定时任务 |  ⬜  | 2 个任务 (清理 + 巩固)        |
-| 单元测试         |  ⬜  | 35 tests passed               |
-| 集成测试         |  ⬜  | 17 tests passed               |
-| Read-Your-Writes |  ⬜  | P99 < 100ms                   |
-| 模块导入         |  ⬜  | 5 模块无错误                  |
-| 全量回归         |  ⬜  | 113+ tests passed             |
-
-> [!TIP]
->
-> 完成上述所有验收项后，勾选状态为 ✅，Phase 2: The Hippocampus 验收通过，可进入 Phase 3: The Perception。
-
----
-
-## References
+## 9. 参考文献
 
 <a id="ref1"></a>[1] Psychology Today, "Types of Memory," _Psychology Today_, 2024. [Online]. Available: https://www.psychologytoday.com/us/basics/memory/types-of-memory
 
