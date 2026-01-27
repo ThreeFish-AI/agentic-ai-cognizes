@@ -931,7 +931,7 @@ uv run pytest tests/integration/engine/hippocampus/ -v -s
 uv run python tests/performance/hippocampus/seed_data.py --action all --count 100000
 
 # 4.2 运行性能测试
-uv run pytest tests/integration/hippocampus/test_episodic_performance.py -v -s -k "full"
+uv run pytest tests/integration/engine/hippocampus/test_episodic_performance.py -v -s -k "full"
 # === 完整性能测试 (100,000 条) ===
 # 平均延迟: 1.01 ms
 # P99 延迟: 2.38 ms
@@ -948,22 +948,12 @@ uv run pytest tests/integration/hippocampus/test_episodic_performance.py -v -s -
 
 ```bash
 # 5.1 验证模块可导入
-uv run python -c "
-from cognizes.engine.hippocampus.consolidation_worker import (
-    MemoryConsolidationWorker, JobType, JobStatus
-)
-from cognizes.engine.hippocampus.retention_manager import MemoryRetentionManager
-from cognizes.engine.hippocampus.context_assembler import ContextAssembler
-from cognizes.engine.hippocampus.memory_service import OpenMemoryService
-from cognizes.engine.hippocampus.memory_visualizer import MemoryVisualizer
-
-print('✅ 所有模块导入成功')
-"
+uv run pytest tests/integration/engine/hippocampus/test_imports_check.py -v
 ```
 
 **验收标准**：
 
-- [ ] 所有 5 个模块可正常导入
+- [ ] 所有模块可正常导入 (tests passed)
 - [ ] 无循环依赖错误
 
 ---
@@ -980,10 +970,10 @@ uv run pytest tests/ -v --tb=line 2>&1 | tail -5
 
 **验收标准**：
 
-- [ ] Phase 1 测试: 61 passed
-- [ ] Phase 2 单元测试: 35 passed
-- [ ] Phase 2 集成测试: 16 passed
-- [ ] **总计: 112+ passed**
+- [ ] Phase 1 测试: All passed
+- [ ] Phase 2 单元测试: All passed
+- [ ] Phase 2 集成测试: All passed
+- [ ] **总计: All tests passed**
 
 ---
 
@@ -993,11 +983,11 @@ uv run pytest tests/ -v --tb=line 2>&1 | tail -5
 | :--------------- | :--: | :---------------------------- |
 | Schema 部署      |  ⬜  | 4 张表 + 2 个函数 + HNSW 索引 |
 | pg_cron 定时任务 |  ⬜  | 2 个任务 (清理 + 巩固)        |
-| 单元测试         |  ⬜  | 35 tests passed               |
-| 集成测试         |  ⬜  | 17 tests passed               |
+| 单元测试         |  ⬜  | All passed                    |
+| 集成测试         |  ⬜  | All passed                    |
 | Read-Your-Writes |  ⬜  | P99 < 100ms                   |
-| 模块导入         |  ⬜  | 5 模块无错误                  |
-| 全量回归         |  ⬜  | 113+ tests passed             |
+| 模块导入         |  ⬜  | tests passed                  |
+| 全量回归         |  ⬜  | All passed                    |
 
 > [!TIP]
 >

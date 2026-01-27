@@ -237,6 +237,6 @@ class TestEpisodicPerformance:
         assert p99_latency < 100, f"P99 {p99_latency:.2f}ms 超过 100ms 阈值"
 
 
-# 运行快速测试: uv run pytest tests/integration/hippocampus/test_episodic_performance.py -v -s -k "quick"
-# 运行完整测试: uv run pytest tests/integration/hippocampus/test_episodic_performance.py -v -s -k "full"
-# 运行全部测试: uv run pytest tests/integration/hippocampus/test_episodic_performance.py -v -s
+# 运行快速测试: uv run pytest tests/integration/engine/hippocampus/test_episodic_performance.py -v -s -k "quick"
+# 运行完整测试: uv run pytest tests/integration/engine/hippocampus/test_episodic_performance.py -v -s -k "full"
+# 运行全部测试: uv run pytest tests/integration/engine/hippocampus/test_episodic_performance.py -v -s
