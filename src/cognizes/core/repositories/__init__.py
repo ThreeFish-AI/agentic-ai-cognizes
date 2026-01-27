@@ -9,6 +9,8 @@ from cognizes.core.repositories.session import SessionRepository
 from cognizes.core.repositories.event import EventRepository
 from cognizes.core.repositories.state import StateRepository
 from cognizes.core.repositories.memory import MemoryRepository
+from cognizes.core.repositories.facts import FactsRepository
+from cognizes.core.repositories.instructions import InstructionsRepository
 
 __all__ = [
     "BaseRepository",
@@ -16,4 +18,6 @@ __all__ = [
     "EventRepository",
     "StateRepository",
     "MemoryRepository",
+    "FactsRepository",
+    "InstructionsRepository",
 ]

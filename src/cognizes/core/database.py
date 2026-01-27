@@ -523,6 +523,18 @@ class DatabaseManager:
 
         return MemoryRepository(self)
 
+    @property
+    def facts(self) -> "FactsRepository":
+        from cognizes.core.repositories import FactsRepository
+
+        return FactsRepository(self)
+
+    @property
+    def instructions(self) -> "InstructionsRepository":
+        from cognizes.core.repositories import InstructionsRepository
+
+        return InstructionsRepository(self)
+
 
 async def get_db() -> DatabaseManager:
     """
