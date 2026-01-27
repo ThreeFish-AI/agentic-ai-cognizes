@@ -82,3 +82,35 @@ class MemoryRepository(BaseRepository):
         pool = await self.get_pool()
         async with pool.acquire() as conn:
             return await conn.fetch(query, user_id, app_name, limit)
+
+    async def get_context_window(
+        self,
+        user_id: str,
+        app_name: str,
+        query: str,
+        query_embedding: list[float],
+        max_tokens: int = 4000,
+        memory_ratio: float = 0.3,
+        history_ratio: float = 0.5,
+    ) -> list[asyncpg.Record]:
+        """
+        Retrieve context window combining memories and history.
+
+        Calls the PostgreSQL function get_context_window().
+        Returns a list of records with keys: context_type, content, relevance_score, token_estimate.
+        """
+        query_sql = """
+            SELECT * FROM get_context_window($1, $2, $3, $4, $5, $6, $7)
+        """
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            return await conn.fetch(
+                query_sql,
+                user_id,
+                app_name,
+                query,
+                query_embedding,
+                max_tokens,
+                memory_ratio,
+                history_ratio,
+            )
