@@ -880,11 +880,34 @@ psql -d 'cognizes-engine' -c "SELECT cron.unschedule('trigger_consolidation');"
 
 ### 5.2 Step 2: 单元测试验证
 
+> [!NOTE]
+>
+> 验证 Memory Consolidation Worker 的核心逻辑 (P2-4-3)。
+
+#### 5.2.1 运行单元测试
+
+对应测试文件：
+
+- 单元测试: `tests/unittests/engine/hippocampus/test_consolidation_worker.py`
+- 测试配置: `tests/unittests/engine/hippocampus/conftest.py`
+
 ```bash
 # 2.1 运行 Hippocampus 单元测试
 uv run pytest tests/unittests/engine/hippocampus/ -v --tb=short
+uv run pytest tests/unittests/engine/hippocampus/test_consolidation_worker.py -v
+```
 
-# 2.2 查看测试覆盖率 (可选，需先安装 pytest-cov)
+**关键验证点**:
+
+1. **Fast Replay**: 应生成 Summary
+2. **Deep Reflection**: 应提取 Facts
+3. **Full Consolidation**: 应执行两个阶段
+4. **Mock Isolation**: 外部依赖 (LLM, DB) 均使用 Mock
+
+#### 5.2.2 覆盖率检查 (可选)
+
+```bash
+# 2.2 查看测试覆盖率 (需先安装 pytest-cov)
 # uv add pytest-cov --dev
 uv run pytest tests/unittests/engine/hippocampus/ -v --cov=src/cognizes/engine/hippocampus --cov-report=term-missing
 ```
@@ -923,19 +946,50 @@ uv run pytest tests/integration/engine/hippocampus/ -v -s
 
 ---
 
-### 5.4 Step 4: 性能测试 (可选, 10 万规模)
+### 5.4 Step 4: 性能与一致性测试 (10 万规模)
+
+> [!NOTE]
+>
+> 验证系统的核心性能指标 (P2-3-7) 和一致性保证 (P2-2-13)。
+
+#### 5.4.1 Step 4.1: Read-Your-Writes 延迟测试
+
+验证新写入的记忆能否在下一个 Turn 立即可见，确保 Zero-ETL 架构的即时性。
+
+对应测试文件：`tests/integration/engine/hippocampus/test_read_your_writes.py`
 
 ```bash
-# 4.0 准备性能测试数据 (自动清理旧数据并生成 100K 新数据)
-# 源代码: tests/performance/hippocampus/seed_data.py
+# 运行 Read-Your-Writes 测试
+uv run pytest tests/integration/engine/hippocampus/test_read_your_writes.py -v -s
+```
+
+**关键验证点**:
+
+1. 执行记忆巩固 (写入)
+2. 立即执行记忆检索 (读取)
+3. 验证新写入的记忆立即可见
+4. 延迟 < 100ms (P99)
+
+#### 5.4.2 Step 4.2: 情景分块检索性能测试
+
+验证在 10 万记忆规模下，按时间切片检索的性能。
+
+对应测试文件：`tests/integration/engine/hippocampus/test_episodic_performance.py`
+
+```bash
+# 1. 准备性能测试数据 (自动清理旧数据并生成 100K 新数据)
 uv run python tests/performance/hippocampus/seed_data.py --action all --count 100000
 
-# 4.2 运行性能测试
+# 2. 运行完整性能测试
 uv run pytest tests/integration/engine/hippocampus/test_episodic_performance.py -v -s -k "full"
-# === 完整性能测试 (100,000 条) ===
-# 平均延迟: 1.01 ms
-# P99 延迟: 2.38 ms
 ```
+
+**关键验证点**:
+
+1. 10 万条记忆规模
+2. 随机生成 7 天窗口查询
+3. 验证复合索引使用 (Index Scan)
+4. 延迟 < 100ms (P99)
 
 **验收标准**：
 
@@ -1028,486 +1082,6 @@ uv run pytest tests/ -v --tb=line 2>&1 | tail -5
 | **Phase 1 兼容**           | 与 `threads`/`events` 表无缝关联                        |
 | **向量格式兼容**           | 使用与 Phase 1 相同的 1536 维向量 (Gemini embedding)    |
 
-### 6.4 验证测试代码
-
-> [!NOTE]
->
-> 本节提供关键验证测试的代码实现，对应任务 P2-2-13~14, P2-3-7, P2-4-3。
-
-#### 6.4.1 Read-Your-Writes 延迟测试 (P2-2-13, P2-2-14)
-
-创建 `tests/hippocampus/test_read_your_writes.py`：
-
-```python
-"""
-Read-Your-Writes 延迟测试
-
-验证新写入的记忆能否在下一个 Turn 立即可见，
-确保我们的 Zero-ETL 架构比 Google 方案更快。
-
-验收标准: 延迟 < 100ms
-"""
-
-import asyncio
-import time
-import uuid
-from statistics import mean, stdev
-
-import asyncpg
-import pytest
-
-from hippocampus.consolidation_worker import MemoryConsolidationWorker, JobType
-from hippocampus.memory_service import OpenMemoryService
-
-
-class TestReadYourWrites:
-    """Read-Your-Writes 延迟测试套件"""
-
-    @pytest.fixture
-    async def pool(self):
-        """创建数据库连接池"""
-        pool = await asyncpg.create_pool(
-            "postgresql://user:pass@localhost/agent_db_test"
-        )
-        yield pool
-        await pool.close()
-
-    @pytest.fixture
-    async def memory_service(self, pool):
-        """创建 MemoryService 实例"""
-        return OpenMemoryService(pool)
-
-    @pytest.fixture
-    async def setup_test_thread(self, pool):
-        """创建测试用的 Thread 和 Events"""
-        thread_id = str(uuid.uuid4())
-        user_id = "test_user"
-        app_name = "test_app"
-
-        async with pool.acquire() as conn:
-            # 创建 Thread
-            await conn.execute("""
-                INSERT INTO threads (id, user_id, app_name, state)
-                VALUES ($1, $2, $3, '{}')
-            """, uuid.UUID(thread_id), user_id, app_name)
-
-            # 创建测试 Events
-            for i in range(5):
-                await conn.execute("""
-                    INSERT INTO events (thread_id, author, event_type, content, sequence_num)
-                    VALUES ($1, $2, 'message', $3, $4)
-                """, uuid.UUID(thread_id),
-                    'user' if i % 2 == 0 else 'agent',
-                    f'{{"text": "测试消息 {i}"}}',
-                    i)
-
-        yield {"thread_id": thread_id, "user_id": user_id, "app_name": app_name}
-
-        # 清理
-        async with pool.acquire() as conn:
-            await conn.execute("DELETE FROM threads WHERE id = $1", uuid.UUID(thread_id))
-
-    async def test_read_your_writes_latency(
-        self, pool, memory_service, setup_test_thread
-    ):
-        """
-        验证 Read-Your-Writes 延迟 < 100ms
-
-        流程:
-        1. 执行记忆巩固 (写入)
-        2. 立即执行记忆检索 (读取)
-        3. 测量从写入完成到读取成功的延迟
-        """
-        thread_info = setup_test_thread
-        latencies = []
-
-        for _ in range(10):  # 执行 10 次测量
-            # Step 1: 执行巩固 (写入)
-            result = await memory_service.add_session_to_memory(
-                session_id=thread_info["thread_id"],
-                consolidation_type="fast"
-            )
-            assert result["status"] == "completed"
-
-            # Step 2: 立即检索 (读取) 并测量延迟
-            start = time.perf_counter()
-            search_result = await memory_service.search_memory(
-                app_name=thread_info["app_name"],
-                user_id=thread_info["user_id"],
-                query="测试消息",
-            )
-            end = time.perf_counter()
-
-            latency_ms = (end - start) * 1000
-            latencies.append(latency_ms)
-
-            # 验证记忆可见
-            assert search_result.total_count > 0, "新记忆应立即可见"
-
-        # 统计结果
-        avg_latency = mean(latencies)
-        p99_latency = sorted(latencies)[int(len(latencies) * 0.99)]
-
-        print(f"\n=== Read-Your-Writes 延迟测试结果 ===")
-        print(f"平均延迟: {avg_latency:.2f} ms")
-        print(f"P99 延迟: {p99_latency:.2f} ms")
-        print(f"标准差: {stdev(latencies):.2f} ms")
-
-        # 验收标准: P99 < 100ms
-        assert p99_latency < 100, f"P99 延迟 {p99_latency:.2f}ms 超过 100ms 阈值"
-
-
-# 运行: pytest -v tests/hippocampus/test_read_your_writes.py
-```
-
-#### 6.4.2 情景分块检索性能测试 (P2-3-7)
-
-创建 `tests/hippocampus/test_episodic_performance.py`：
-
-```python
-"""
-情景分块检索性能测试
-
-验证在 10 万记忆规模下，按时间切片检索的 P99 < 100ms。
-"""
-
-import asyncio
-import random
-import time
-import uuid
-from datetime import datetime, timedelta
-from statistics import mean
-
-import asyncpg
-import pytest
-
-
-class TestEpisodicPerformance:
-    """情景分块性能测试套件"""
-
-    MEMORY_COUNT = 100_000  # 10 万记忆
-    TEST_RUNS = 50
-
-    @pytest.fixture(scope="class")
-    async def pool(self):
-        """创建数据库连接池"""
-        pool = await asyncpg.create_pool(
-            "postgresql://user:pass@localhost/agent_db_test",
-            min_size=5,
-            max_size=20,
-        )
-        yield pool
-        await pool.close()
-
-    @pytest.fixture(scope="class")
-    async def seed_memories(self, pool):
-        """
-        预先填充 10 万条测试记忆
-
-        注意: 此 fixture 仅在测试类首次运行时执行
-        """
-        user_id = "perf_test_user"
-        app_name = "perf_test_app"
-
-        async with pool.acquire() as conn:
-            # 检查是否已有测试数据
-            count = await conn.fetchval(
-                "SELECT COUNT(*) FROM memories WHERE user_id = $1",
-                user_id
-            )
-            if count >= self.MEMORY_COUNT:
-                print(f"\n已存在 {count} 条测试记忆，跳过种子数据生成")
-                return {"user_id": user_id, "app_name": app_name}
-
-            print(f"\n开始生成 {self.MEMORY_COUNT} 条测试记忆...")
-
-            # 批量插入 (每批 1000 条)
-            batch_size = 1000
-            base_time = datetime.now() - timedelta(days=365)
-
-            for batch in range(self.MEMORY_COUNT // batch_size):
-                rows = []
-                for i in range(batch_size):
-                    created_at = base_time + timedelta(
-                        minutes=random.randint(0, 525600)  # 一年内随机
-                    )
-                    rows.append((
-                        uuid.uuid4(),
-                        user_id,
-                        app_name,
-                        'episodic',
-                        f'测试记忆内容 {batch * batch_size + i}',
-                        random.random(),  # retention_score
-                        random.randint(0, 100),  # access_count
-                        created_at,
-                    ))
-
-                await conn.executemany("""
-                    INSERT INTO memories (id, user_id, app_name, memory_type, content,
-                                         retention_score, access_count, created_at)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                """, rows)
-
-                if (batch + 1) % 10 == 0:
-                    print(f"  已插入 {(batch + 1) * batch_size} 条记忆")
-
-            print(f"测试数据生成完成")
-
-        return {"user_id": user_id, "app_name": app_name}
-
-    async def test_time_slice_query_performance(self, pool, seed_memories):
-        """
-        测试按时间切片查询性能
-
-        验收标准: P99 < 100ms
-        """
-        user_id = seed_memories["user_id"]
-        app_name = seed_memories["app_name"]
-
-        latencies = []
-
-        for _ in range(self.TEST_RUNS):
-            # 随机选择一个 7 天的时间窗口
-            start_offset = random.randint(0, 358)
-            start_time = datetime.now() - timedelta(days=365 - start_offset)
-            end_time = start_time + timedelta(days=7)
-
-            # 执行时间切片查询
-            start = time.perf_counter()
-
-            async with pool.acquire() as conn:
-                rows = await conn.fetch("""
-                    SELECT id, content, retention_score, created_at
-                    FROM memories
-                    WHERE user_id = $1
-                      AND app_name = $2
-                      AND created_at >= $3
-                      AND created_at <= $4
-                    ORDER BY created_at DESC
-                    LIMIT 50
-                """, user_id, app_name, start_time, end_time)
-
-            end = time.perf_counter()
-            latency_ms = (end - start) * 1000
-            latencies.append(latency_ms)
-
-        # 统计结果
-        avg_latency = mean(latencies)
-        p99_latency = sorted(latencies)[int(len(latencies) * 0.99)]
-        max_latency = max(latencies)
-
-        print(f"\n=== 情景分块检索性能测试结果 ({self.MEMORY_COUNT:,} 条记忆) ===")
-        print(f"平均延迟: {avg_latency:.2f} ms")
-        print(f"P99 延迟: {p99_latency:.2f} ms")
-        print(f"最大延迟: {max_latency:.2f} ms")
-        print(f"测试次数: {self.TEST_RUNS}")
-
-        # 验收标准: P99 < 100ms
-        assert p99_latency < 100, f"P99 延迟 {p99_latency:.2f}ms 超过 100ms 阈值"
-
-    async def test_composite_index_usage(self, pool, seed_memories):
-        """验证复合索引 (user_id, app_name, created_at) 被正确使用"""
-        user_id = seed_memories["user_id"]
-        app_name = seed_memories["app_name"]
-        start_time = datetime.now() - timedelta(days=30)
-        end_time = datetime.now()
-
-        async with pool.acquire() as conn:
-            # 使用 EXPLAIN ANALYZE 检查查询计划
-            plan = await conn.fetch("""
-                EXPLAIN ANALYZE
-                SELECT id, content, retention_score, created_at
-                FROM memories
-                WHERE user_id = $1
-                  AND app_name = $2
-                  AND created_at >= $3
-                  AND created_at <= $4
-                ORDER BY created_at DESC
-                LIMIT 50
-            """, user_id, app_name, start_time, end_time)
-
-            plan_text = "\n".join(row[0] for row in plan)
-            print(f"\n=== 查询执行计划 ===\n{plan_text}")
-
-            # 验证使用了索引扫描
-            assert "Index" in plan_text, "查询应使用索引扫描"
-            assert "Seq Scan" not in plan_text, "不应使用全表扫描"
-
-
-# 运行: pytest -v tests/hippocampus/test_episodic_performance.py
-```
-
-#### 6.4.3 单元测试框架 (P2-4-3)
-
-创建 `tests/hippocampus/conftest.py` (pytest 配置):
-
-```python
-"""
-Hippocampus 测试配置
-
-提供测试 fixtures 和共享配置
-"""
-
-import asyncio
-import os
-
-import asyncpg
-import pytest
-
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """创建事件循环"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.fixture(scope="session")
-async def test_db_pool():
-    """
-    创建测试数据库连接池
-
-    环境变量:
-    - TEST_DATABASE_URL: 测试数据库连接字符串
-    """
-    database_url = os.getenv(
-        "TEST_DATABASE_URL",
-        "postgresql://user:pass@localhost/agent_db_test"
-    )
-    pool = await asyncpg.create_pool(database_url, min_size=2, max_size=10)
-    yield pool
-    await pool.close()
-
-
-@pytest.fixture
-async def clean_test_data(test_db_pool):
-    """
-    测试后清理数据
-
-    在每个测试结束后删除测试期间创建的数据
-    """
-    created_ids = {"threads": [], "memories": [], "facts": []}
-
-    yield created_ids
-
-    # 清理
-    async with test_db_pool.acquire() as conn:
-        if created_ids["facts"]:
-            await conn.execute(
-                "DELETE FROM facts WHERE id = ANY($1::uuid[])",
-                created_ids["facts"]
-            )
-        if created_ids["memories"]:
-            await conn.execute(
-                "DELETE FROM memories WHERE id = ANY($1::uuid[])",
-                created_ids["memories"]
-            )
-        if created_ids["threads"]:
-            await conn.execute(
-                "DELETE FROM threads WHERE id = ANY($1::uuid[])",
-                created_ids["threads"]
-            )
-```
-
-创建 `tests/hippocampus/test_consolidation_worker.py`:
-
-```python
-"""
-MemoryConsolidationWorker 单元测试
-"""
-
-import uuid
-import pytest
-
-from hippocampus.consolidation_worker import (
-    MemoryConsolidationWorker,
-    JobType,
-    JobStatus,
-)
-
-
-class TestConsolidationWorker:
-    """Consolidation Worker 单元测试"""
-
-    @pytest.fixture
-    async def worker(self, test_db_pool):
-        return MemoryConsolidationWorker(test_db_pool)
-
-    async def test_fast_replay_generates_summary(self, worker, test_db_pool, clean_test_data):
-        """Fast Replay 应生成对话摘要"""
-        # Setup: 创建测试 Thread 和 Events
-        thread_id = str(uuid.uuid4())
-        async with test_db_pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO threads (id, user_id, app_name, state)
-                VALUES ($1, 'test_user', 'test_app', '{}')
-            """, uuid.UUID(thread_id))
-            clean_test_data["threads"].append(uuid.UUID(thread_id))
-
-            for i in range(3):
-                await conn.execute("""
-                    INSERT INTO events (thread_id, author, event_type, content, sequence_num)
-                    VALUES ($1, $2, 'message', $3, $4)
-                """, uuid.UUID(thread_id),
-                    'user' if i % 2 == 0 else 'agent',
-                    f'{{"text": "对话内容 {i}"}}', i)
-
-        # Act
-        job = await worker.consolidate(thread_id, JobType.FAST_REPLAY)
-
-        # Assert
-        assert job.status == JobStatus.COMPLETED
-        assert "summary" in job.result
-        assert job.result["summary"]["memory_id"]
-
-    async def test_deep_reflection_extracts_facts(self, worker, test_db_pool, clean_test_data):
-        """Deep Reflection 应提取 Facts"""
-        thread_id = str(uuid.uuid4())
-        async with test_db_pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO threads (id, user_id, app_name, state)
-                VALUES ($1, 'test_user', 'test_app', '{}')
-            """, uuid.UUID(thread_id))
-            clean_test_data["threads"].append(uuid.UUID(thread_id))
-
-            # 创建包含偏好信息的对话
-            await conn.execute("""
-                INSERT INTO events (thread_id, author, event_type, content, sequence_num)
-                VALUES ($1, 'user', 'message', '{"text": "我喜欢吃寿司和意大利面"}', 0)
-            """, uuid.UUID(thread_id))
-
-        # Act
-        job = await worker.consolidate(thread_id, JobType.DEEP_REFLECTION)
-
-        # Assert
-        assert job.status == JobStatus.COMPLETED
-        # Facts 可能为空 (取决于 LLM 提取结果)，但任务应成功完成
-
-    async def test_full_consolidation_runs_both_phases(self, worker, test_db_pool, clean_test_data):
-        """Full Consolidation 应执行两个阶段"""
-        thread_id = str(uuid.uuid4())
-        async with test_db_pool.acquire() as conn:
-            await conn.execute("""
-                INSERT INTO threads (id, user_id, app_name, state)
-                VALUES ($1, 'test_user', 'test_app', '{}')
-            """, uuid.UUID(thread_id))
-            clean_test_data["threads"].append(uuid.UUID(thread_id))
-
-            await conn.execute("""
-                INSERT INTO events (thread_id, author, event_type, content, sequence_num)
-                VALUES ($1, 'user', 'message', '{"text": "测试消息"}', 0)
-            """, uuid.UUID(thread_id))
-
-        # Act
-        job = await worker.consolidate(thread_id, JobType.FULL_CONSOLIDATION)
-
-        # Assert
-        assert job.status == JobStatus.COMPLETED
-        assert "summary" in job.result  # Fast Replay 结果
-        assert "facts" in job.result or "insights" in job.result  # Deep Reflection 结果
-```
-
 ---
 
 ### 6.5. 交付物清单
@@ -1516,53 +1090,61 @@ class TestConsolidationWorker:
 
 | 文件路径                                            | 描述                    | 状态      |
 | :-------------------------------------------------- | :---------------------- | :-------- |
-| `src/cognizes/engine/schema/hippocampus_schema.sql` | Hippocampus 扩展 Schema | 🔲 待开始 |
+| `src/cognizes/engine/schema/hippocampus_schema.sql` | Hippocampus 扩展 Schema | ✅ 已完成 |
 
 #### 6.5.2 代码文件
 
-| 文件路径                                                  | 描述            | 状态      |
-| :-------------------------------------------------------- | :-------------- | :-------- |
-| `src/cognizes/engine/hippocampus/__init__.py`             | 模块初始化      | 🔲 待开始 |
-| `src/cognizes/engine/hippocampus/consolidation_worker.py` | 记忆巩固 Worker | 🔲 待开始 |
-| `src/cognizes/engine/hippocampus/retention_manager.py`    | 记忆保持管理器  | 🔲 待开始 |
-| `src/cognizes/engine/hippocampus/context_assembler.py`    | 上下文组装器    | 🔲 待开始 |
-| `src/cognizes/engine/hippocampus/memory_service.py`       | ADK 适配器      | 🔲 待开始 |
+| 文件路径                                                  | 描述              | 状态      |
+| :-------------------------------------------------------- | :---------------- | :-------- |
+| **Core Repositories**                                     |                   |           |
+| `src/cognizes/core/repositories/memory.py`                | Memory Repository | ✅ 已完成 |
+| `src/cognizes/core/repositories/facts.py`                 | Facts Repository  | ✅ 已完成 |
+| **Engine Components**                                     |                   |           |
+| `src/cognizes/engine/hippocampus/consolidation_worker.py` | 记忆巩固 Worker   | ✅ 已完成 |
+| `src/cognizes/engine/hippocampus/memory_service.py`       | OpenMemoryService | ✅ 已完成 |
+| `src/cognizes/engine/hippocampus/retention_manager.py`    | 记忆保持管理器    | ✅ 已完成 |
+| `src/cognizes/engine/hippocampus/context_assembler.py`    | 上下文组装器      | ✅ 已完成 |
+| `src/cognizes/engine/hippocampus/memory_visualizer.py`    | 记忆可视化工具    | ✅ 已完成 |
 
 #### 6.5.3 测试文件
 
-| 文件路径                                                     | 描述                       | 状态      |
-| :----------------------------------------------------------- | :------------------------- | :-------- |
-| `tests/integration/hippocampus/test_consolidation_worker.py` | Worker 单元测试            | 🔲 待开始 |
-| `tests/integration/hippocampus/test_retention_manager.py`    | 保持管理器单元测试         | 🔲 待开始 |
-| `tests/integration/hippocampus/test_context_assembler.py`    | 上下文组装器单元测试       | 🔲 待开始 |
-| `tests/integration/hippocampus/test_memory_service.py`       | OpenMemoryService 集成测试 | 🔲 待开始 |
+| 文件路径                                                                   | 描述                      | 状态      |
+| :------------------------------------------------------------------------- | :------------------------ | :-------- |
+| **Unit Tests**                                                             |                           |           |
+| `tests/unittests/engine/hippocampus/test_consolidation_worker.py`          | Worker 单元测试           | ✅ 已完成 |
+| `tests/unittests/engine/hippocampus/test_memory_service.py`                | Service 单元测试          | ✅ 已完成 |
+| `tests/unittests/engine/hippocampus/test_retention_manager.py`             | 保持管理器单元测试        | ✅ 已完成 |
+| `tests/unittests/engine/hippocampus/test_context_assembler.py`             | 上下文组装器单元测试      | ✅ 已完成 |
+| **Integration Tests**                                                      |                           |           |
+| `tests/integration/engine/hippocampus/test_read_your_writes.py`            | Read-Your-Writes 延迟测试 | ✅ 已完成 |
+| `tests/integration/engine/hippocampus/test_episodic_performance.py`        | 情景分块性能测试          | ✅ 已完成 |
+| `tests/integration/engine/hippocampus/test_consolidation_repo_refactor.py` | 巩固流程集成测试          | ✅ 已完成 |
+| `tests/integration/engine/hippocampus/test_imports_check.py`               | 模块导入检查              | ✅ 已完成 |
 
 #### 6.5.4 目录结构
 
 ```
-src/cognizes/engine/
-├── schema/
-│   ├── agent_schema.sql           # Phase 1 基础 Schema
-│   └── hippocampus_schema.sql     # Phase 2 扩展 Schema
+src/cognizes/
+├── core/
+│   └── repositories/          # Core Data Access Layer
+│       ├── memory.py
+│       └── facts.py
 ├── engine/
-│   ├── pulse/                     # Phase 1: The Pulse
-│   │   ├── __init__.py
-│   │   ├── state_manager.py
-│   │   └── pg_notify_listener.py
-│   └── hippocampus/               # Phase 2: The Hippocampus
-│       ├── __init__.py
+│   ├── schema/
+│   │   └── hippocampus_schema.sql
+│   └── hippocampus/           # Phase 2: The Hippocampus
 │       ├── consolidation_worker.py
 │       ├── retention_manager.py
 │       ├── context_assembler.py
-│       └── memory_service.py
+│       ├── memory_service.py
+│       └── memory_visualizer.py
 tests/
-├── pulse/
-│   └── test_state_manager.py
-└── hippocampus/
-    ├── test_consolidation_worker.py
-    ├── test_retention_manager.py
-    ├── test_context_assembler.py
-    └── test_memory_service.py
+├── unittests/
+│   └── engine/
+│       └── hippocampus/       # Unit Tests
+└── integration/
+    └── engine/
+        └── hippocampus/       # Integration & Performance Tests
 ```
 
 ---

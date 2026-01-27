@@ -171,4 +171,4 @@ class TestReadYourWrites:
         assert latency_ms < 100
 
 
-# 运行: uv run pytest tests/integration/hippocampus/test_read_your_writes.py -v -s
+# 运行: uv run pytest tests/integration/engine/hippocampus/test_read_your_writes.py -v -s
