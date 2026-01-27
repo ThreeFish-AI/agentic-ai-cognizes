@@ -872,11 +872,11 @@ uv run pytest tests/unittests/pulse tests/integration/pulse -v
 
 ## 5. 验证 SOP (Phase 1：生命体征监测)
 
-> [!TIP]
+> [!IMPORTANT]
 >
-> **Metaphor: The Physical Examination (系统体检)**
->
-> 本章节将 Phase 1 验证过程比作一次完整的外科体检。我们需要依次确认环境无菌 (Environment)、器官功能正常 (Organ Function)、血液循环畅通 (Systemic Circulation) 以及心脏抗压能力 (Cardiac Stress)。
+> 本节提供 Phase 1: The Pulse 完整验收流程，请按顺序逐步执行。
+
+Phase 1 验证是一次完整的外科体检。我们需要依次确认环境无菌 (Environment)、器官功能正常 (Organ Function)、血液循环畅通 (Systemic Circulation) 以及心脏抗压能力 (Cardiac Stress)。
 
 ### 5.1 Step 1: 环境检查 (Clinical Environment Check)
 

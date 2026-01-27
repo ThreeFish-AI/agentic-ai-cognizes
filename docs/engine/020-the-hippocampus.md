@@ -526,13 +526,13 @@ Memory Consolidation Worker 采用**两阶段巩固**策略，模拟人类大脑
 
 ```mermaid
 graph TB
-    subgraph "阶段 1: Fast Replay (快回放)"
+    subgraph "Fast Replay (快回放)"
         E[Events 事件流] --> ER[extract_recent_events]
         ER --> GS[generate_summary]
         GS --> SS[store_summary]
     end
 
-    subgraph "阶段 2: Deep Reflection (深反思)"
+    subgraph "Deep Reflection (深反思)"
         E --> EF[extract_facts]
         EF --> VI[vectorize_insights]
         VI --> SM[store_to_memories]
@@ -552,7 +552,7 @@ graph TB
 
 > [!IMPORTANT]
 >
-> **Source of Truth**: [src/cognizes/engine/hippocampus/consolidation_worker.py](file:///src/cognizes/engine/hippocampus/consolidation_worker.py)
+> **Source of Truth**: [src/cognizes/engine/hippocampus/consolidation_worker.py](../../src/cognizes/engine/hippocampus/consolidation_worker.py)
 >
 > 该模块实现了 `MemoryConsolidationWorker` 类，负责：
 >
@@ -625,11 +625,27 @@ $$
 
 #### 4.3.2 Memory Retention Manager 实现
 
-创建 `src/cognizes/engine/hippocampus/retention_manager.py`：
+> [!IMPORTANT]
+>
+> **Source of Truth**: [src/cognizes/engine/hippocampus/retention_manager.py](../../src/cognizes/engine/hippocampus/retention_manager.py)
+
+负责实现艾宾浩斯遗忘曲线算法，自动管理记忆的保持与清理：
+
+1. **Retention Score Calculation**: 根据时间衰减和访问频率计算分值。
+2. **Access Recording**: 记录访问历史 (`record_access`)，提升高频记忆的权重。
+3. **Low Value Cleanup**: 周期性清理低价值 (`score < 0.1`) 且陈旧的记忆 (`cleanup_low_value_memories`)。
 
 #### 4.3.3 Context Window 组装器实现
 
-创建 `src/cognizes/engine/hippocampus/context_assembler.py`：
+> [!IMPORTANT]
+>
+> **Source of Truth**: [src/cognizes/engine/hippocampus/context_assembler.py](../../src/cognizes/engine/hippocampus/context_assembler.py)
+
+负责根据 Token 预算动态组装 LLM 上下文窗口。该模块 (`ContextAssembler` 类) 实现了 Python 侧的预算分配逻辑，而非单纯依赖 SQL：
+
+1. **Budgeting**: 根据配置比例 (System 10%, Memory 30%, History 40%...) 分配 Token 预算。
+2. **Assembly**: 检索并筛选 System Prompt, Top-K Memories, Recent History, 和 Facts。
+3. **Truncation**: 确保总 Token 数不超过模型限制。
 
 ### 4.4 Step 4: OpenMemoryService 实现 (ADK 适配器)
 
@@ -637,11 +653,7 @@ $$
 
 > [!IMPORTANT]
 >
-> **Source of Truth**: [src/cognizes/adapters/postgres/memory_service.py](file:///src/cognizes/adapters/postgres/memory_service.py)
-
-#### 4.4.1 接口设计
-
-创建 `src/cognizes/engine/hippocampus/memory_service.py`：
+> **Source of Truth**: [src/cognizes/adapters/postgres/memory_service.py](../../src/cognizes/adapters/postgres/memory_service.py)
 
 #### 4.4.1 核心能力 (Capabilities)
 
@@ -659,7 +671,8 @@ $$
 
 3. **`get_context_window(user_id, app_name, query)`**:
    - **功能**: 构建 LLM 上下文窗口。
-   - **实现**: 调用 SQL 函数 `get_context_window`，动态组装 System Prompt (Instructions) + Facts + Memories + History。
+   - **实现**: 调用 `ContextAssembler` (Python 类) 动态组装 System Prompt (Instructions) + Facts + Memories + History，确保严格遵守 Token 预算。
+   - **说明**: 虽然底层存在 SQL 函数 `get_context_window`，但为了更精细的控制，应用层逻辑是主要的组装者。
 
 #### 4.4.2 接口契约验证
 
@@ -723,12 +736,14 @@ graph TB
 | :--------------- | :------------------------ | :---------------------- | :----------- |
 | 记忆巩固进度     | Consolidation Worker 执行 | `ACTIVITY_SNAPSHOT`     | 巩固进度条   |
 | 记忆召回         | search_memory() 返回结果  | `CUSTOM (memory_hit)`   | 来源标注卡片 |
-| 遗忘曲线更新     | retention_score 衰减      | `CUSTOM (decay_update)` | 记忆热力图   |
+| 遗忘曲线更新     | API 轮询 (Scheduled)      | N/A (Dashboard Polling) | 记忆热力图   |
 | 上下文预算       | Context Budgeting 执行    | `STATE_DELTA`           | Token 仪表盘 |
 
 #### 4.5.3 MemoryVisualizer 实现
 
-创建 `src/cognizes/engine/hippocampus/memory_visualizer.py`：
+> [!IMPORTANT]
+>
+> **Source of Truth**: [src/cognizes/engine/hippocampus/memory_visualizer.py](../../src/cognizes/engine/hippocampus/memory_visualizer.py)
 
 #### 4.5.4 前端展示组件规范
 
@@ -765,6 +780,8 @@ graph TB
 > [!IMPORTANT]
 >
 > 本节提供 Phase 2: The Hippocampus 完整验收流程，请按顺序逐步执行。
+
+Phase 2 验证是一次深入的**认知功能评估 (Cognitive Assessment)**。我们需要依次确认记忆中枢结构完备 (Schema Anatomy)、神经单元逻辑自洽 (Unit Logic)、记忆回路畅通 (Memory Circuit) 以及海马体承载极限 (Performance Capacity)。
 
 ### 5.1 Step 1: Schema 部署验证
 
@@ -827,16 +844,7 @@ psql -d 'cognizes-engine' -c "
 SELECT cron.schedule(
     'trigger_consolidation',
     '0 * * * *',
-    \$\$
-    INSERT INTO consolidation_jobs (thread_id, job_type, status)
-    SELECT id, 'full_consolidation', 'pending'
-    FROM threads
-    WHERE updated_at > NOW() - INTERVAL '1 hour'
-      AND id NOT IN (
-          SELECT thread_id FROM consolidation_jobs
-          WHERE created_at > NOW() - INTERVAL '1 hour'
-      )
-    \$\$
+    \$\$SELECT trigger_maintenance_consolidation('1 hour'::interval)\$\$
 );
 "
 # 应返回任务 ID (如 2)
@@ -874,11 +882,11 @@ psql -d 'cognizes-engine' -c "SELECT cron.unschedule('trigger_consolidation');"
 
 ```bash
 # 2.1 运行 Hippocampus 单元测试
-uv run pytest tests/unittests/hippocampus/ -v --tb=short
+uv run pytest tests/unittests/engine/hippocampus/ -v --tb=short
 
 # 2.2 查看测试覆盖率 (可选，需先安装 pytest-cov)
 # uv add pytest-cov --dev
-uv run pytest tests/unittests/hippocampus/ -v --cov=src/cognizes/engine/hippocampus --cov-report=term-missing
+uv run pytest tests/unittests/engine/hippocampus/ -v --cov=src/cognizes/engine/hippocampus --cov-report=term-missing
 ```
 
 **验收标准**：
@@ -897,10 +905,10 @@ uv run pytest tests/unittests/hippocampus/ -v --cov=src/cognizes/engine/hippocam
 
 ```bash
 # 3.1 运行 Hippocampus 集成测试
-uv run pytest tests/integration/hippocampus/ -v -s --tb=short
+uv run pytest tests/integration/engine/hippocampus/ -v -s --tb=short
 
 # 3.2 查看详细输出 (含性能指标)
-uv run pytest tests/integration/hippocampus/ -v -s
+uv run pytest tests/integration/engine/hippocampus/ -v -s
 ```
 
 **验收标准**：
@@ -918,79 +926,9 @@ uv run pytest tests/integration/hippocampus/ -v -s
 ### 5.4 Step 4: 性能测试 (可选, 10 万规模)
 
 ```bash
-# 4.0 清理历史性能测试数据 (避免存量数据影响结果)
-uv run python -c "
-import asyncio
-import asyncpg
-
-async def cleanup():
-    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
-    user_id = 'perf_test_user'
-
-    async with pool.acquire() as conn:
-        # 统计现有数据
-        count = await conn.fetchval(
-            'SELECT COUNT(*) FROM memories WHERE user_id = \$1', user_id
-        )
-        if count == 0:
-            print('✓ 无历史测试数据，无需清理')
-            return
-
-        # 清理性能测试数据
-        deleted = await conn.fetchval('''
-            DELETE FROM memories WHERE user_id = \$1 RETURNING COUNT(*)
-        ''', user_id)
-        print(f'✓ 已清理 {count} 条历史测试数据')
-    await pool.close()
-
-asyncio.run(cleanup())
-"
-
-# 4.1 生成大规模测试数据
-uv run python -c "
-import asyncio
-import asyncpg
-import uuid
-import random
-from datetime import datetime, timedelta
-
-async def seed():
-    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
-    user_id = 'perf_test_user'
-    app_name = 'perf_test_app'
-
-    async with pool.acquire() as conn:
-        count = await conn.fetchval(
-            'SELECT COUNT(*) FROM memories WHERE user_id = \$1', user_id
-        )
-        if count >= 100000:
-            print(f'已有 {count} 条数据，跳过')
-            return
-
-        print('开始生成 100K 测试数据...')
-        batch_size = 1000
-        base_time = datetime.now() - timedelta(days=365)
-
-        for batch in range(100):
-            rows = []
-            for i in range(batch_size):
-                created_at = base_time + timedelta(minutes=random.randint(0, 525600))
-                rows.append((
-                    uuid.uuid4(), user_id, app_name, 'episodic',
-                    f'测试记忆 {batch * batch_size + i}',
-                    random.random(), random.randint(0, 100), created_at
-                ))
-            await conn.executemany('''
-                INSERT INTO memories (id, user_id, app_name, memory_type, content,
-                                     retention_score, access_count, created_at)
-                VALUES (\$1, \$2, \$3, \$4, \$5, \$6, \$7, \$8)
-            ''', rows)
-            if (batch + 1) % 10 == 0:
-                print(f'  已插入 {(batch + 1) * batch_size}')
-    await pool.close()
-
-asyncio.run(seed())
-"
+# 4.0 准备性能测试数据 (自动清理旧数据并生成 100K 新数据)
+# 源代码: tests/performance/hippocampus/seed_data.py
+uv run python tests/performance/hippocampus/seed_data.py --action all --count 100000
 
 # 4.2 运行性能测试
 uv run pytest tests/integration/hippocampus/test_episodic_performance.py -v -s -k "full"
