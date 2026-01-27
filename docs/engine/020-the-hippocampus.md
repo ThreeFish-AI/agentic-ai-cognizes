@@ -52,50 +52,85 @@ graph LR
     style H3 fill:#7c2d12,stroke:#fb923c,color:#fff
 ```
 
-### 1.2 核心设计
+### 1.2 核心认知架构 (Core Cognitive Architecture)
 
-#### 1.2.1 记忆类型与生物学类比
+为了构建具备"长期心智"的 Agent，我们参照认知心理学模型，设计了更加体系化的记忆系统。该系统不仅是数据的存储库，更是信息流转与升维的加工厂。
 
-基于认知科学研究<sup>[[1]](#ref1)</sup>和 LangGraph Memory 设计<sup>[[2]](#ref2)</sup>，我们将 Agent 记忆系统对标人类记忆的三种类型：
+#### 1.2.1 记忆模型：正交的三维视图 (Static View)
 
-| 记忆类型              | 生物学定义                     | Agent 等价物             | 存储策略                | 对应表            |
-| :-------------------- | :----------------------------- | :----------------------- | :---------------------- | :---------------- |
-| **Semantic Memory**   | 事实性知识（"巴黎是法国首都"） | 用户偏好、业务规则       | 结构化 Key-Value + 向量 | `facts` 表        |
-| **Episodic Memory**   | 情景记忆（"昨天我去了哪里"）   | 对话历史、交互上下文     | 时序分块 + 向量嵌入     | `memories` 表     |
-| **Procedural Memory** | 程序性知识（"如何骑自行车"）   | 工具使用规则、Agent 指令 | 指令模板 + 版本控制     | `instructions` 表 |
+我们将长期记忆解耦为三个正交维度，分别解决"经历"、"知识"与"技能"的持久化问题：
 
-#### 1.2.2 记忆生命周期
+| 记忆维度 (Dimension)                  | 认知隐喻 (Metaphor) | 数据形态 (Schema)                               | 核心职能 (Function)                                            | 存储实体       |
+| :------------------------------------ | :------------------ | :---------------------------------------------- | :------------------------------------------------------------- | :------------- |
+| **Episodic Memory**<br>(情景记忆)     | **"自传体流"**      | **时序片段** + 向量嵌入<br>(Time-Series Chunks) | 记录"发生了什么"。提供连续的交互上下文，维护对话的历史连贯性。 | `memories`     |
+| **Semantic Memory**<br>(语义记忆)     | **"概念网络"**      | **结构化事实** + 关系<br>(Structured Facts)     | 记录"是什么"。沉淀用户偏好、画像与世界知识，跨会话复用。       | `facts`        |
+| **Procedural Memory**<br>(程序性记忆) | **"肌肉记忆"**      | **指令集** + 版本控制<br>(Instructions)         | 记录"怎么做"。固化 Agent 的行为模式、SOP 与工具使用策略。      | `instructions` |
+
+#### 1.2.2 动态机制：海马体循环 (Dynamic View)
+
+模仿人脑的海马体 (Hippocampus) 功能，我们在系统中引入了**记忆巩固 (Consolidation)** 与**再激活 (Reactivation)** 的动态循环：
 
 ```mermaid
-graph LR
-    subgraph "记忆形成 (Memory Formation)"
-        E[Events 事件流] --> FR[Fast Replay<br>快回放]
-        FR --> S[Summary 摘要]
-        E --> DR[Deep Reflection<br>深反思]
-        DR --> F[Facts 语义记忆]
+graph TB
+    subgraph WM_Scope ["Working Memory (工作记忆)"]
+        direction TB
+        WM[Context Window<br>当前上下文]
     end
 
-    subgraph "记忆存储 (Memory Storage)"
-        S --> M[Memories 表<br>情景记忆]
-        F --> M
+    subgraph Processes ["Cognitive Processes (认知)"]
+        direction TB
+        Encoding(Encoding<br>双重编码)
+        Retrieval(Retrieval<br>联想检索)
+        Consolidation(Consolidation<br>后台巩固)
+        Decay(Decay<br>生物衰减)
     end
 
-    subgraph "记忆保持 (Memory Retention)"
-        M --> D[Decay 衰减计算]
-        D --> C{Retention Score}
-        C -->|高分| K[保留]
-        C -->|低分| R[清理]
+    subgraph Hippocampus ["Hippocampus (LTM)"]
+        direction TB
+        EM[(Episodic<br>情景记忆)]
+        SM[(Semantic<br>语义记忆)]
+        PM[(Procedural<br>程序性记忆)]
     end
 
-    subgraph "记忆使用 (Memory Usage)"
-        K --> CW[Context Window<br>上下文组装]
-        CW --> P[Prompt 输出]
-    end
+    %% Flows
+    Input(User Input) --> WM
+    WM -->|实时写入| Encoding
+    Encoding -->|存储| Hippocampus
 
-    style E fill:#065f46,stroke:#34d399,color:#fff
-    style M fill:#1e3a5f,stroke:#60a5fa,color:#fff
-    style CW fill:#7c2d12,stroke:#fb923c,color:#fff
+    WM -.->|异步提炼| Consolidation
+    Consolidation -->|提取事实| Hippocampus
+    Consolidation -->|压缩归档| Hippocampus
+
+    Retrieval -->|注入| WM
+    Hippocampus -.->|向量索引| Retrieval
+    Hippocampus -.->|定期清理| Decay
+
+    style WM_Scope fill:#065f46,stroke:#34d399,color:#fff
+    style Hippocampus fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style Processes fill:#7c2d12,stroke:#fb923c,color:#fff
 ```
+
+**图解说明**：
+
+1.  **Working Memory (工作记忆)**：作为系统的"前额叶"，接收用户输入并维护当前的上下文窗口 (`Context Window`)。
+2.  **Hippocampus (海马体/LTM)**：长时记忆的存储中心，由情景 (`Episodic`)、语义 (`Semantic`) 和程序性 (`Procedural`) 三个正交的记忆区组成。
+3.  **Cognitive Processes (认知过程)**：连接 WM 与 LTM 的动态机制，通过以下四个关键过程维持系统的"新陈代谢"：
+    - **Encoding (编码)**：将实时的短期交互转化为可存储的记忆痕迹。
+    - **Consolidation (巩固)**：在后台异步运行，将碎片化的对话历史提炼为结构化的事实与知识。
+    - **Retrieval (检索)**：基于语义相关性，在需要时将沉睡的长期记忆"再激活"并加载回工作记忆。
+    - **Decay (衰减)**：模拟生物遗忘机制，定期清理低价值或长期未被访问的记忆，防止记忆库臃肿。
+
+#### 1.2.3 关键特性 (Key Features)
+
+1.  **双重路径 (Dual Pathways)**:
+    - **快路径 (Fast Path)**: 实时对话流直接进入工作记忆，保证响应速度。
+    - **慢路径 (Slow Path)**: 异步进程在后台进行"反思"与"巩固"，将碎片化对话转化为结构化知识。
+
+2.  **联想召回 (Associative Recall)**:
+    - 摒弃单纯的关键词匹配，利用 **Embedding Vector** 实现基于语义相似度的模糊召回，模拟"触景生情"的认知体验。
+
+3.  **生物性遗忘 (Biological Decay)**:
+    - 引入基于 Ebbinghaus 遗忘曲线的 `Retention Score`，让低价值记忆随时间自然消退，保持记忆库的"信噪比"与鲜活性。
 
 ### 1.3 执行导图 (Execution Map)
 
