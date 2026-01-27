@@ -110,52 +110,54 @@ graph TB
     style Processes fill:#7c2d12,stroke:#fb923c,color:#fff
 ```
 
-**图解说明**：
-
-1.  **Working Memory (工作记忆)**：作为系统的"前额叶"，接收用户输入并维护当前的上下文窗口 (`Context Window`)。
-2.  **Hippocampus (海马体/LTM)**：长时记忆的存储中心，由情景 (`Episodic`)、语义 (`Semantic`) 和程序性 (`Procedural`) 三个正交的记忆区组成。
-3.  **Cognitive Processes (认知过程)**：连接 WM 与 LTM 的动态机制，通过以下四个关键过程维持系统的"新陈代谢"：
-    - **Encoding (编码)**：将实时的短期交互转化为可存储的记忆痕迹。
-    - **Consolidation (巩固)**：在后台异步运行，将碎片化的对话历史提炼为结构化的事实与知识。
-    - **Retrieval (检索)**：基于语义相关性，在需要时将沉睡的长期记忆"再激活"并加载回工作记忆。
-    - **Decay (衰减)**：模拟生物遗忘机制，定期清理低价值或长期未被访问的记忆，防止记忆库臃肿。
+1. **Working Memory (工作记忆)**：作为系统的"前额叶"，接收用户输入并维护当前的上下文窗口 (`Context Window`)。
+2. **Hippocampus (海马体/LTM)**：长时记忆的存储中心，由情景 (`Episodic`)、语义 (`Semantic`) 和程序性 (`Procedural`) 三个正交的记忆区组成。
+3. **Cognitive Processes (认知过程)**：连接 WM 与 LTM 的动态机制，通过以下四个关键过程维持系统的"新陈代谢"：
+   - **Encoding (编码)**：将实时的短期交互转化为可存储的记忆痕迹。
+   - **Consolidation (巩固)**：在后台异步运行，将碎片化的对话历史提炼为结构化的事实与知识。
+   - **Retrieval (检索)**：基于语义相关性，在需要时将沉睡的长期记忆"再激活"并加载回工作记忆。
+   - **Decay (衰减)**：模拟生物遗忘机制，定期清理低价值或长期未被访问的记忆，防止记忆库臃肿。
 
 #### 1.2.3 关键特性 (Key Features)
 
-1.  **双重路径 (Dual Pathways)**:
-    - **快路径 (Fast Path)**: 实时对话流直接进入工作记忆，保证响应速度。
-    - **慢路径 (Slow Path)**: 异步进程在后台进行"反思"与"巩固"，将碎片化对话转化为结构化知识。
+1. **双重路径 (Dual Pathways)**:
+   - **快路径 (Fast Path)**: 实时对话流直接进入工作记忆，保证响应速度。
+   - **慢路径 (Slow Path)**: 异步进程在后台进行"反思"与"巩固"，将碎片化对话转化为结构化知识。
 
-2.  **联想召回 (Associative Recall)**:
-    - 摒弃单纯的关键词匹配，利用 **Embedding Vector** 实现基于语义相似度的模糊召回，模拟"触景生情"的认知体验。
+2. **联想召回 (Associative Recall)**:
+   - 摒弃单纯的关键词匹配，利用 **Embedding Vector** 实现基于语义相似度的模糊召回，模拟"触景生情"的认知体验。
 
-3.  **生物性遗忘 (Biological Decay)**:
-    - 引入基于 Ebbinghaus 遗忘曲线的 `Retention Score`，让低价值记忆随时间自然消退，保持记忆库的"信噪比"与鲜活性。
+3. **生物性遗忘 (Biological Decay)**:
+   - 引入基于 Ebbinghaus 遗忘曲线的 `Retention Score`，让低价值记忆随时间自然消退，保持记忆库的"信噪比"与鲜活性。
 
 ### 1.3 执行导图 (Execution Map)
 
-#### 1.3.1 任务-章节对照表
+为了确保系统的**正交性 (Orthogonality)** 与**自洽性 (Self-consistency)**，我们将执行计划重构为分层递进的实施路径，确保每一层都在坚实的基础上构建。
+
+#### 1.3.1 任务-文档锚定
+
+我们将工程任务映射到架构的三个正交切面：**基础架构 (Infra)**、**认知过程 (Process)** 与 **服务集成 (Service)**。
 
 > [!NOTE]
 >
-> 以下表格将 [001-task-checklist.md](./001-task-checklist.md) 的任务 ID 与本文档章节进行对照，便于追踪执行进度。
+> **版本对照**：本计划属于 **Engine Roadmap (Phase 2)**，对应 **Project Roadmap ([002-task-checklist](../002-task-checklist.md))** 中的 **Phase 3 (T3.3 记忆持久化)**。
 
-| 任务模块             | 任务 ID 范围     | 对应章节                                                        |
-| :------------------- | :--------------- | :-------------------------------------------------------------- |
-| 记忆机制调研         | P2-1-1 ~ P2-1-5  | [2. 技术调研](#2-技术调研记忆机制深度分析)                      |
-| Memory Consolidation | P2-2-1 ~ P2-2-14 | [4.2 记忆巩固实现](#42-step-2-memory-consolidation-worker-实现) |
-| Biological Retention | P2-3-1 ~ P2-3-11 | [4.3 遗忘与保持实现](#43-step-3-biological-retention-实现)      |
-| 验收与文档           | P2-4-1 ~ P2-4-4  | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)         |
+| 架构切面 (Layer)                  | 核心组件 (Component)               | 关键职责 (Responsibility)                                                           | 对应任务集 (Engine)                                                           | 对应任务集 (Project)                                 |
+| :-------------------------------- | :--------------------------------- | :---------------------------------------------------------------------------------- | :---------------------------------------------------------------------------- | :--------------------------------------------------- |
+| **L0: Foundation**<br>静态存储层  | **Unified Schema**<br>Repositories | 定义记忆的三维形态 (`Episodic`, `Semantic`, `Procedural`) 及其持久化接口。          | **P2-2 (Part)**<br>- Schema Definition<br>- Repository Implementation         | **T3.3.1 - T3.3.3**<br>- 短期/长期/情景记忆存储      |
+| **L1: Inflow**<br>动态生成层      | **Consolidation Worker**           | 实现记忆的**双重编码**：<br>- Fast Replay (摘要)<br>- Deep Reflection (事实提取)    | **P2-2 (Main)**<br>- Worker Skeleton<br>- Prompt Engineering<br>- Async Queue | **T3.3.7**<br>- 记忆固化机制                         |
+| **L2: Lifecycle**<br>动态维护层   | **Retention Manager**              | 实现记忆的**生物周期**：<br>- Ebbinghaus Decay (遗忘)<br>- Context Budgeting (组装) | **P2-3**<br>- Scoring Algorithm<br>- Window Assembly                          | **T3.3.7**<br>- 自动维护与清理                       |
+| **L3: Integration**<br>服务适配层 | **Memory Service**                 | 实现与 ADK 的**标准契约**：<br>- Interface Adapter<br>- Hybrid Search               | **P2-4**<br>- ADK Integration<br>- E2E Verification                           | **T3.3.5, T3.3.6**<br>- 记忆管理器<br>- 记忆检索功能 |
 
-#### 1.3.2 工期规划
+#### 1.3.2 工期安排 (2.5 Days)
 
-| 阶段 | 任务模块             | 任务 ID          | 预估工期 | 交付物                         |
-| :--- | :------------------- | :--------------- | :------- | :----------------------------- |
-| 2.1  | 记忆机制调研         | P2-1-1 ~ P2-1-5  | 0.25 Day | 调研笔记 + 对比分析表          |
-| 2.2  | Schema 扩展          | P2-2-1 ~ P2-2-2  | 0.25 Day | `memories` 表, `facts` 表 DDL  |
-| 2.3  | Consolidation Worker | P2-2-3 ~ P2-2-14 | 0.75 Day | `consolidation_worker.py`      |
-| 2.4  | Biological Retention | P2-3-1 ~ P2-3-11 | 0.5 Day  | 衰减算法 + Context Window 函数 |
-| 2.5  | 测试与验收           | P2-4-1 ~ P2-4-4  | 0.25 Day | 测试报告 + 技术文档            |
+| 阶段          | 里程碑定义 (Milestone)                   | 关键交付物 (Deliverables)                                             | 预估工期 |
+| :------------ | :--------------------------------------- | :-------------------------------------------------------------------- | :------- |
+| **Phase 2.1** | **Cognitive Alignment**<br>(认知对齐)    | ✅ 记忆机制调研报告<br>✅ 技术选型对比表                              | 0.25 Day |
+| **Phase 2.2** | **Memory Formation**<br>(记忆生成机制)   | ✅ Hippocampus Schema DDL<br>✅ `ConsolidationWorker` (Alpha)         | 1.0 Day  |
+| **Phase 2.3** | **Memory Dynamics**<br>(记忆动力学)      | ✅ `retention_score` 算法实现<br>✅ `get_context_window` 存储过程     | 0.5 Day  |
+| **Phase 2.4** | **Cortex Integration**<br>(全脑集成验收) | ✅ `PostgresMemoryService` (ADK compliant)<br>✅ 记忆系统验收测试报告 | 0.25 Day |
+| **Phase 2.5** | 测试                                     | 测试代码 + 验证文档                                                   | 0.5 Day  |
 
 ---
 
