@@ -149,3 +149,57 @@ $$ LANGUAGE plpgsql;
 -- ============================================
 -- 每天凌晨 2 点执行记忆清理
 -- SELECT cron.schedule('cleanup_memories', '0 2 * * *', $$SELECT cleanup_low_value_memories(0.1, 7)$$);
+-- ============================================
+-- 8. SQL 函数: Context Window 组装
+-- ============================================
+CREATE OR REPLACE FUNCTION get_context_window(
+    p_user_id VARCHAR(255),
+    p_app_name VARCHAR(255),
+    p_query TEXT,
+    p_query_embedding vector(1536),
+    p_max_tokens INTEGER DEFAULT 4000,
+    p_memory_ratio FLOAT DEFAULT 0.3,  -- 记忆占比
+    p_history_ratio FLOAT DEFAULT 0.5   -- 历史占比
+)
+RETURNS TABLE (
+    context_type VARCHAR(50),
+    content TEXT,
+    relevance_score FLOAT,
+    token_estimate INTEGER
+) AS $$
+DECLARE
+    memory_budget INTEGER;
+    history_budget INTEGER;
+BEGIN
+    -- 计算各部分 Token 预算
+    memory_budget := (p_max_tokens * p_memory_ratio)::INTEGER;
+    history_budget := (p_max_tokens * p_history_ratio)::INTEGER;
+
+    -- 返回相关记忆 (按相似度 + 保留分数排序)
+    RETURN QUERY
+    SELECT
+        'memory'::VARCHAR(50) AS context_type,
+        m.content,
+        (1 - (m.embedding <=> p_query_embedding)) * m.retention_score AS relevance_score,
+        (LENGTH(m.content) / 4)::INTEGER AS token_estimate  -- 粗略估算
+    FROM memories m
+    WHERE m.user_id = p_user_id
+        AND m.app_name = p_app_name
+    ORDER BY relevance_score DESC
+    LIMIT 10;
+
+    -- 返回最近历史 (来自 events 表)
+    RETURN QUERY
+    SELECT
+        'history'::VARCHAR(50) AS context_type,
+        e.content::TEXT,
+        1.0::FLOAT AS relevance_score,  -- 历史按时间排序
+        (LENGTH(e.content::TEXT) / 4)::INTEGER AS token_estimate
+    FROM events e
+    JOIN threads t ON e.thread_id = t.id
+    WHERE t.user_id = p_user_id
+        AND t.app_name = p_app_name
+    ORDER BY e.created_at DESC
+    LIMIT 20;
+END;
+$$ LANGUAGE plpgsql;
