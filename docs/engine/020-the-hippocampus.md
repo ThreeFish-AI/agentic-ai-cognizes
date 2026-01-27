@@ -1153,20 +1153,20 @@ tests/
 
 ### 7.1 技术风险
 
-| 风险                        | 影响 | 概率 | 缓解策略                                |
-| :-------------------------- | :--- | :--- | :-------------------------------------- |
-| **LLM 提取不稳定**          | 中   | 中   | 设计健壮的 JSON 解析逻辑，容错处理      |
-| **向量检索精度不足**        | 高   | 低   | 引入 Reranker (Phase 3)，调优 HNSW 参数 |
-| **艾宾浩斯衰减参数不合理**  | 中   | 中   | 提供可配置参数，通过 A/B 测试调优       |
-| **Context Window 组装偏差** | 中   | 低   | 实现精确 Token 统计 (使用 tiktoken)     |
+| 风险                        | 影响 | 概率 | 缓解策略                                   | 状态       |
+| :-------------------------- | :--- | :--- | :----------------------------------------- | :--------- |
+| **LLM 提取不稳定**          | 中   | 中   | `MemoryService` 解析时增加 Fallback 逻辑   | ✅ 已实施  |
+| **向量检索精度不足**        | 高   | 低   | 引入 Reranker (Phase 3)，调优 HNSW 参数    | 🔲 Phase 3 |
+| **艾宾浩斯衰减参数不合理**  | 中   | 中   | SQL 函数参数化设计，支持 A/B 测试调优      | ✅ 已实施  |
+| **Context Window 组装偏差** | 中   | 低   | 暂用估算，Phase 3 引入 `tiktoken` 精确统计 | ⚠️ 需优化  |
 
 ### 7.2 工程风险
 
-| 风险                        | 影响 | 概率 | 缓解策略                               |
-| :-------------------------- | :--- | :--- | :------------------------------------- |
-| **Gemini API 限流**         | 高   | 中   | 实现指数退避重试，批量处理减少调用次数 |
-| **大规模记忆清理阻塞**      | 中   | 低   | 使用 `pg_cron` 定时任务，分批删除      |
-| **Phase 1 Schema 变更影响** | 低   | 低   | 使用外键约束，确保数据一致性           |
+| 风险                        | 影响 | 概率 | 缓解策略                                  | 状态        |
+| :-------------------------- | :--- | :--- | :---------------------------------------- | :---------- |
+| **Gemini API 限流**         | 高   | 中   | 需增加指数退避重试 (Exponential Backoff)  | 🔲 Phase 3  |
+| **大规模记忆清理阻塞**      | 中   | 低   | `pg_cron` 错峰执行，后续增加 Batch Delete | ⚠️ 部分实施 |
+| **Phase 1 Schema 变更影响** | 低   | 低   | `REFERENCES` 外键约束确保一致性           | ✅ 已实施   |
 
 ---
 
@@ -1174,67 +1174,23 @@ tests/
 
 ### 8.1 Prompt 模板参考
 
-#### Fast Replay Prompt
-
-```
-你是一个对话摘要专家。请将以下对话历史压缩为一个简洁的摘要，保留关键信息。
-
-对话历史:
-{conversation}
-
-要求:
-1. 摘要长度不超过 200 字
-2. 保留用户的关键问题和 Agent 的核心回答
-3. 保留任何重要的决策或结论
-4. 使用第三人称描述
-
-请直接输出摘要，不要添加任何前缀或解释。
-```
-
-#### Deep Reflection Prompt
-
-```
-你是一个用户画像分析专家。请从以下对话中提取用户的关键信息，包括偏好、规则和事实。
-
-对话历史:
-{conversation}
-
-请以 JSON 格式输出，格式如下:
-{
-    "facts": [
-        {
-            "type": "preference|rule|profile",
-            "key": "偏好/规则的唯一标识，如 food_preference",
-            "value": {"具体的偏好内容"},
-            "confidence": 0.0-1.0 的置信度分数
-        }
-    ],
-    "insights": [
-        {
-            "content": "从对话中提炼的深层洞察",
-            "importance": "high|medium|low"
-        }
-    ]
-}
-
-要求:
-1. 只提取明确表达或可靠推断的信息
-2. preference: 用户的喜好（如饮食、风格偏好）
-3. rule: 用户设定的规则（如"每周五不开会"）
-4. profile: 用户的基本信息（如职业、位置）
-5. 如果没有可提取的信息，返回空数组
-
-请只输出 JSON，不要添加任何其他内容。
-```
+请见独立文档: [`prompt_template.md`](../../src/cognizes/engine/hippocampus/prompt_template.md)
 
 ### 8.2 衰减算法参数调优指南
 
-| 场景               | 推荐 λ (decay_rate) | 推荐阈值 (threshold) | 说明                       |
-| :----------------- | :------------------ | :------------------- | :------------------------- |
-| **高交互频率 App** | 0.15                | 0.15                 | 加速遗忘，保持记忆新鲜度   |
-| **低交互频率 App** | 0.05                | 0.05                 | 减缓遗忘，保留更多历史记忆 |
-| **敏感信息场景**   | 0.3                 | 0.2                  | 快速清理，减少隐私风险     |
-| **知识积累场景**   | 0.02                | 0.02                 | 长期保留，构建知识图谱     |
+| 场景               | 推荐 λ (decay_rate) | 推荐阈值 (threshold) | 说明                       | 配置方式 (Configuration Action)                                                                         |
+| :----------------- | :------------------ | :------------------- | :------------------------- | :------------------------------------------------------------------------------------------------------ |
+| **高交互频率 App** | 0.15                | 0.15                 | 加速遗忘，保持记忆新鲜度   | Python Config: `RetentionManager(decay_rate=0.15)`<br>SQL Cron: `cleanup_low_value_memories(0.15, ...)` |
+| **低交互频率 App** | 0.05                | 0.05                 | 减缓遗忘，保留更多历史记忆 | Python Config: `RetentionManager(decay_rate=0.05)`<br>SQL Cron: `cleanup_low_value_memories(0.05, ...)` |
+| **敏感信息场景**   | 0.3                 | 0.2                  | 快速清理，减少隐私风险     | Python Config: `RetentionManager(decay_rate=0.3)`<br>SQL Cron: `cleanup_low_value_memories(0.2, ...)`   |
+| **知识积累场景**   | 0.02                | 0.02                 | 长期保留，构建知识图谱     | Python Config: `RetentionManager(decay_rate=0.02)`<br>SQL Cron: `cleanup_low_value_memories(0.02, ...)` |
+
+> [!TIP]
+>
+> **Configuration Locations**:
+>
+> 1. **Runtime App**: Update `src/config.py` (passed to `RetentionManager`).
+> 2. **Periodic Cleanup**: Update `pg_cron` schedule or SQL function defaults in `hippocampus_schema.sql`.
 
 ---
 
