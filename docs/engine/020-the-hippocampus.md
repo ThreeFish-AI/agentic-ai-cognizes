@@ -393,260 +393,54 @@ erDiagram
     }
 ```
 
-### 3.2 表职责说明
+### 3.2 记忆模型职责边界 (Memory Responsibilities)
 
-| 表名                   | 职责                           | 对标概念                  | 生命周期      |
-| :--------------------- | :----------------------------- | :------------------------ | :------------ |
-| **memories**           | 情景记忆存储 (Episodic Memory) | LangGraph Store           | 按衰减清理    |
-| **facts**              | 语义记忆存储 (Semantic Memory) | ADK Memory + User Profile | 持久 (可覆盖) |
-| **consolidation_jobs** | 记忆巩固任务队列               | 异步 Worker 任务追踪      | 完成后归档    |
-| **instructions**       | 程序性记忆 (Procedural Memory) | Agent 指令模板            | 版本控制      |
+遵循 **AGENTS.md** 的 **Orthogonal Decomposition (正交分解)** 原则，我们将三种记忆严格映射到三张表中，确保职责互不重叠且自洽。
 
-### 3.3 核心表 DDL 设计
+#### 3.2.1 职责正交矩阵
 
-#### 3.3.1 memories 表 (情景记忆)
+| 维度         | **memories** (情景流)            | **facts** (事实态)                        | **instructions** (行为规)      |
+| :----------- | :------------------------------- | :---------------------------------------- | :----------------------------- |
+| **核心职责** | **Store Experience** (经历)      | **Store Knowledge** (知识)                | **Store Behavior** (行为)      |
+| **数据形态** | **Unstructured Text** (非结构化) | **Structured KV** (结构化)                | **System Prompt** (指令文本)   |
+| **时序特征** | **Time-Series** (流式追加)       | **Current State** (状态覆盖)              | **Versioned** (版本控制)       |
+| **典型内容** | 对话切片、阶段性总结 (`summary`) | 用户画像 (`profile`)、偏好 (`preference`) | Agent 人设、交互准则           |
+| **检索模式** | 语义相似度 (`search_vector`)     | 精确键值匹配 + 语义 (`get` + `search`)    | 键值加载 (`load_instructions`) |
 
-```sql
--- memories: 情景记忆存储 (Episodic Memory)
-CREATE TABLE IF NOT EXISTS memories (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    thread_id           UUID REFERENCES threads(id) ON DELETE SET NULL,
-    user_id             VARCHAR(255) NOT NULL,
-    app_name            VARCHAR(255) NOT NULL,
+#### 3.2.2 关于 `memory_type='semantic'` 的消歧
 
-    -- 记忆类型
-    memory_type         VARCHAR(50) NOT NULL DEFAULT 'episodic',
-    -- CHECK (memory_type IN ('episodic', 'semantic', 'summary'))
+在 `memories` 表的定义中，`memory_type` 包含 `semantic` 枚举，这与 `facts` 表看似重叠。为了消除歧义 (Entropy Reduction)，我们做出以下 **明确界定**：
 
-    -- 记忆内容
-    content             TEXT NOT NULL,
+1. **`facts` 表 (Primary Semantic)**:
+   - **定义**: 经过**深度固化**、**去重**且**结构化**的确切知识。
+   - **场景**: "用户不喜欢吃辣", "用户的职业是工程师"。这是系统认为"为真"的事实。
 
-    -- 向量嵌入 (用于语义检索)
-    embedding           vector(1536),
+2. **`memories` 表中的 `semantic` 类型 (Secondary/Transient)**:
+   - **定义**: 尚未完全结构化，或难以用 KV 表达的**泛化知识片段**。也可以理解为"关于某个知识点的非结构化描述"。
+   - **场景**: "用户详细阐述了他对人工智能未来的看法"（一段 500 字的观点）。这不适合存为 KV Fact，但它是一段具备"语义价值"的记忆，比单纯的"对话切片 (`episodic`)"更抽象。
+   - **推荐策略**: 初期 **优先使用 `episodic` 和 `summary`**。仅当需要存储大段非结构化知识（如文档片段 RAG）时使用 `semantic` 类型。此时 `memories` 充当了轻量级的 Vector DB。
 
-    -- 元数据 (时间切片、来源事件等)
-    metadata            JSONB DEFAULT '{}',
+> [!TIP]
+>
+> **设计心法**:
+>
+> - **memories** 是 Agent 的 **"日记本"** (叙事)。
+> - **facts** 是 Agent 的 **"档案库"** (画像)。
+> - **instructions** 是 Agent 的 **"员工手册"** (规则)。
 
-    -- 记忆保持机制 (艾宾浩斯衰减)
-    retention_score     FLOAT NOT NULL DEFAULT 1.0,
-    access_count        INTEGER NOT NULL DEFAULT 0,
-    last_accessed_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+### 3.3 核心 Schema 定义 (Single Source of Truth)
 
-    -- 时间戳
-    created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+为了遵循 **Entropy Reduction (熵减)** 原则，避免文档与代码的 drift，所有的 DDL 和 SQL 函数定义已收敛至统一的 Schema 文件维护。
 
--- 索引策略
-CREATE INDEX IF NOT EXISTS idx_memories_user_app ON memories(user_id, app_name);
-CREATE INDEX IF NOT EXISTS idx_memories_thread ON memories(thread_id);
-CREATE INDEX IF NOT EXISTS idx_memories_retention ON memories(retention_score DESC);
-CREATE INDEX IF NOT EXISTS idx_memories_created_at ON memories(created_at DESC);
-
--- HNSW 向量索引 (用于语义检索)
-CREATE INDEX IF NOT EXISTS idx_memories_embedding
-    ON memories USING hnsw (embedding vector_cosine_ops)
-    WITH (m = 16, ef_construction = 64);
-
--- 复合索引 (情景分块检索)
-CREATE INDEX IF NOT EXISTS idx_memories_time_bucket
-    ON memories(user_id, app_name, created_at DESC);
-```
-
-#### 3.3.2 facts 表 (语义记忆/事实)
-
-```sql
--- facts: 语义记忆存储 (Semantic Memory / Key-Value Facts)
-CREATE TABLE IF NOT EXISTS facts (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    thread_id           UUID REFERENCES threads(id) ON DELETE SET NULL,
-    user_id             VARCHAR(255) NOT NULL,
-    app_name            VARCHAR(255) NOT NULL,
-
-    -- 事实类型与键
-    fact_type           VARCHAR(50) NOT NULL DEFAULT 'preference',
-    -- CHECK (fact_type IN ('preference', 'rule', 'profile', 'custom'))
-    key                 VARCHAR(255) NOT NULL,
-
-    -- 事实值 (结构化 JSON)
-    value               JSONB NOT NULL,
-
-    -- 向量嵌入 (可选，用于语义检索)
-    embedding           vector(1536),
-
-    -- 置信度与有效期
-    confidence          FLOAT NOT NULL DEFAULT 1.0,
-    valid_from          TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    valid_until         TIMESTAMP WITH TIME ZONE,
-
-    -- 时间戳
-    created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-
-    -- 每个用户的每个 key 只有一个有效值 (可更新)
-    CONSTRAINT facts_user_key_unique UNIQUE (user_id, app_name, fact_type, key)
-);
-
--- 索引策略
-CREATE INDEX IF NOT EXISTS idx_facts_user_app ON facts(user_id, app_name);
-CREATE INDEX IF NOT EXISTS idx_facts_type_key ON facts(fact_type, key);
-CREATE INDEX IF NOT EXISTS idx_facts_value ON facts USING GIN (value);
-
--- 有效期过滤索引
-CREATE INDEX IF NOT EXISTS idx_facts_validity
-    ON facts(user_id, app_name)
-    WHERE valid_until IS NULL OR valid_until > NOW();
-```
-
-#### 3.3.3 consolidation_jobs 表 (巩固任务队列)
-
-```sql
--- consolidation_jobs: 记忆巩固任务队列
-CREATE TABLE IF NOT EXISTS consolidation_jobs (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    thread_id           UUID NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
-
-    -- 任务状态
-    status              VARCHAR(20) NOT NULL DEFAULT 'pending',
-    -- CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled'))
-
-    -- 任务类型
-    job_type            VARCHAR(50) NOT NULL,
-    -- CHECK (job_type IN ('fast_replay', 'deep_reflection', 'full_consolidation'))
-
-    -- 处理结果
-    result              JSONB DEFAULT '{}',
-    error               TEXT,
-
-    -- 时间戳
-    started_at          TIMESTAMP WITH TIME ZONE,
-    completed_at        TIMESTAMP WITH TIME ZONE,
-    created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 索引策略
-CREATE INDEX IF NOT EXISTS idx_consolidation_jobs_status ON consolidation_jobs(status);
-CREATE INDEX IF NOT EXISTS idx_consolidation_jobs_thread ON consolidation_jobs(thread_id);
-CREATE INDEX IF NOT EXISTS idx_consolidation_jobs_pending
-    ON consolidation_jobs(created_at)
-    WHERE status = 'pending';
-```
-
-### 3.4 关键 SQL 函数设计
-
-#### 3.4.1 艾宾浩斯衰减计算函数
-
-```sql
--- 计算记忆保留分数 (Ebbinghaus Decay)
--- 公式: retention_score = access_frequency * time_decay
--- time_decay = exp(-λ * days_since_last_access)
-CREATE OR REPLACE FUNCTION calculate_retention_score(
-    p_access_count INTEGER,
-    p_last_accessed_at TIMESTAMP WITH TIME ZONE,
-    p_decay_rate FLOAT DEFAULT 0.1  -- λ 衰减系数
-)
-RETURNS FLOAT AS $$
-DECLARE
-    days_elapsed FLOAT;
-    time_decay FLOAT;
-    frequency_boost FLOAT;
-BEGIN
-    -- 计算距离上次访问的天数
-    days_elapsed := EXTRACT(EPOCH FROM (NOW() - p_last_accessed_at)) / 86400.0;
-
-    -- 时间衰减 (指数衰减)
-    time_decay := EXP(-p_decay_rate * days_elapsed);
-
-    -- 频率加成 (对数平滑)
-    frequency_boost := 1.0 + LN(1.0 + p_access_count);
-
-    -- 综合保留分数 (归一化到 0-1)
-    RETURN LEAST(1.0, time_decay * frequency_boost / 5.0);
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-```
-
-#### 3.4.2 记忆清理函数
-
-```sql
--- 清理低价值记忆
-CREATE OR REPLACE FUNCTION cleanup_low_value_memories(
-    p_threshold FLOAT DEFAULT 0.1,  -- 保留分数阈值
-    p_min_age_days INTEGER DEFAULT 7  -- 最小保留天数
-)
-RETURNS INTEGER AS $$
-DECLARE
-    deleted_count INTEGER;
-BEGIN
-    -- 先更新所有记忆的保留分数
-    UPDATE memories
-    SET retention_score = calculate_retention_score(access_count, last_accessed_at);
-
-    -- 删除低于阈值且超过最小保留期的记忆
-    DELETE FROM memories
-    WHERE retention_score < p_threshold
-      AND created_at < NOW() - INTERVAL '1 day' * p_min_age_days;
-
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    RETURN deleted_count;
-END;
-$$ LANGUAGE plpgsql;
-```
-
-#### 3.4.3 Context Window 组装函数
-
-```sql
--- 获取上下文窗口内容 (根据 Token 预算动态组装)
-CREATE OR REPLACE FUNCTION get_context_window(
-    p_user_id VARCHAR(255),
-    p_app_name VARCHAR(255),
-    p_query TEXT,
-    p_query_embedding vector(1536),
-    p_max_tokens INTEGER DEFAULT 4000,
-    p_memory_ratio FLOAT DEFAULT 0.3,  -- 记忆占比
-    p_history_ratio FLOAT DEFAULT 0.5   -- 历史占比
-)
-RETURNS TABLE (
-    context_type VARCHAR(50),
-    content TEXT,
-    relevance_score FLOAT,
-    token_estimate INTEGER
-) AS $$
-DECLARE
-    memory_budget INTEGER;
-    history_budget INTEGER;
-BEGIN
-    -- 计算各部分 Token 预算
-    memory_budget := (p_max_tokens * p_memory_ratio)::INTEGER;
-    history_budget := (p_max_tokens * p_history_ratio)::INTEGER;
-
-    -- 返回相关记忆 (按相似度 + 保留分数排序)
-    RETURN QUERY
-    SELECT
-        'memory'::VARCHAR(50) AS context_type,
-        m.content,
-        (1 - (m.embedding <=> p_query_embedding)) * m.retention_score AS relevance_score,
-        (LENGTH(m.content) / 4)::INTEGER AS token_estimate  -- 粗略估算
-    FROM memories m
-    WHERE m.user_id = p_user_id
-      AND m.app_name = p_app_name
-    ORDER BY relevance_score DESC
-    LIMIT 10;
-
-    -- 返回最近历史 (来自 events 表)
-    RETURN QUERY
-    SELECT
-        'history'::VARCHAR(50) AS context_type,
-        e.content::TEXT,
-        1.0::FLOAT AS relevance_score,  -- 历史按时间排序
-        (LENGTH(e.content::TEXT) / 4)::INTEGER AS token_estimate
-    FROM events e
-    JOIN threads t ON e.thread_id = t.id
-    WHERE t.user_id = p_user_id
-      AND t.app_name = p_app_name
-    ORDER BY e.created_at DESC
-    LIMIT 20;
-END;
-$$ LANGUAGE plpgsql;
-```
+> [!IMPORTANT]
+>
+> **Source of Truth**: [src/cognizes/engine/schema/hippocampus_schema.sql](file:///src/cognizes/engine/schema/hippocampus_schema.sql)
+>
+> 该文件包含：
+>
+> 1. **Tables**: `memories`, `facts`, `consolidation_jobs`, `instructions`
+> 2. **Indexes**: PGVector HNSW 索引与 B-Tree 辅助索引
+> 3. **Functions**: `calculate_retention_score` (艾宾浩斯衰减), `cleanup_low_value_memories` (自动清理), `get_context_window` (上下文组装)
 
 ---
 
