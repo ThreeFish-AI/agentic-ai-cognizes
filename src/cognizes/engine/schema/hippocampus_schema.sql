@@ -226,3 +226,30 @@ BEGIN
     LIMIT 20;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================
+-- 9. SQL 函数: 触发周期性巩固 (Cron Trigger)
+-- ============================================
+CREATE OR REPLACE FUNCTION trigger_maintenance_consolidation(
+    p_interval INTERVAL DEFAULT '1 hour'
+)
+RETURNS INTEGER AS $$
+DECLARE
+    job_count INTEGER;
+BEGIN
+    WITH new_jobs AS (
+        INSERT INTO consolidation_jobs (thread_id, job_type, status)
+        SELECT id, 'full_consolidation', 'pending'
+        FROM threads
+        WHERE updated_at > NOW() - p_interval
+          AND id NOT IN (
+              SELECT thread_id FROM consolidation_jobs
+              WHERE created_at > NOW() - p_interval
+          )
+        RETURNING 1
+    )
+    SELECT COUNT(*) INTO job_count FROM new_jobs;
+    RETURN job_count;
+END;
+$$ LANGUAGE plpgsql;
+
