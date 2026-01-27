@@ -14,7 +14,10 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cognizes.core.database import DatabaseManager
 
 
 @dataclass
@@ -61,9 +64,8 @@ class StateManager:
     4. State 前缀解析
     """
 
-    def __init__(self, db: Any):
-        # Type hint is Any to avoid circular import if DatabaseManager is imported here
-        # ideally we import it inside methods or use TYPE_CHECKING
+    def __init__(self, db: "DatabaseManager"):
+        # Type hint is DatabaseManager to support IDE autocompletion
         self.db = db
         self._temp_state: dict[str, dict] = {}  # temp: 前缀的内存缓存
 
