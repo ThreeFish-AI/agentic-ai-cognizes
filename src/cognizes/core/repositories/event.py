@@ -90,3 +90,25 @@ class EventRepository(BaseRepository):
                 )
 
                 return {"status": "success", "version": new_version, "event": event_row}
+
+    async def get_recent_events(
+        self,
+        thread_id: uuid.UUID,
+        limit: int = 50,
+    ) -> list[dict]:
+        """
+        Get recent events for a thread.
+        Returns events ordered by sequence_num ASC (oldest to newest) implicitly by reversing the DESC fetch.
+        """
+        query = """
+            SELECT id, author, event_type, content, created_at
+            FROM events
+            WHERE thread_id = $1
+            ORDER BY sequence_num DESC
+            LIMIT $2
+        """
+        pool = await self.get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, thread_id, limit)
+            # Reverse to return chronological order (oldest first)
+            return [dict(row) for row in reversed(rows)]

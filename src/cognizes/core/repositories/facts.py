@@ -27,10 +27,11 @@ class FactsRepository(BaseRepository):
         confidence: float = 1.0,
         valid_until: datetime | None = None,
         thread_id: uuid.UUID | None = None,
-    ) -> None:
+    ) -> uuid.UUID:
         """
         Upsert a fact record.
         Updates value, embedding, confidence, valid_until if the fact already exists.
+        Returns the ID of the record.
         """
         query = """
             INSERT INTO facts
@@ -44,10 +45,11 @@ class FactsRepository(BaseRepository):
                 valid_until = EXCLUDED.valid_until,
                 thread_id = EXCLUDED.thread_id,
                 created_at = NOW()
+            RETURNING id
         """
         pool = await self.get_pool()
         async with pool.acquire() as conn:
-            await conn.execute(
+            return await conn.fetchval(
                 query,
                 user_id,
                 app_name,

@@ -24,17 +24,26 @@ class MemoryRepository(BaseRepository):
         content: str,
         embedding: list[float] | None,
         metadata: dict,
+        retention_score: float = 1.0,
     ) -> None:
         """Insert a memory record."""
         query = """
             INSERT INTO memories
-            (thread_id, user_id, app_name, memory_type, content, embedding, metadata)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (thread_id, user_id, app_name, memory_type, content, embedding, metadata, retention_score)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         """
         pool = await self.get_pool()
         async with pool.acquire() as conn:
             await conn.execute(
-                query, thread_id, user_id, app_name, memory_type, content, embedding, json.dumps(metadata)
+                query,
+                thread_id,
+                user_id,
+                app_name,
+                memory_type,
+                content,
+                embedding,
+                json.dumps(metadata),
+                retention_score,
             )
 
     async def search_vector(

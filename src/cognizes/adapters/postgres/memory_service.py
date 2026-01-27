@@ -22,6 +22,9 @@ from google.adk.memory.base_memory_service import (
 )
 
 
+from cognizes.core.database import DatabaseManager
+
+
 class PostgresMemoryService(BaseMemoryService):
     """
     PostgreSQL 实现的 MemoryService
@@ -33,7 +36,7 @@ class PostgresMemoryService(BaseMemoryService):
     2. 基于语义相似度检索相关记忆 (复用 Phase 3 hybrid_search)
     """
 
-    def __init__(self, db: Any, embedding_fn: Optional[callable] = None, consolidation_worker=None):
+    def __init__(self, db: DatabaseManager, embedding_fn: Optional[callable] = None, consolidation_worker=None):
         self.db = db
         self._embedding_fn = embedding_fn  # 向量化函数
         self._consolidation_worker = consolidation_worker  # Phase 2 Worker
