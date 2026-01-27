@@ -276,6 +276,7 @@ class MemoryConsolidationWorker:
             # 任务完成
             job.result = result
             job.completed_at = datetime.now()
+            job.status = JobStatus.COMPLETED
             await self._update_job_status(job.id, JobStatus.COMPLETED, result)
 
             return job
@@ -525,12 +526,12 @@ class MemoryConsolidationWorker:
         """更新任务状态"""
         query = """
             UPDATE consolidation_jobs
-            SET status = $2,
-                result = COALESCE($3, result),
-                error = COALESCE($4, error),
-                started_at = CASE WHEN $2 = 'running' THEN NOW() ELSE started_at END,
-                completed_at = CASE WHEN $2 IN ('completed', 'failed') THEN NOW() ELSE completed_at END
-            WHERE id = $1
+            SET status = $2::varchar,
+                result = COALESCE($3::jsonb, result),
+                error = COALESCE($4::text, error),
+                started_at = CASE WHEN $2::varchar = 'running' THEN NOW() ELSE started_at END,
+                completed_at = CASE WHEN $2::varchar IN ('completed', 'failed') THEN NOW() ELSE completed_at END
+            WHERE id = $1::uuid
         """
         async with self.db.acquire() as conn:
             await conn.execute(
@@ -554,9 +555,7 @@ class MemoryConsolidationWorker:
 
 
 # ========================================
-
 # 便捷函数
-
 # ========================================
 
 

@@ -11,7 +11,7 @@ from cognizes.engine.hippocampus.consolidation_worker import MemoryConsolidation
 async def test_consolidation_flow_with_repos():
     # 1. Initialize DatabaseManager and Worker
     db = DatabaseManager()
-    await db.initialize()
+    # await db.initialize()  # Removed: DatabaseManager uses lazy initialization
     worker = MemoryConsolidationWorker(db)
 
     # Generate unique IDs
@@ -40,7 +40,13 @@ async def test_consolidation_flow_with_repos():
 
     for author, content, seq in events:
         await db.events.insert(
-            thread_id=thread_id, event_type="message", author=author, content=content, sequence_num=seq
+            event_id=uuid.uuid4(),
+            thread_id=thread_id,
+            invocation_id=uuid.uuid4(),
+            author=author,
+            event_type="message",
+            content=content,
+            actions={},
         )
 
     # 3. Execute Consolidation
@@ -59,7 +65,7 @@ async def test_consolidation_flow_with_repos():
 
     # Mocking _extract_facts
     async def mock_extract_facts(text):
-        return [{"type": "user_preference", "key": "favorite_color", "value": "blue", "confidence": 0.9}]
+        return {"facts": [{"type": "user_preference", "key": "favorite_color", "value": "blue", "confidence": 0.9}]}
 
     worker._extract_facts = mock_extract_facts
 
@@ -75,7 +81,10 @@ async def test_consolidation_flow_with_repos():
     memories = await db.memories.list_recent(user_id=user_id, app_name=app_name, limit=10)
     summary_memories = [m for m in memories if m["memory_type"] == "summary"]
     assert len(summary_memories) > 0
-    assert summary_memories[0]["metadata"]["source"] == "fast_replay"
+    metadata = summary_memories[0]["metadata"]
+    if isinstance(metadata, str):
+        metadata = json.loads(metadata)
+    assert metadata["source"] == "fast_replay"
 
     # Verify Facts Created
     facts = await db.facts.search(user_id=user_id, app_name=app_name, query_embedding=[0.1] * 1536, limit=10)

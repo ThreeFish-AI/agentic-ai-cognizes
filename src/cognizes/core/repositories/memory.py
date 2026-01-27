@@ -82,7 +82,7 @@ class MemoryRepository(BaseRepository):
     async def list_recent(self, user_id: str, app_name: str, limit: int = 100) -> list[asyncpg.Record]:
         """List recent memories."""
         query = """
-            SELECT id, content, metadata, retention_score, created_at
+            SELECT id, content, memory_type, metadata, retention_score, created_at
             FROM memories
             WHERE user_id = $1 AND app_name = $2
             ORDER BY created_at DESC
