@@ -161,51 +161,41 @@ graph TB
 
 ---
 
-## 2. 核心参考模型：记忆机制深度分析
+## 2. 核心参考模型：仿生记忆机制
 
 ### 2.1 Google ADK
 
 #### 2.1.1 对标分析：Google ADK MemoryService
 
-基于 Google ADK 官方文档<sup>[[3]](#ref3)</sup>的分析，我们需要复刻以下核心能力：
+基于 Google ADK 官方文档<sup>[[3]](#ref3)</sup>，我们将复刻其核心能力，并映射到 PostgreSQL 生态：
 
-| ADK 核心概念                  | 定义                                                 | PostgreSQL 复刻策略             |
-| :---------------------------- | :--------------------------------------------------- | :------------------------------ |
-| **MemoryService**             | 跨会话的可搜索知识库管理接口                         | `OpenMemoryService` 类实现      |
-| **Memory**                    | 从对话中提取的结构化知识片段                         | `memories` 表 + `facts` 表      |
-| **add_session_to_memory()**   | 将 Session 转化为可搜索的记忆                        | `consolidate()` 函数 (LLM 提取) |
-| **search_memory()**           | 基于 Query 检索相关记忆                              | PGVector 向量检索 + JSONB 过滤  |
-| **VertexAiMemoryBankService** | Google 托管的 Memory Bank 实现 (Vector Search + LLM) | PostgreSQL 自建等价实现         |
+| ADK 核心概念      | 定义                          | 我们的复刻实现 (PostgreSQL)                 | 锚定代码                                                                                   |
+| :---------------- | :---------------------------- | :------------------------------------------ | :----------------------------------------------------------------------------------------- |
+| **MemoryService** | 跨会话的可搜索知识库管理接口  | `PostgresMemoryService`                     | [memory_service.py](file:///src/cognizes/adapters/postgres/memory_service.py)              |
+| **Memory**        | 从对话中提取的结构化知识片段  | `memories` 表 (向量)<br>`facts` 表 (结构化) | [schema/hippocampus_schema.sql](file:///src/cognizes/engine/schema/hippocampus_schema.sql) |
+| **add_session**   | 将 Session 转化为可搜索的记忆 | `ConsolidationWorker` (异步)                | [consolidation_worker.py](file:///src/cognizes/engine/hippocampus/consolidation_worker.py) |
+| **search_memory** | 基于 Query 检索相关记忆       | 混合检索 (Vector + JSONB)                   | `search_memory()`                                                                          |
 
-#### 2.1.2 ADK MemoryService 接口契约
+#### 2.1.2 接口契约 (Interface Contract)
+
+我们遵循 ADK 的 `BaseMemoryService` 标准接口，确保 **Drop-in Compatible**：
 
 ```python
 class BaseMemoryService(ABC):
-    """Memory 管理服务抽象基类"""
-
     @abstractmethod
-    async def add_session_to_memory(
-        self,
-        session: Session
-    ) -> None:
-        """将 Session 中的对话转化为可搜索的记忆"""
+    async def add_session_to_memory(self, session: Session) -> None:
+        """Trigger: 异步触发记忆巩固 (Inflow)"""
         ...
 
     @abstractmethod
-    async def search_memory(
-        self,
-        *,
-        app_name: str,
-        user_id: str,
-        query: str
-    ) -> SearchMemoryResponse:
-        """基于 Query 检索相关记忆"""
+    async def search_memory(self, *, app_name: str, user_id: str, query: str) -> SearchMemoryResponse:
+        """Trigger: 实时检索相关记忆 (Retrieval)"""
         ...
 ```
 
-#### 2.1.3 ADK MemoryBank 工作流程
+#### 2.1.3 工作流参考 (Workflow Reference)
 
-基于 ADK 文档分析<sup>[[3]](#ref3)</sup>，Memory Bank 的核心工作流程如下：
+Memory Bank 的核心价值在于将 **写入 (Consolidation)** 与 **读取 (Retrieval)** 解耦：
 
 ```mermaid
 sequenceDiagram
@@ -213,106 +203,84 @@ sequenceDiagram
     participant Agent
     participant Session as SessionService
     participant Memory as MemoryService
-    participant LLM
+    participant Worker as ConsolidationWorker
 
+    Note over Agent, Memory: Hot Path (实时响应)
     User->>Agent: 用户消息
     Agent->>Session: append_event()
     Agent->>Memory: search_memory(query)
-    Memory-->>Agent: 相关记忆列表
-
-    Agent->>LLM: 组装 Prompt (Context + Memories)
-    LLM-->>Agent: 生成回复
+    Memory-->>Agent: 相关记忆 (Context)
     Agent->>User: 返回回复
 
-    Note over Memory: 异步巩固流程
-    Session->>Memory: add_session_to_memory()
-    Memory->>LLM: 提取 Facts/Insights
-    LLM-->>Memory: 结构化记忆
-    Memory->>Memory: 向量化 + 存储
+    Note over Session, Worker: Background Path (异步巩固)
+    Session-)Memory: add_session_to_memory()
+    Memory-)Worker: dispatch_job()
+    Worker->>Worker: LLM Extraction (Facts/Insights)
+    Worker->>Memory: Persist (Vector + Struct)
 ```
 
 **关键洞察**：
 
-1. **异步巩固**：Memory 的生成与主对话流程解耦，不阻塞用户响应
-2. **双向流动**：Session → Memory (写入)，Memory → Agent (读取)
-3. **LLM 驱动**：Facts 提取依赖 LLM 的理解能力，而非规则匹配
+1. **正交性**: 记忆生成 (Worker) 与 记忆使用 (Agent) 互不阻塞。
+2. **双向流**: Session 数据流入 Memory，Memory 知识流回 Agent。
+3. **白盒化**: 我们将原版黑盒的 Vertex AI 逻辑替换为可观测的 `ConsolidationWorker`。
+
+#### 2.1.4 写入策略 (Writing Strategy)
+
+结合 LangGraph 的设计理念<sup>[[2]](#ref2)</sup>，我们在时序图中明确区分了两种写入路径：
+
+| 路径 (Path)    | 模式 (Mode)  | 对应机制                       | 优势 (Pros)                   | 劣势 (Cons)                |
+| :------------- | :----------- | :----------------------------- | :---------------------------- | :------------------------- |
+| **Hot Path**   | 同步 (Sync)  | `append_event()` (Session)     | 立即一致性 (Read-Your-Writes) | 增加用户等待延迟           |
+| **Background** | 异步 (Async) | `ConsolidationWorker` (Memory) | 高吞吐，不阻塞用户体验        | 存在短暂的"记忆不一致窗口" |
+
+**我们的决策**：
+
+- **Fast Replay**: 作为热路径的补充，通过 Session 快速回溯。
+- **Deep Reflection**: **必须异步**。因为 Fact Extraction 需要昂贵的 LLM 推理，绝不能阻塞用户对话。
 
 ### 2.2 LangGraph Memory 设计模式
 
-LangGraph 的 Memory 设计采用了更灵活的**三层记忆模型**<sup>[[2]](#ref2)</sup>：
+LangGraph 的 Memory 设计为我们提供了重要的**实现参考**<sup>[[2]](#ref2)</sup>。
 
-#### 2.2.1 对标 LangGraph Memory 机制
+#### 2.2.1 持久化机制对照
 
-LangGraph 提供两套互补的持久化机制<sup>[[2]](#ref2)</sup>：
+LangGraph 提供两套互补的持久化机制，与我们的实现形成清晰映射：
 
-| 机制             | 范围        | 用途                            | 我们的复刻策略                       |
-| :--------------- | :---------- | :------------------------------ | :----------------------------------- |
-| **Checkpointer** | 单个 Thread | 对话历史、状态快照 (Short-term) | Phase 1 已实现 (`threads`, `events`) |
-| **Store**        | 跨 Thread   | 用户偏好、学习知识 (Long-term)  | Phase 2 实现 (`memories`, `facts`)   |
+| LangGraph 机制   | 存储范围    | 对应我们的实现                               | 锚定表/模块                         |
+| :--------------- | :---------- | :------------------------------------------- | :---------------------------------- |
+| **Checkpointer** | 单个 Thread | Phase 1 短期记忆 (Session State)             | `threads`, `events`                 |
+| **Store**        | 跨 Thread   | Phase 2 长期记忆 (Consolidated Memory/Facts) | `memories`, `facts`, `instructions` |
 
-#### 2.2.2 Semantic Memory (语义记忆)
+#### 2.2.2 三类记忆的实现参考
 
-存储用户的**偏好、规则、Profile** 等结构化信息：
+LangGraph 的三类记忆在我们的方案中通过**统一的 Repository 接口**实现：
 
-```python
-# LangGraph Store 示例
-store.put(
-    namespace=(user_id, "preferences"),
-    key="food",
-    value={"likes": ["pizza", "sushi"], "dislikes": ["spicy"]}
-)
-```
+| 记忆类型                  | LangGraph 用途       | 我们的存储表   | Repository 接口                                                                  |
+| :------------------------ | :------------------- | :------------- | :------------------------------------------------------------------------------- |
+| **Semantic** (语义记忆)   | 用户偏好、Profile    | `facts`        | [FactsRepository](file:///src/cognizes/core/repositories/facts.py)               |
+| **Episodic** (情景记忆)   | 对话切片、Few-shot   | `memories`     | [MemoryRepository](file:///src/cognizes/core/repositories/memory.py)             |
+| **Procedural** (程序记忆) | Agent 指令、行为规则 | `instructions` | [InstructionsRepository](file:///src/cognizes/core/repositories/instructions.py) |
 
-**设计决策**：
-
-- **Profile Style**: 单一 JSON 对象，适合用户画像
-- **Collection Style**: 多个独立记录，适合持续积累的偏好
-
-#### 2.2.3 Episodic Memory (情景记忆)
-
-存储**过去的对话片段**，用于 Few-shot 引导：
+<details>
+<summary>📖 LangGraph 原始代码参考 (点击展开)</summary>
 
 ```python
-# 情景记忆用于动态 Few-shot
-memories = store.search(
-    namespace=(user_id, "episodes"),
-    query="similar task"
-)
-prompt = f"Here are some similar interactions:\n{memories}"
+# Semantic Memory: 用户偏好存储
+store.put(namespace=(user_id, "preferences"), key="food", value={"likes": ["pizza"], "dislikes": ["spicy"]})
+
+# Episodic Memory: 情景记忆检索
+memories = store.search(namespace=(user_id, "episodes"), query="similar task")
+
+# Procedural Memory: Agent 自我进化
+store.put(("agent_instructions",), "main", {"instructions": new_instructions})
 ```
 
-**设计决策**：
+</details>
 
-- 保留**完整的对话切片**而非摘要，便于上下文重建
-- 支持**按时间**和**按语义**双重检索
+### 2.3 综合对比分析 (Comparative Analysis)
 
-#### 2.2.4 Procedural Memory (程序性记忆)
-
-存储**Agent 的行为规则和指令**，支持自我进化：
-
-```python
-# 程序性记忆：Agent 自我调整
-def update_instructions(state, store):
-    # 根据反馈更新 Agent 指令
-    new_instructions = llm.invoke(f"Based on feedback: {state['feedback']}, update: {current_instructions}")
-    store.put(("agent_instructions",), "main", {"instructions": new_instructions})
-```
-
-### 2.3 记忆写入时机：Hot Path vs Background
-
-LangGraph 明确区分了两种记忆写入模式<sup>[[2]](#ref2)</sup>：
-
-| 模式                  | 描述                    | 优势                     | 劣势                     |
-| :-------------------- | :---------------------- | :----------------------- | :----------------------- |
-| **Hot Path (同步)**   | 在 Agent 响应前写入记忆 | 立即生效，无延迟         | 增加响应延迟，复杂度高   |
-| **Background (异步)** | 对话结束后异步处理      | 不影响响应速度，批量高效 | 存在短暂的记忆不可见窗口 |
-
-**我们的策略**：
-
-1. **Fast Replay (快回放)** → Hot Path：摘要生成在对话中实时触发
-2. **Deep Reflection (深反思)** → Background：Facts 提取由异步 Worker 处理
-
-### 2.4 对比分析：ADK vs LangGraph vs 我们的方案
+基于上述调研，我们将取长补短，构建 **The Hippocampus** 引擎：
 
 | 维度         | Google ADK MemoryService       | LangGraph Store                  | Open Memory Engine (我们)        |
 | :----------- | :----------------------------- | :------------------------------- | :------------------------------- |
@@ -323,88 +291,31 @@ LangGraph 明确区分了两种记忆写入模式<sup>[[2]](#ref2)</sup>：
 | **巩固策略** | LLM 提取 → 自动向量化          | 应用层控制                       | 两阶段巩固 + 艾宾浩斯衰减        |
 | **开放程度** | 黑盒 (依赖 Vertex AI)          | 白盒 (完全可控)                  | 白盒 (PostgreSQL 原生)           |
 
-### 2.5 调研交付物摘要
+### 2.4 调研交付物摘要
 
 > [!NOTE]
->
-> 本节对应任务 **P2-1-1 ~ P2-1-5** 的调研交付物，提供结构化的接口清单和对比分析。
+> 本节汇总任务 **P2-1-1 ~ P2-1-5** 的调研成果。详细的技术分析已在前文展开，此处仅做索引索引与交付确认。
 
-#### 2.5.1 ADK MemoryService 接口方法清单 (P2-1-1)
+#### 2.4.1 核心交付物索引
 
-基于 ADK 源码分析，`BaseMemoryService` 抽象接口包含以下核心方法：
+| 任务 ID    | 任务描述                         | 交付内容索引                                                 |
+| :--------- | :------------------------------- | :----------------------------------------------------------- |
+| **P2-1-1** | ADK `MemoryService` 接口分析     | 见 [2.1.2 接口契约](#212-接口契约-interface-contract)        |
+| **P2-1-2** | Memory Bank 工作流分析           | 见 [2.1.3 工作流参考](#213-工作流参考-workflow-reference)    |
+| **P2-1-3** | LangGraph `Checkpointer` 分析    | 见 [2.2.1 持久化机制对照](#221-持久化机制对照)               |
+| **P2-1-4** | LangGraph `Store` 跨 Thread 分析 | 见 [2.2.2 三类记忆的实现参考](#222-三类记忆的实现参考)       |
+| **P2-1-5** | 综合对比分析表                   | 见 [2.3 综合对比分析](#23-综合对比分析-comparative-analysis) |
 
-| 方法签名                                  | 语义                              | 返回类型               |
-| :---------------------------------------- | :-------------------------------- | :--------------------- |
-| `add_session_to_memory(session: Session)` | 将 Session 对话转化为可搜索的记忆 | `None`                 |
-| `search_memory(app_name, user_id, query)` | 基于 Query 检索相关记忆           | `SearchMemoryResponse` |
+#### 2.4.2 关键技术选型确认
 
-**SearchMemoryResponse 结构**：
+基于上述调研，我们确认以下核心技术栈映射：
 
-```python
-@dataclass
-class SearchMemoryResponse:
-    memories: list[Memory]  # 检索到的记忆列表
-
-@dataclass
-class Memory:
-    content: str           # 记忆内容
-    metadata: dict         # 元数据 (来源 Session, 时间等)
-```
-
-#### 2.5.2 VertexAiMemoryBankService 工作流程 (P2-1-2)
-
-```mermaid
-sequenceDiagram
-    participant App as Application
-    participant MBS as MemoryBankService
-    participant VS as Vertex Vector Search
-    participant LLM as LLM (Gemini)
-
-    Note over App,LLM: 写入流程 (add_session_to_memory)
-    App->>MBS: add_session_to_memory(session)
-    MBS->>LLM: 提取 Facts/Insights
-    LLM-->>MBS: 结构化 Memory 对象
-    MBS->>VS: 向量化 + 存储
-
-    Note over App,LLM: 读取流程 (search_memory)
-    App->>MBS: search_memory(query)
-    MBS->>LLM: 生成 Query Embedding
-    LLM-->>MBS: Query Vector
-    MBS->>VS: 向量检索 (Top-K)
-    VS-->>MBS: 相似记忆列表
-    MBS-->>App: SearchMemoryResponse
-```
-
-**关键实现细节**：
-
-| 组件           | Google 实现             | 我们的复刻                  |
-| :------------- | :---------------------- | :-------------------------- |
-| 向量存储       | Vertex AI Vector Search | PostgreSQL + PGVector       |
-| Embedding 模型 | `textembedding-gecko`   | Gemini `text-embedding-004` |
-| LLM 提取       | Gemini Pro              | Gemini 3.0 Flash            |
-| 索引算法       | ScaNN (未公开)          | HNSW (IVFFlat 备选)         |
-
-#### 2.5.3 LangGraph Checkpointer vs Store 对比 (P2-1-3, P2-1-4)
-
-| 维度         | Checkpointer                 | Store                           |
-| :----------- | :--------------------------- | :------------------------------ |
-| **作用域**   | 单个 Thread 内               | 跨 Thread (全局)                |
-| **存储内容** | 完整 State Snapshot          | Key-Value 记忆 (Namespace 隔离) |
-| **生命周期** | 随 Thread 存在               | 持久化，手动管理                |
-| **检索方式** | 按 Checkpoint ID / Thread ID | `store.search()` 语义检索       |
-| **典型用途** | 对话历史恢复、状态回滚       | 用户偏好、长期记忆、跨会话知识  |
-
-#### 2.5.4 综合对比分析表 (P2-1-5)
-
-| 评估维度         | Google ADK MemoryService | LangGraph Store | Open Memory Engine |
-| :--------------- | :----------------------- | :-------------- | :----------------- |
-| **架构复杂度**   | ⭐⭐⭐ (多组件)          | ⭐⭐ (较灵活)   | ⭐ (统一)          |
-| **开箱即用**     | ⭐⭐⭐ (托管服务)        | ⭐⭐ (需配置)   | ⭐⭐ (需部署 PG)   |
-| **白盒透明度**   | ⭐ (黑盒)                | ⭐⭐⭐ (全开源) | ⭐⭐⭐ (SQL 可见)  |
-| **成本可控性**   | ⭐ (按调用计费)          | ⭐⭐⭐ (自托管) | ⭐⭐⭐ (自托管)    |
-| **记忆类型支持** | ⭐⭐ (单一)              | ⭐⭐⭐ (三类型) | ⭐⭐⭐ (三类型)    |
-| **遗忘机制**     | ❌ (无内建)              | ❌ (需自实现)   | ✅ (艾宾浩斯)      |
-| **Context 预算** | ❌ (需应用层)            | ⭐⭐ (部分支持) | ✅ (内建)          |
+| 组件层级         | Google ADK (原版)       | The Hippocampus (我们)          | 选型依据                                     |
+| :--------------- | :---------------------- | :------------------------------ | :------------------------------------------- |
+| **Vector Store** | Vertex AI Vector Search | **PostgreSQL + PGVector**       | 统一技术栈，减少运维熵增 (Entropy Reduction) |
+| **Embedding**    | `textembedding-gecko`   | **Gemini `text-embedding-005`** | 高性能且成本可控                             |
+| **Extraction**   | Gemini Pro              | **Gemini 3.0 Flash**            | 更快的推理速度，适合后台批处理               |
+| **Index Algo**   | ScaNN                   | **HNSW**                        | PGVector 标配，兼顾召回率与性能              |
 
 ---
 
@@ -416,9 +327,18 @@ sequenceDiagram
 
 ```mermaid
 erDiagram
+    %% Core Relationships
     threads ||--o{ events : contains
-    threads ||--o{ memories : generates
-    threads ||--o{ facts : extracts
+    threads ||--o{ consolidation_jobs : triggers
+
+    %% Process Flow: Inflow
+    consolidation_jobs ||--o{ memories : generates
+    consolidation_jobs ||--o{ facts : extracts
+    consolidation_jobs }o..o| instructions : "updates (implicit)"
+
+    %% Data Ownership (FKs)
+    threads ||--o{ memories : "source of"
+    threads ||--o{ facts : "source of"
 
     memories {
         uuid id PK "记忆唯一标识"
