@@ -25,7 +25,7 @@ tags:
 
 ---
 
-## 1. 执行概览
+## 1. 执行摘要
 
 ### 1.1 Phase 3 定位与目标
 
@@ -170,7 +170,7 @@ sequenceDiagram
 
 ---
 
-## 2. 技术调研：检索机制深度分析
+## 2. 核心参考模型：检索机制感知系统
 
 ### 2.1 混合检索策略对比
 
@@ -1164,7 +1164,7 @@ flowchart LR
 
 ---
 
-## 4. 实施计划：分步执行指南
+## 4. 实施指南
 
 ### 4.1 Step 1: Fusion Retrieval 实现
 
@@ -2256,6 +2256,436 @@ flowchart LR
 
 ---
 
+## 5. Phase 3 验证 SOP
+
+> [!NOTE]
+>
+> 本 SOP 提供完整的 Phase 3: The Perception 验收指引，按顺序执行以下步骤完成验证。
+
+### 5.1 Step 1: Schema 部署验证
+
+```bash
+# 1.1 部署 Perception Schema 扩展
+psql -d 'cognizes-engine' -f src/cognizes/engine/schema/perception_schema.sql
+
+# 1.2 验证 search_vector 列存在
+psql -d 'cognizes-engine' -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'memories' AND column_name = 'search_vector';"
+# 应返回: search_vector
+
+# 1.3 验证 GIN 索引存在
+psql -d 'cognizes-engine' -c "SELECT indexname FROM pg_indexes WHERE tablename = 'memories' AND indexname = 'idx_memories_search_vector';"
+# 应返回: idx_memories_search_vector
+
+# 1.4 验证 SQL 函数存在
+psql -d 'cognizes-engine' -c "SELECT proname FROM pg_proc WHERE proname IN ('hybrid_search', 'rrf_search', 'memories_search_vector_trigger');"
+# 应返回 3 行
+```
+
+**验收标准**：
+
+- [ ] `search_vector` 列已添加到 memories 表
+- [ ] `idx_memories_search_vector` GIN 索引已创建
+- [ ] `hybrid_search()` 函数已创建
+- [ ] `rrf_search()` 函数已创建
+- [ ] `memories_search_vector_trigger` 触发器已创建
+
+---
+
+### 5.2 Step 2: 单元测试验证
+
+```bash
+# 2.1 运行 Perception 单元测试
+uv run pytest tests/unittests/perception/ -v --tb=short
+
+# 2.2 查看测试覆盖率 (可选)
+uv run pytest tests/unittests/perception/ -v --cov=src/cognizes/engine/perception --cov-report=term-missing
+```
+
+**验收标准**：
+
+- [ ] 24 个单元测试全部通过
+- [ ] 覆盖以下模块:
+  - `rrf_fusion.py` (SearchResult, rrf_fusion 算法)
+  - `search_visualizer.py` (事件类型、数据类、可视化器)
+
+---
+
+### 5.3 Step 3: 集成测试验证
+
+```bash
+# 3.1 运行 Perception 集成测试
+uv run pytest tests/integration/perception/ -v -s --tb=short
+
+# 3.2 查看详细输出 (含性能指标)
+uv run pytest tests/integration/perception/ -v -s
+```
+
+**验收标准**：
+
+- [ ] hybrid_search() 函数可正常调用
+- [ ] rrf_search() 返回分数递减排序
+- [ ] 迭代扫描配置生效
+- [ ] L0 检索延迟 < 100ms
+
+---
+
+### 5.4 Step 4: 模块导入验证
+
+```bash
+# 4.1 验证模块可导入
+uv run python -c "
+from cognizes.engine.perception.rrf_fusion import SearchResult, rrf_fusion
+from cognizes.engine.perception.search_visualizer import (
+    SearchVisualizer, SearchEventType,
+    RetrievalPathResult, RRFMergeResult, SourceCitation
+)
+
+print('✅ 所有 Perception 模块导入成功')
+"
+```
+
+**验收标准**：
+
+- [ ] `rrf_fusion` 模块可导入
+- [ ] `search_visualizer` 模块可导入
+- [ ] 无循环依赖错误
+
+---
+
+### 5.5 Step 5: 全量测试验证
+
+```bash
+# 5.1 运行所有测试 (包括 Phase 1, Phase 2, Phase 3)
+uv run pytest tests/ -v --tb=line
+
+# 5.2 查看测试统计
+uv run pytest tests/ --co -q 2>&1 | tail -3
+```
+
+**验收标准**：
+
+- [ ] 所有测试通过 (152 tests passed ✓)
+- [ ] 无测试失败
+- [ ] 无模块导入错误
+
+---
+
+### 5.6 Step 6: Phase 3 核心功能验证
+
+> [!IMPORTANT]
+>
+> 以下验证步骤对应 `001-task-checklist.md` 中的 Phase 3 关键任务，请执行脚本确认功能符合预期。
+
+#### 5.6.1 P3-1-9: SQL vs Python RRF 性能对比
+
+```bash
+# 生成对比数据 (需先有足够测试数据)
+uv run python -c "
+import asyncio
+import time
+import asyncpg
+import numpy as np
+
+from cognizes.engine.perception.rrf_fusion import SearchResult, rrf_fusion
+
+async def benchmark():
+    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
+
+    embedding = np.random.randn(1536).astype(float).tolist()
+    embedding_str = '[' + ','.join(str(x) for x in embedding) + ']'
+
+    # SQL RRF
+    start = time.perf_counter()
+    for _ in range(10):
+        await pool.fetch('''
+            SELECT * FROM rrf_search(\$1, \$2, \$3, \$4::vector, 50)
+        ''', 'test_user', 'test_app', 'machine learning', embedding_str)
+    sql_time = (time.perf_counter() - start) * 100  # avg ms
+
+    print(f'SQL RRF avg: {sql_time:.2f}ms')
+    await pool.close()
+
+asyncio.run(benchmark())
+"
+```
+
+**验收标准**：
+
+- [ ] 记录 SQL RRF 平均延迟
+- [ ] 记录 Python RRF 平均延迟
+- [ ] 生成对比报告
+
+#### 5.6.2 P3-2-8: Precision@10 提升验证
+
+```bash
+# 需要标注数据集进行验证
+# 1. 准备 Query-Relevance 标注数据
+# 2. 对比 L0 (hybrid_search) vs L0+L1 (RerankerPipeline)
+uv run python -c "
+# 验证 Reranker Pipeline 可调用
+from cognizes.engine.perception.reranker import CrossEncoderReranker
+
+reranker = CrossEncoderReranker()
+results = reranker.rerank(
+    query='machine learning',
+    documents=[
+        {'id': 'doc1', 'content': 'Machine learning is a subset of AI', 'score': 0.8},
+        {'id': 'doc2', 'content': 'Python is a programming language', 'score': 0.7},
+    ],
+    top_k=2
+)
+print(f'Reranker 输出: {len(results)} 结果')
+for r in results:
+    print(f'  {r.id}: L0={r.original_score:.3f} -> L1={r.rerank_score:.3f}')
+"
+```
+
+**验收标准**：
+
+- [ ] Reranker Pipeline 可正常调用
+- [ ] 对比 L0 vs L0+L1 的 Precision@10
+
+#### 5.6.3 Knowledge Base Schema 验证
+
+> [!NOTE]
+>
+> **验证目标**：确认 `corpus` 和 `knowledge_base` 表已正确创建，`kb_hybrid_search()` 函数可用。
+
+```bash
+# 1. 验证 Knowledge Base 表结构
+uv run psql -d 'cognizes-engine' -c "
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_name IN ('corpus', 'knowledge_base')
+ORDER BY table_name, ordinal_position;
+"
+
+# 预期输出包含:
+# corpus    | id          | uuid
+# corpus    | name        | character varying
+# knowledge_base | corpus_id | uuid
+# knowledge_base | embedding | USER-DEFINED
+
+# 2. 验证 kb_hybrid_search 函数存在
+uv run psql -d 'cognizes-engine' -c "
+SELECT proname, pronargs FROM pg_proc
+WHERE proname = 'kb_hybrid_search';
+"
+# 预期: kb_hybrid_search | 7
+```
+
+**验收标准**：
+
+- [ ] `corpus` 表包含 id, name, app_name, description
+- [ ] `knowledge_base` 表包含 corpus_id, embedding, search_vector
+- [ ] `kb_hybrid_search()` 函数已创建 (7 参数)
+
+#### 5.6.4 Chunking 策略验证
+
+> [!NOTE]
+>
+> **实现文件**：`src/cognizes/engine/perception/chunking.py` > **测试覆盖**：`tests/unittests/perception/test_chunking.py`
+
+```bash
+# 1. 验证 Chunking 模块导入
+uv run python -c "
+from cognizes.engine.perception.chunking import (
+    FixedLengthChunker, RecursiveChunker, HierarchicalChunker,
+    get_chunker, chunk_text
+)
+print('✅ Chunking 模块导入成功')
+"
+
+# 2. 验证工厂函数
+uv run python -c "
+from cognizes.engine.perception.chunking import get_chunker
+
+strategies = ['fixed', 'recursive', 'hierarchical']
+test_text = 'ML is great. ' * 100
+
+print('=== Chunking 策略验证 ===')
+for strategy in strategies:
+    chunker = get_chunker(strategy, chunk_size=100, chunk_overlap=10)
+    chunks = chunker.split(test_text)
+    print(f'{strategy:15s}: {len(chunks):3d} chunks')
+"
+
+# 预期输出:
+# fixed          :   5 chunks
+# recursive      :   5 chunks
+# hierarchical   :   8 chunks
+
+# 3. 运行单元测试
+uv run pytest tests/unittests/perception/test_chunking.py -v --tb=short -m "not slow"
+```
+
+**验收标准**：
+
+- [ ] 4 种分块策略可正常实例化
+- [ ] 工厂函数 `get_chunker()` 支持 fixed/recursive/hierarchical
+- [ ] 单元测试全部通过
+
+#### 5.6.5 RAG Pipeline E2E 验证
+
+> [!NOTE]
+>
+> **实现文件**：`src/cognizes/engine/perception/rag_pipeline.py` > **测试覆盖**：`tests/integration/perception/test_rag_e2e.py`
+
+```bash
+# 1. 验证 RAG Pipeline 模块导入
+uv run python -c "
+from cognizes.engine.perception.rag_pipeline import (
+    RAGPipeline, RAGResponse, get_rag_pipeline
+)
+from cognizes.engine.perception.ingestion import (
+    DocumentIngester, get_ingester
+)
+from cognizes.engine.perception.embedder import get_embedder
+
+print('✅ RAG Pipeline 模块链路完整')
+"
+
+# 2. 验证 E2E 链路 (Mock 模式)
+uv run python -c "
+import asyncio
+from cognizes.engine.perception.rag_pipeline import get_rag_pipeline
+
+async def test_e2e():
+    pipeline = get_rag_pipeline(db_pool=None, embedding_provider='mock')
+
+    # 索引文档
+    result = await pipeline.index_document(
+        content='Machine learning is a subset of AI.',
+        source_uri='test.md'
+    )
+    print(f'✅ 文档索引: {result.source_uri}')
+
+    # 查询
+    response = await pipeline.query('What is machine learning?', top_k=3)
+    print(f'✅ RAG 查询: {len(response.sources)} sources, {response.total_time_ms:.1f}ms')
+    print(f'   Answer: {response.answer[:50]}...')
+
+asyncio.run(test_e2e())
+"
+
+# 3. 运行 E2E 集成测试
+uv run pytest tests/integration/perception/test_rag_e2e.py -v -s --tb=short
+```
+
+**验收标准**：
+
+| 测试用例   | 验收指标                 | 状态 |
+| :--------- | :----------------------- | :--: |
+| RAG-E2E-01 | 单文档摄入分块 ≥ 1       |  ✅  |
+| RAG-E2E-02 | 100 篇文档索引 < 120s    |  ✅  |
+| RAG-E2E-03 | 跨文档检索 Top-5         |  ✅  |
+| RAG-E2E-04 | 生成回答含引用           |  ✅  |
+| RAG-E2E-05 | P99 延迟 < 1000ms (Mock) |  ✅  |
+
+#### 5.6.6 Hybrid Search 功能验证
+
+> [!NOTE]
+>
+> **量化指标**：基于 `test_hybrid_search.py` 断言
+
+```bash
+# 1. 验证 Hybrid Search 返回合并分数
+uv run python -c "
+import asyncio
+import asyncpg
+import numpy as np
+
+async def test():
+    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
+
+    embedding = np.random.randn(1536).astype(float).tolist()
+    embedding_str = '[' + ','.join(str(x) for x in embedding) + ']'
+
+    rows = await pool.fetch('''
+        SELECT id, semantic_score, keyword_score, combined_score
+        FROM hybrid_search(\$1, \$2, \$3, \$4::vector, 10)
+    ''', 'test_user', 'test_app', 'machine learning', embedding_str)
+
+    print(f'Hybrid Search 返回 {len(rows)} 条结果')
+    if len(rows) > 0:
+        r = rows[0]
+        expected = r['semantic_score'] * 0.7 + r['keyword_score'] * 0.3
+        match = '✅' if abs(r['combined_score'] - expected) < 0.0001 else '❌'
+        print(f'{match} combined_score 计算正确 (误差 < 0.0001)')
+
+    await pool.close()
+
+asyncio.run(test())
+"
+
+# 2. 验证 RRF 分数递减排序
+uv run python -c "
+import asyncio
+import asyncpg
+import numpy as np
+
+async def test():
+    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
+
+    embedding = np.random.randn(1536).astype(float).tolist()
+    embedding_str = '[' + ','.join(str(x) for x in embedding) + ']'
+
+    rows = await pool.fetch('''
+        SELECT rrf_score FROM rrf_search(\$1, \$2, \$3, \$4::vector, 50)
+    ''', 'test_user', 'test_app', 'AI', embedding_str)
+
+    if len(rows) > 1:
+        scores = [r['rrf_score'] for r in rows]
+        is_sorted = scores == sorted(scores, reverse=True)
+        status = '✅' if is_sorted else '❌'
+        print(f'{status} RRF 分数递减排序 ({len(rows)} 条)')
+
+    await pool.close()
+
+asyncio.run(test())
+"
+
+# 3. 运行集成测试
+uv run pytest tests/integration/perception/test_hybrid_search.py -v -s --tb=short
+```
+
+**验收标准**：
+
+| 验证项              | 量化指标                                      | 状态 |
+| :------------------ | :-------------------------------------------- | :--: |
+| combined_score 计算 | 误差 < 0.0001                                 |  ✅  |
+| RRF 分数排序        | 严格递减                                      |  ✅  |
+| Hybrid Search 延迟  | P50 < 100ms                                   |  ✅  |
+| 返回字段完整性      | semantic_score, keyword_score, combined_score |  ✅  |
+
+---
+
+### 5.7 验收总结清单
+
+| 验收项           | 状态 | 说明                                    | 对应任务         |
+| :--------------- | :--: | :-------------------------------------- | :--------------- |
+| Schema 部署      |  ✅  | search_vector + 3 函数 + GIN 索引       | P3-1-1 ~ P3-1-5  |
+| KB Schema 部署   |  ✅  | corpus + knowledge_base + kb_hybrid     | P3-4-7 ~ P3-4-10 |
+| 单元测试         |  ✅  | 35+ tests passed (含 Chunking/Embedder) | P3-4-6           |
+| 集成测试         |  ✅  | 20+ tests passed (Hybrid + RAG E2E)     | P3-1-5, P3-5-5   |
+| 模块导入         |  ✅  | RAG Pipeline 完整链路                   | P3-5-1 ~ P3-5-4  |
+| L0 延迟          |  ✅  | Hybrid Search 平均 < 100ms              | P3-2-4           |
+| Chunking 策略    |  ✅  | 4 种策略功能验证                        | P3-5-2           |
+| RAG E2E          |  ✅  | 5 个 E2E 场景通过                       | P3-5-5           |
+| RRF 性能对比     |  🔲  | SQL vs Python RRF (需手动运行对比脚本)  | P3-1-9           |
+| Precision@10     |  🔲  | L0 vs L0+L1 对比 (需标注数据)           | P3-2-8           |
+| **Phase 3 验收** |  ✅  | 核心功能就绪，进入 Phase 4              | P3-3-4           |
+
+> [!TIP]
+>
+> 完成上述所有验收项后，勾选 "Phase 3 验收" 为 ✅，可进入 Phase 4: The Realm of Mind。
+
+---
+
+---
+
+## 6. 验收基准
+
 > [!IMPORTANT]
 >
 > **对标 Roadmap KPI**：以下验收标准直接对标 `000-roadmap.md` 中 Pillar III 的核心核验指标："Recall@10 (with Filters) - 高过滤比下的召回率与耗时"。
@@ -2617,7 +3047,7 @@ if __name__ == "__main__":
 
 ---
 
-## 6. 交付物清单
+### 5.5. 交付物清单
 
 | 类别       | 文件路径                                                    | 描述                                                                                            | 任务 ID          |
 | :--------- | :---------------------------------------------------------- | :---------------------------------------------------------------------------------------------- | :--------------- |
@@ -2659,431 +3089,7 @@ if __name__ == "__main__":
 
 ---
 
-## 7. Phase 3 验证 SOP
-
-> [!NOTE]
->
-> 本 SOP 提供完整的 Phase 3: The Perception 验收指引，按顺序执行以下步骤完成验证。
-
-### 7.1 Step 1: Schema 部署验证
-
-```bash
-# 1.1 部署 Perception Schema 扩展
-psql -d 'cognizes-engine' -f src/cognizes/engine/schema/perception_schema.sql
-
-# 1.2 验证 search_vector 列存在
-psql -d 'cognizes-engine' -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'memories' AND column_name = 'search_vector';"
-# 应返回: search_vector
-
-# 1.3 验证 GIN 索引存在
-psql -d 'cognizes-engine' -c "SELECT indexname FROM pg_indexes WHERE tablename = 'memories' AND indexname = 'idx_memories_search_vector';"
-# 应返回: idx_memories_search_vector
-
-# 1.4 验证 SQL 函数存在
-psql -d 'cognizes-engine' -c "SELECT proname FROM pg_proc WHERE proname IN ('hybrid_search', 'rrf_search', 'memories_search_vector_trigger');"
-# 应返回 3 行
-```
-
-**验收标准**：
-
-- [ ] `search_vector` 列已添加到 memories 表
-- [ ] `idx_memories_search_vector` GIN 索引已创建
-- [ ] `hybrid_search()` 函数已创建
-- [ ] `rrf_search()` 函数已创建
-- [ ] `memories_search_vector_trigger` 触发器已创建
-
----
-
-### 7.2 Step 2: 单元测试验证
-
-```bash
-# 2.1 运行 Perception 单元测试
-uv run pytest tests/unittests/perception/ -v --tb=short
-
-# 2.2 查看测试覆盖率 (可选)
-uv run pytest tests/unittests/perception/ -v --cov=src/cognizes/engine/perception --cov-report=term-missing
-```
-
-**验收标准**：
-
-- [ ] 24 个单元测试全部通过
-- [ ] 覆盖以下模块:
-  - `rrf_fusion.py` (SearchResult, rrf_fusion 算法)
-  - `search_visualizer.py` (事件类型、数据类、可视化器)
-
----
-
-### 7.3 Step 3: 集成测试验证
-
-```bash
-# 3.1 运行 Perception 集成测试
-uv run pytest tests/integration/perception/ -v -s --tb=short
-
-# 3.2 查看详细输出 (含性能指标)
-uv run pytest tests/integration/perception/ -v -s
-```
-
-**验收标准**：
-
-- [ ] hybrid_search() 函数可正常调用
-- [ ] rrf_search() 返回分数递减排序
-- [ ] 迭代扫描配置生效
-- [ ] L0 检索延迟 < 100ms
-
----
-
-### 7.4 Step 4: 模块导入验证
-
-```bash
-# 4.1 验证模块可导入
-uv run python -c "
-from cognizes.engine.perception.rrf_fusion import SearchResult, rrf_fusion
-from cognizes.engine.perception.search_visualizer import (
-    SearchVisualizer, SearchEventType,
-    RetrievalPathResult, RRFMergeResult, SourceCitation
-)
-
-print('✅ 所有 Perception 模块导入成功')
-"
-```
-
-**验收标准**：
-
-- [ ] `rrf_fusion` 模块可导入
-- [ ] `search_visualizer` 模块可导入
-- [ ] 无循环依赖错误
-
----
-
-### 7.5 Step 5: 全量测试验证
-
-```bash
-# 5.1 运行所有测试 (包括 Phase 1, Phase 2, Phase 3)
-uv run pytest tests/ -v --tb=line
-
-# 5.2 查看测试统计
-uv run pytest tests/ --co -q 2>&1 | tail -3
-```
-
-**验收标准**：
-
-- [ ] 所有测试通过 (152 tests passed ✓)
-- [ ] 无测试失败
-- [ ] 无模块导入错误
-
----
-
-### 7.6 Step 6: Phase 3 核心功能验证
-
-> [!IMPORTANT]
->
-> 以下验证步骤对应 `001-task-checklist.md` 中的 Phase 3 关键任务，请执行脚本确认功能符合预期。
-
-#### 7.6.1 P3-1-9: SQL vs Python RRF 性能对比
-
-```bash
-# 生成对比数据 (需先有足够测试数据)
-uv run python -c "
-import asyncio
-import time
-import asyncpg
-import numpy as np
-
-from cognizes.engine.perception.rrf_fusion import SearchResult, rrf_fusion
-
-async def benchmark():
-    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
-
-    embedding = np.random.randn(1536).astype(float).tolist()
-    embedding_str = '[' + ','.join(str(x) for x in embedding) + ']'
-
-    # SQL RRF
-    start = time.perf_counter()
-    for _ in range(10):
-        await pool.fetch('''
-            SELECT * FROM rrf_search(\$1, \$2, \$3, \$4::vector, 50)
-        ''', 'test_user', 'test_app', 'machine learning', embedding_str)
-    sql_time = (time.perf_counter() - start) * 100  # avg ms
-
-    print(f'SQL RRF avg: {sql_time:.2f}ms')
-    await pool.close()
-
-asyncio.run(benchmark())
-"
-```
-
-**验收标准**：
-
-- [ ] 记录 SQL RRF 平均延迟
-- [ ] 记录 Python RRF 平均延迟
-- [ ] 生成对比报告
-
-#### 7.6.2 P3-2-8: Precision@10 提升验证
-
-```bash
-# 需要标注数据集进行验证
-# 1. 准备 Query-Relevance 标注数据
-# 2. 对比 L0 (hybrid_search) vs L0+L1 (RerankerPipeline)
-uv run python -c "
-# 验证 Reranker Pipeline 可调用
-from cognizes.engine.perception.reranker import CrossEncoderReranker
-
-reranker = CrossEncoderReranker()
-results = reranker.rerank(
-    query='machine learning',
-    documents=[
-        {'id': 'doc1', 'content': 'Machine learning is a subset of AI', 'score': 0.8},
-        {'id': 'doc2', 'content': 'Python is a programming language', 'score': 0.7},
-    ],
-    top_k=2
-)
-print(f'Reranker 输出: {len(results)} 结果')
-for r in results:
-    print(f'  {r.id}: L0={r.original_score:.3f} -> L1={r.rerank_score:.3f}')
-"
-```
-
-**验收标准**：
-
-- [ ] Reranker Pipeline 可正常调用
-- [ ] 对比 L0 vs L0+L1 的 Precision@10
-
-#### 7.6.3 Knowledge Base Schema 验证
-
-> [!NOTE]
->
-> **验证目标**：确认 `corpus` 和 `knowledge_base` 表已正确创建，`kb_hybrid_search()` 函数可用。
-
-```bash
-# 1. 验证 Knowledge Base 表结构
-uv run psql -d 'cognizes-engine' -c "
-SELECT table_name, column_name, data_type
-FROM information_schema.columns
-WHERE table_name IN ('corpus', 'knowledge_base')
-ORDER BY table_name, ordinal_position;
-"
-
-# 预期输出包含:
-# corpus    | id          | uuid
-# corpus    | name        | character varying
-# knowledge_base | corpus_id | uuid
-# knowledge_base | embedding | USER-DEFINED
-
-# 2. 验证 kb_hybrid_search 函数存在
-uv run psql -d 'cognizes-engine' -c "
-SELECT proname, pronargs FROM pg_proc
-WHERE proname = 'kb_hybrid_search';
-"
-# 预期: kb_hybrid_search | 7
-```
-
-**验收标准**：
-
-- [ ] `corpus` 表包含 id, name, app_name, description
-- [ ] `knowledge_base` 表包含 corpus_id, embedding, search_vector
-- [ ] `kb_hybrid_search()` 函数已创建 (7 参数)
-
-#### 7.6.4 Chunking 策略验证
-
-> [!NOTE]
->
-> **实现文件**：`src/cognizes/engine/perception/chunking.py` > **测试覆盖**：`tests/unittests/perception/test_chunking.py`
-
-```bash
-# 1. 验证 Chunking 模块导入
-uv run python -c "
-from cognizes.engine.perception.chunking import (
-    FixedLengthChunker, RecursiveChunker, HierarchicalChunker,
-    get_chunker, chunk_text
-)
-print('✅ Chunking 模块导入成功')
-"
-
-# 2. 验证工厂函数
-uv run python -c "
-from cognizes.engine.perception.chunking import get_chunker
-
-strategies = ['fixed', 'recursive', 'hierarchical']
-test_text = 'ML is great. ' * 100
-
-print('=== Chunking 策略验证 ===')
-for strategy in strategies:
-    chunker = get_chunker(strategy, chunk_size=100, chunk_overlap=10)
-    chunks = chunker.split(test_text)
-    print(f'{strategy:15s}: {len(chunks):3d} chunks')
-"
-
-# 预期输出:
-# fixed          :   5 chunks
-# recursive      :   5 chunks
-# hierarchical   :   8 chunks
-
-# 3. 运行单元测试
-uv run pytest tests/unittests/perception/test_chunking.py -v --tb=short -m "not slow"
-```
-
-**验收标准**：
-
-- [ ] 4 种分块策略可正常实例化
-- [ ] 工厂函数 `get_chunker()` 支持 fixed/recursive/hierarchical
-- [ ] 单元测试全部通过
-
-#### 7.6.5 RAG Pipeline E2E 验证
-
-> [!NOTE]
->
-> **实现文件**：`src/cognizes/engine/perception/rag_pipeline.py` > **测试覆盖**：`tests/integration/perception/test_rag_e2e.py`
-
-```bash
-# 1. 验证 RAG Pipeline 模块导入
-uv run python -c "
-from cognizes.engine.perception.rag_pipeline import (
-    RAGPipeline, RAGResponse, get_rag_pipeline
-)
-from cognizes.engine.perception.ingestion import (
-    DocumentIngester, get_ingester
-)
-from cognizes.engine.perception.embedder import get_embedder
-
-print('✅ RAG Pipeline 模块链路完整')
-"
-
-# 2. 验证 E2E 链路 (Mock 模式)
-uv run python -c "
-import asyncio
-from cognizes.engine.perception.rag_pipeline import get_rag_pipeline
-
-async def test_e2e():
-    pipeline = get_rag_pipeline(db_pool=None, embedding_provider='mock')
-
-    # 索引文档
-    result = await pipeline.index_document(
-        content='Machine learning is a subset of AI.',
-        source_uri='test.md'
-    )
-    print(f'✅ 文档索引: {result.source_uri}')
-
-    # 查询
-    response = await pipeline.query('What is machine learning?', top_k=3)
-    print(f'✅ RAG 查询: {len(response.sources)} sources, {response.total_time_ms:.1f}ms')
-    print(f'   Answer: {response.answer[:50]}...')
-
-asyncio.run(test_e2e())
-"
-
-# 3. 运行 E2E 集成测试
-uv run pytest tests/integration/perception/test_rag_e2e.py -v -s --tb=short
-```
-
-**验收标准**：
-
-| 测试用例   | 验收指标                 | 状态 |
-| :--------- | :----------------------- | :--: |
-| RAG-E2E-01 | 单文档摄入分块 ≥ 1       |  ✅  |
-| RAG-E2E-02 | 100 篇文档索引 < 120s    |  ✅  |
-| RAG-E2E-03 | 跨文档检索 Top-5         |  ✅  |
-| RAG-E2E-04 | 生成回答含引用           |  ✅  |
-| RAG-E2E-05 | P99 延迟 < 1000ms (Mock) |  ✅  |
-
-#### 7.6.6 Hybrid Search 功能验证
-
-> [!NOTE]
->
-> **量化指标**：基于 `test_hybrid_search.py` 断言
-
-```bash
-# 1. 验证 Hybrid Search 返回合并分数
-uv run python -c "
-import asyncio
-import asyncpg
-import numpy as np
-
-async def test():
-    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
-
-    embedding = np.random.randn(1536).astype(float).tolist()
-    embedding_str = '[' + ','.join(str(x) for x in embedding) + ']'
-
-    rows = await pool.fetch('''
-        SELECT id, semantic_score, keyword_score, combined_score
-        FROM hybrid_search(\$1, \$2, \$3, \$4::vector, 10)
-    ''', 'test_user', 'test_app', 'machine learning', embedding_str)
-
-    print(f'Hybrid Search 返回 {len(rows)} 条结果')
-    if len(rows) > 0:
-        r = rows[0]
-        expected = r['semantic_score'] * 0.7 + r['keyword_score'] * 0.3
-        match = '✅' if abs(r['combined_score'] - expected) < 0.0001 else '❌'
-        print(f'{match} combined_score 计算正确 (误差 < 0.0001)')
-
-    await pool.close()
-
-asyncio.run(test())
-"
-
-# 2. 验证 RRF 分数递减排序
-uv run python -c "
-import asyncio
-import asyncpg
-import numpy as np
-
-async def test():
-    pool = await asyncpg.create_pool('postgresql://aigc:@localhost/cognizes-engine')
-
-    embedding = np.random.randn(1536).astype(float).tolist()
-    embedding_str = '[' + ','.join(str(x) for x in embedding) + ']'
-
-    rows = await pool.fetch('''
-        SELECT rrf_score FROM rrf_search(\$1, \$2, \$3, \$4::vector, 50)
-    ''', 'test_user', 'test_app', 'AI', embedding_str)
-
-    if len(rows) > 1:
-        scores = [r['rrf_score'] for r in rows]
-        is_sorted = scores == sorted(scores, reverse=True)
-        status = '✅' if is_sorted else '❌'
-        print(f'{status} RRF 分数递减排序 ({len(rows)} 条)')
-
-    await pool.close()
-
-asyncio.run(test())
-"
-
-# 3. 运行集成测试
-uv run pytest tests/integration/perception/test_hybrid_search.py -v -s --tb=short
-```
-
-**验收标准**：
-
-| 验证项              | 量化指标                                      | 状态 |
-| :------------------ | :-------------------------------------------- | :--: |
-| combined_score 计算 | 误差 < 0.0001                                 |  ✅  |
-| RRF 分数排序        | 严格递减                                      |  ✅  |
-| Hybrid Search 延迟  | P50 < 100ms                                   |  ✅  |
-| 返回字段完整性      | semantic_score, keyword_score, combined_score |  ✅  |
-
----
-
-### 7.7 验收总结清单
-
-| 验收项           | 状态 | 说明                                    | 对应任务         |
-| :--------------- | :--: | :-------------------------------------- | :--------------- |
-| Schema 部署      |  ✅  | search_vector + 3 函数 + GIN 索引       | P3-1-1 ~ P3-1-5  |
-| KB Schema 部署   |  ✅  | corpus + knowledge_base + kb_hybrid     | P3-4-7 ~ P3-4-10 |
-| 单元测试         |  ✅  | 35+ tests passed (含 Chunking/Embedder) | P3-4-6           |
-| 集成测试         |  ✅  | 20+ tests passed (Hybrid + RAG E2E)     | P3-1-5, P3-5-5   |
-| 模块导入         |  ✅  | RAG Pipeline 完整链路                   | P3-5-1 ~ P3-5-4  |
-| L0 延迟          |  ✅  | Hybrid Search 平均 < 100ms              | P3-2-4           |
-| Chunking 策略    |  ✅  | 4 种策略功能验证                        | P3-5-2           |
-| RAG E2E          |  ✅  | 5 个 E2E 场景通过                       | P3-5-5           |
-| RRF 性能对比     |  🔲  | SQL vs Python RRF (需手动运行对比脚本)  | P3-1-9           |
-| Precision@10     |  🔲  | L0 vs L0+L1 对比 (需标注数据)           | P3-2-8           |
-| **Phase 3 验收** |  ✅  | 核心功能就绪，进入 Phase 4              | P3-3-4           |
-
-> [!TIP]
->
-> 完成上述所有验收项后，勾选 "Phase 3 验收" 为 ✅，可进入 Phase 4: The Realm of Mind。
-
----
+## 7. 风险与缓解策略
 
 ## 8. 参考资料
 
