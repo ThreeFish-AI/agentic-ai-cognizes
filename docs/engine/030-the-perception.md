@@ -180,7 +180,7 @@ flowchart TB
 | 核心组件      | Google Vertex AI 能力       | PostgreSQL 复刻策略 (Glass-Box)                    |
 | :------------ | :-------------------------- | :------------------------------------------------- |
 | **Vector DB** | 托管向量检索服务 (ScaNN)    | **PGVector** (HNSW 索引)                           |
-| **Corpus**    | 语料库管理 (Managed Corpus) | `knowledge_base` (Static) + `memories` (Dynamic)   |
+| **Corpus**    | 语料库管理 (Managed Corpus) | `knowledge` (Static) + `memories` (Dynamic)        |
 | **Retrieval** | 混合检索 (Hybrid Search)    | **One-Shot SQL** (`vector` + `tsvector` + `jsonb`) |
 | **Fusion**    | 结果融合 (Result Merging)   | **RRF Algorithm** (Reciprocal Rank Fusion)         |
 | **Ranking**   | 重排 API (Ranking API)      | **Cross-Encoder** (Local Inference)                |
@@ -319,7 +319,7 @@ L0 检索关注 **Recall (召回率)**，L1 重排关注 **Precision (准确率)
 | **所有权**   | 全局/租户级别（多用户共享）            | 用户级别（个人私有）                |
 | **典型场景** | 企业文档、FAQ、产品手册、政策法规      | 对话历史、用户偏好、情景记忆        |
 | **对标系统** | RAGFlow Corpus、Dify RAG Engine        | LangGraph `Store`、ADK `MemoryBank` |
-| **存储表**   | `knowledge_base`                       | `memories` + `facts`                |
+| **存储表**   | `knowledge`                            | `memories` + `facts`                |
 
 #### 3.1.2 双存储 ER 图 (Dual-Store Schema)
 
@@ -362,7 +362,7 @@ erDiagram
     }
 
     %% 2. Static Knowledge Base (静态知识库)
-    corpus ||--o{ knowledge_base : "contains"
+    corpus ||--o{ knowledge : "contains"
 
     corpus {
         uuid id PK "语料库 ID"
@@ -373,7 +373,7 @@ erDiagram
         timestamp created_at "创建时间"
     }
 
-    knowledge_base {
+    knowledge {
         uuid id PK "知识块 ID"
         uuid corpus_id FK "所属语料库"
         varchar app_name FK "应用标识"
@@ -393,23 +393,23 @@ erDiagram
    - **左侧 (Dynamic Memory)**：以 `threads` 为源头，记录 User-Agent 的交互历史。数据是**流式生长**的，具有**时效性**（需遗忘），服务于 "Personal Context"。
    - **右侧 (Static Knowledge)**：以 `corpus` 为容器，存储预置的领域知识。数据是**静态导入**的，具有**权威性**（不遗忘），服务于 "Domain Capability"。
 2. **信号完备性 (Signal Completeness)**：
-   - `memories` 和 `knowledge_base` 表均同时包含 `embedding` (语义信号)、`search_vector` (词法信号) 和 `metadata/state` (结构化信号)，确保了检索链路在物理层面的**同构性**，从而支持上层统一的 **Hybrid Search** 接口。
+   - `memories` 和 `knowledge` 表均同时包含 `embedding` (语义信号)、`search_vector` (词法信号) 和 `metadata/state` (结构化信号)，确保了检索链路在物理层面的**同构性**，从而支持上层统一的 **Hybrid Search** 接口。
 3. **溯源性 (Traceability)**：
    - 动态记忆通过 `thread_id` 严格锚定到原始会话，不仅能回答 "用户喜好什么"，还能追溯 "这是在哪次对话中提取的"，实现了记忆的可解释性。
 
 #### 3.1.3 检索场景对应
 
-| 检索场景           | 存储表           | 过滤条件                | 典型查询                 |
-| :----------------- | :--------------- | :---------------------- | :----------------------- |
-| **Knowledge 检索** | `knowledge_base` | `corpus_id`, `app_name` | "公司年假政策是什么?"    |
-| **Memory 检索**    | `memories`       | `user_id`, `app_name`   | "用户之前说过什么偏好?"  |
-| **Unified 检索**   | 两表联合         | `app_name` + RRF 融合   | 结合知识库与用户记忆回答 |
+| 检索场景           | 存储表      | 过滤条件                | 典型查询                 |
+| :----------------- | :---------- | :---------------------- | :----------------------- |
+| **Knowledge 检索** | `knowledge` | `corpus_id`, `app_name` | "公司年假政策是什么?"    |
+| **Memory 检索**    | `memories`  | `user_id`, `app_name`   | "用户之前说过什么偏好?"  |
+| **Unified 检索**   | 两表联合    | `app_name` + RRF 融合   | 结合知识库与用户记忆回答 |
 
 ### 3.2 Knowledge Base Schema 设计
 
 > [!NOTE]
 >
-> **NEW**: 新增 `corpus` 和 `knowledge_base` 表，用于存储静态知识，与 `memories` 表（动态记忆）分离。
+> **NEW**: 新增 `corpus` 和 `knowledge` 表，用于存储静态知识，与 `memories` 表（动态记忆）分离。
 
 #### 3.2.1 Corpus 表 (语料库)
 
@@ -437,7 +437,7 @@ COMMENT ON TABLE corpus IS '语料库管理表，用于管理 Knowledge Base 的
 
 ```sql
 -- 知识块存储表 (静态知识)
-CREATE TABLE IF NOT EXISTS knowledge_base (
+CREATE TABLE IF NOT EXISTS knowledge (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     corpus_id UUID NOT NULL REFERENCES corpus(id) ON DELETE CASCADE,
     app_name VARCHAR(255) NOT NULL,
@@ -461,16 +461,16 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
 
 -- 向量索引 (HNSW)
 CREATE INDEX IF NOT EXISTS idx_kb_embedding
-    ON knowledge_base USING hnsw (embedding vector_cosine_ops)
+    ON knowledge USING hnsw (embedding vector_cosine_ops)
     WITH (m = 16, ef_construction = 64);
 
 -- 全文索引 (GIN)
 CREATE INDEX IF NOT EXISTS idx_kb_search_vector
-    ON knowledge_base USING GIN (search_vector);
+    ON knowledge USING GIN (search_vector);
 
 -- 过滤索引
 CREATE INDEX IF NOT EXISTS idx_kb_corpus_app
-    ON knowledge_base(corpus_id, app_name);
+    ON knowledge(corpus_id, app_name);
 
 -- 自动更新 search_vector 触发器
 CREATE OR REPLACE FUNCTION kb_search_vector_trigger()
@@ -482,11 +482,11 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trigger_kb_search_vector
-    BEFORE INSERT OR UPDATE ON knowledge_base
+    BEFORE INSERT OR UPDATE ON knowledge
     FOR EACH ROW
     EXECUTE FUNCTION kb_search_vector_trigger();
 
-COMMENT ON TABLE knowledge_base IS '知识块存储表，用于 RAG Pipeline 的静态知识检索';
+COMMENT ON TABLE knowledge IS '知识块存储表，用于 RAG Pipeline 的静态知识检索';
 ```
 
 ### 3.3 Memory Schema 扩展
@@ -523,14 +523,14 @@ CREATE INDEX IF NOT EXISTS idx_memories_search_vector
 
 ### 3.4 索引策略
 
-| 存储表           | 列              | 索引类型 | 用途       |
-| :--------------- | :-------------- | :------- | :--------- |
-| `knowledge_base` | `embedding`     | HNSW     | 语义检索   |
-| `knowledge_base` | `search_vector` | GIN      | 关键词检索 |
-| `knowledge_base` | `corpus_id`     | BTREE    | 语料库过滤 |
-| `memories`       | `embedding`     | HNSW     | 语义检索   |
-| `memories`       | `search_vector` | GIN      | 关键词检索 |
-| `memories`       | `user_id`       | BTREE    | 用户过滤   |
+| 存储表      | 列              | 索引类型 | 用途       |
+| :---------- | :-------------- | :------- | :--------- |
+| `knowledge` | `embedding`     | HNSW     | 语义检索   |
+| `knowledge` | `search_vector` | GIN      | 关键词检索 |
+| `knowledge` | `corpus_id`     | BTREE    | 语料库过滤 |
+| `memories`  | `embedding`     | HNSW     | 语义检索   |
+| `memories`  | `search_vector` | GIN      | 关键词检索 |
+| `memories`  | `user_id`       | BTREE    | 用户过滤   |
 
 > [!IMPORTANT]
 >
@@ -551,16 +551,16 @@ CREATE INDEX IF NOT EXISTS idx_memories_search_vector
 
 #### 3.5.1 JSONB 过滤语法参考
 
-| 场景             | SQL 语法                                      | 说明                     |
-| :--------------- | :-------------------------------------------- | :----------------------- | ------------ |
-| **简单键值匹配** | `metadata @> '{"type": "note"}'`              | 包含指定键值对           |
-| **嵌套对象匹配** | `metadata @> '{"author": {"role": "admin"}}'` | 任意深度嵌套             |
-| **数组元素包含** | `metadata @> '{"tags": ["important"]}'`       | 数组包含指定元素         |
-| **路径取值比较** | `metadata->'author'->>'role' = 'admin'`       | 提取路径值进行比较       |
-| **数值范围过滤** | `(metadata->>'priority')::int > 5`            | 类型转换后数值比较       |
-| **存在性检查**   | `metadata ? 'urgent'`                         | 检查 key 是否存在        |
-| **多键存在检查** | `metadata ?& array['type', 'status']`         | 同时存在多个 key         |
-| **任一键存在**   | `metadata ?                                   | array['vip', 'premium']` | 存在任一 key |
+| 场景             | SQL 语法                                      | 说明               |
+| :--------------- | :-------------------------------------------- | :----------------- |
+| **简单键值匹配** | `metadata @> '{"type": "note"}'`              | 包含指定键值对     |
+| **嵌套对象匹配** | `metadata @> '{"author": {"role": "admin"}}'` | 任意深度嵌套       |
+| **数组元素包含** | `metadata @> '{"tags": ["important"]}'`       | 数组包含指定元素   |
+| **路径取值比较** | `metadata->'author'->>'role' = 'admin'`       | 提取路径值进行比较 |
+| **数值范围过滤** | `(metadata->>'priority')::int > 5`            | 类型转换后数值比较 |
+| **存在性检查**   | `metadata ? 'urgent'`                         | 检查 key 是否存在  |
+| **多键存在检查** | `metadata ?& array['type', 'status']`         | 同时存在多个 key   |
+| **任一键存在**   | `metadata ?\| array['vip', 'premium']`        | 存在任一 key       |
 
 #### 3.5.2 主流业务场景示例
 
@@ -884,7 +884,7 @@ BEGIN
             kb.id, kb.content, kb.source_uri,
             1 - (kb.embedding <=> p_query_embedding) AS score,
             kb.metadata
-        FROM knowledge_base kb
+        FROM knowledge kb
         WHERE kb.corpus_id = p_corpus_id AND kb.app_name = p_app_name
         ORDER BY kb.embedding <=> p_query_embedding
         LIMIT p_limit * 2
@@ -894,7 +894,7 @@ BEGIN
             kb.id, kb.content, kb.source_uri,
             ts_rank_cd(kb.search_vector, plainto_tsquery('english', p_query)) AS score,
             kb.metadata
-        FROM knowledge_base kb
+        FROM knowledge kb
         WHERE kb.corpus_id = p_corpus_id
           AND kb.app_name = p_app_name
           AND kb.search_vector @@ plainto_tsquery('english', p_query)
@@ -926,13 +926,13 @@ $$ LANGUAGE plpgsql;
 
 #### 8.0.3 双存储检索测试用例
 
-| 测试用例 ID | 测试场景                 | 检索函数             | 验收标准                       |
-| :---------- | :----------------------- | :------------------- | :----------------------------- |
-| DUAL-01     | Knowledge 独立检索       | `kb_hybrid_search()` | 仅返回 `knowledge_base` 表数据 |
-| DUAL-02     | Memory 独立检索          | `hybrid_search()`    | 仅返回 `memories` 表数据       |
-| DUAL-03     | Unified 联合检索         | `unified_search()`   | 两表数据 RRF 融合              |
-| DUAL-04     | Knowledge 不影响 Memory  | 交叉测试             | 两表数据隔离，无交叉污染       |
-| DUAL-05     | Corpus 过滤 vs User 过滤 | 对比测试             | 各自过滤条件正确生效           |
+| 测试用例 ID | 测试场景                 | 检索函数             | 验收标准                  |
+| :---------- | :----------------------- | :------------------- | :------------------------ |
+| DUAL-01     | Knowledge 独立检索       | `kb_hybrid_search()` | 仅返回 `knowledge` 表数据 |
+| DUAL-02     | Memory 独立检索          | `hybrid_search()`    | 仅返回 `memories` 表数据  |
+| DUAL-03     | Unified 联合检索         | `unified_search()`   | 两表数据 RRF 融合         |
+| DUAL-04     | Knowledge 不影响 Memory  | 交叉测试             | 两表数据隔离，无交叉污染  |
+| DUAL-05     | Corpus 过滤 vs User 过滤 | 对比测试             | 各自过滤条件正确生效      |
 
 ### 3.8 RAG Pipeline 架构
 
@@ -948,7 +948,7 @@ flowchart TB
         D[文档集合] --> Parse[文档解析]
         Parse --> Chunk[分块策略]
         Chunk --> Embed[向量化]
-        Embed --> Index[(knowledge_base)]
+        Embed --> Index[(knowledge)]
         Chunk --> Meta[元数据提取]
         Meta --> Index
     end
@@ -1006,10 +1006,10 @@ class RAGPipeline:
 
 #### 3.8.3 双存储解耦架构
 
-| 存储表           | 数据类型     | 过滤维度                | 检索函数             |
-| :--------------- | :----------- | :---------------------- | :------------------- |
-| `knowledge_base` | 静态知识文档 | `corpus_id`, `app_name` | `kb_hybrid_search()` |
-| `memories`       | 用户会话记忆 | `user_id`, `app_name`   | `hybrid_search()`    |
+| 存储表      | 数据类型     | 过滤维度                | 检索函数             |
+| :---------- | :----------- | :---------------------- | :------------------- |
+| `knowledge` | 静态知识文档 | `corpus_id`, `app_name` | `kb_hybrid_search()` |
+| `memories`  | 用户会话记忆 | `user_id`, `app_name`   | `hybrid_search()`    |
 
 ---
 
@@ -1042,7 +1042,7 @@ flowchart LR
     end
 
     subgraph Store["存储层"]
-        EMBED --> KB[(knowledge_base)]
+        EMBED --> KB[(knowledge)]
     end
 
     style Input fill:#fff3e0,color:#000
@@ -2208,7 +2208,7 @@ class DocumentIngester:
 ```mermaid
 flowchart LR
     Q[Query] --> R[Retrieve]
-    R --> KB[(knowledge_base)]
+    R --> KB[(knowledge)]
     KB --> RK[Rerank]
     RK --> G[Generate]
     G --> A[Answer]
@@ -2449,22 +2449,22 @@ for r in results:
 
 > [!NOTE]
 >
-> **验证目标**：确认 `corpus` 和 `knowledge_base` 表已正确创建，`kb_hybrid_search()` 函数可用。
+> **验证目标**：确认 `corpus` 和 `knowledge` 表已正确创建，`kb_hybrid_search()` 函数可用。
 
 ```bash
 # 1. 验证 Knowledge Base 表结构
 uv run psql -d 'cognizes-engine' -c "
 SELECT table_name, column_name, data_type
 FROM information_schema.columns
-WHERE table_name IN ('corpus', 'knowledge_base')
+WHERE table_name IN ('corpus', 'knowledge')
 ORDER BY table_name, ordinal_position;
 "
 
 # 预期输出包含:
 # corpus    | id          | uuid
 # corpus    | name        | character varying
-# knowledge_base | corpus_id | uuid
-# knowledge_base | embedding | USER-DEFINED
+# knowledge | corpus_id | uuid
+# knowledge | embedding | USER-DEFINED
 
 # 2. 验证 kb_hybrid_search 函数存在
 uv run psql -d 'cognizes-engine' -c "
@@ -2477,7 +2477,7 @@ WHERE proname = 'kb_hybrid_search';
 **验收标准**：
 
 - [ ] `corpus` 表包含 id, name, app_name, description
-- [ ] `knowledge_base` 表包含 corpus_id, embedding, search_vector
+- [ ] `knowledge` 表包含 corpus_id, embedding, search_vector
 - [ ] `kb_hybrid_search()` 函数已创建 (7 参数)
 
 #### 5.6.4 Chunking 策略验证
@@ -2665,7 +2665,7 @@ uv run pytest tests/integration/perception/test_hybrid_search.py -v -s --tb=shor
 | 验收项           | 状态 | 说明                                    | 对应任务         |
 | :--------------- | :--: | :-------------------------------------- | :--------------- |
 | Schema 部署      |  ✅  | search_vector + 3 函数 + GIN 索引       | P3-1-1 ~ P3-1-5  |
-| KB Schema 部署   |  ✅  | corpus + knowledge_base + kb_hybrid     | P3-4-7 ~ P3-4-10 |
+| KB Schema 部署   |  ✅  | corpus + knowledge + kb_hybrid          | P3-4-7 ~ P3-4-10 |
 | 单元测试         |  ✅  | 35+ tests passed (含 Chunking/Embedder) | P3-4-6           |
 | 集成测试         |  ✅  | 20+ tests passed (Hybrid + RAG E2E)     | P3-1-5, P3-5-5   |
 | 模块导入         |  ✅  | RAG Pipeline 完整链路                   | P3-5-1 ~ P3-5-4  |
@@ -3049,42 +3049,42 @@ if __name__ == "__main__":
 
 ### 5.5. 交付物清单
 
-| 类别       | 文件路径                                                    | 描述                                                                                            | 任务 ID          |
-| :--------- | :---------------------------------------------------------- | :---------------------------------------------------------------------------------------------- | :--------------- |
-| **文档**   | `docs/030-the-perception.md`                                | 本实施方案文档                                                                                  | P3-3-1           |
-| **Schema** | `src/cognizes/engine/schema/perception_schema.sql`          | Perception Schema 扩展 (含 corpus, knowledge_base, hybrid_search, rrf_search, kb_hybrid_search) | P3-1-1 ~ P3-4-10 |
-| **Python** | `src/cognizes/engine/perception/rrf_fusion.py`              | Python RRF 实现                                                                                 | P3-1-8           |
-| **Python** | `src/cognizes/engine/perception/reranker.py`                | Cross-Encoder Reranker 实现                                                                     | P3-3-3           |
-| **Python** | `src/cognizes/engine/perception/search_visualizer.py`       | AG-UI 检索过程可视化                                                                            | P3-4-2           |
-| **Python** | `src/cognizes/engine/perception/benchmark.py`               | 性能基准测试脚本                                                                                | P3-2-4           |
-| **Python** | `src/cognizes/engine/perception/generate_test_data.py`      | 测试数据生成脚本                                                                                | P3-2-1           |
-| **Python** | `src/cognizes/engine/perception/chunking.py`                | Chunking 策略 (Fixed/Recursive/Semantic/Hierarchical)                                           | P3-5-2           |
-| **Python** | `src/cognizes/engine/perception/embedder.py`                | Embedding 服务 (OpenAI/SentenceTransformers/Mock) (**NEW**)                                     | P3-5-3           |
-| **Python** | `src/cognizes/engine/perception/ingestion.py`               | 文档摄入服务 (Markdown/TXT/PDF) (**NEW**)                                                       | P3-5-1           |
-| **Python** | `src/cognizes/engine/perception/rag_pipeline.py`            | RAG Pipeline 完整链路 (Index/Retrieve/Generate) (**NEW**)                                       | P3-5-4           |
-| **测试**   | `tests/perception/test_hybrid_search.py`                    | Hybrid Search 单元测试                                                                          | P3-3-4           |
-| **测试**   | `tests/perception/test_reranker.py`                         | Reranker 单元测试                                                                               | P3-3-4           |
-| **测试**   | `tests/unittests/perception/test_rrf_fusion.py`             | RRF Fusion 单元测试                                                                             | P3-1-8           |
-| **测试**   | `tests/unittests/perception/test_search_visualizer.py`      | SearchVisualizer 单元测试                                                                       | P3-4-2           |
-| **测试**   | `tests/unittests/perception/test_chunking.py`               | Chunking 单元测试 (**NEW**)                                                                     | P3-5-2           |
-| **测试**   | `tests/unittests/perception/test_embedder.py`               | Embedder 单元测试 (**NEW**)                                                                     | P3-5-3           |
-| **测试**   | `tests/unittests/perception/test_ingestion.py`              | Ingestion 单元测试 (**NEW**)                                                                    | P3-5-1           |
-| **测试**   | `tests/unittests/perception/test_rag_pipeline.py`           | RAG Pipeline 单元测试 (**NEW**)                                                                 | P3-5-4           |
-| **测试**   | `tests/integration/perception/test_hybrid_search.py`        | Hybrid Search 集成测试                                                                          | P3-1-5           |
-| **测试**   | `tests/integration/perception/test_high_selectivity.py`     | High-Selectivity 集成测试                                                                       | P3-2-3           |
-| **测试**   | `tests/integration/perception/test_kb_search.py`            | Knowledge Base 检索集成测试                                                                     | P3-4-10          |
-| **测试**   | `tests/integration/perception/test_chunking_integration.py` | Chunking 集成测试 (**NEW**)                                                                     | P3-5-2           |
-| **测试**   | `tests/integration/perception/test_rag_e2e.py`              | RAG E2E 集成测试 (RAG-E2E-01~05) (**NEW**)                                                      | P3-5-5           |
+| 类别       | 文件路径                                                    | 描述                                                                                       | 任务 ID          |
+| :--------- | :---------------------------------------------------------- | :----------------------------------------------------------------------------------------- | :--------------- |
+| **文档**   | `docs/030-the-perception.md`                                | 本实施方案文档                                                                             | P3-3-1           |
+| **Schema** | `src/cognizes/engine/schema/perception_schema.sql`          | Perception Schema 扩展 (含 corpus, knowledge, hybrid_search, rrf_search, kb_hybrid_search) | P3-1-1 ~ P3-4-10 |
+| **Python** | `src/cognizes/engine/perception/rrf_fusion.py`              | Python RRF 实现                                                                            | P3-1-8           |
+| **Python** | `src/cognizes/engine/perception/reranker.py`                | Cross-Encoder Reranker 实现                                                                | P3-3-3           |
+| **Python** | `src/cognizes/engine/perception/search_visualizer.py`       | AG-UI 检索过程可视化                                                                       | P3-4-2           |
+| **Python** | `src/cognizes/engine/perception/benchmark.py`               | 性能基准测试脚本                                                                           | P3-2-4           |
+| **Python** | `src/cognizes/engine/perception/generate_test_data.py`      | 测试数据生成脚本                                                                           | P3-2-1           |
+| **Python** | `src/cognizes/engine/perception/chunking.py`                | Chunking 策略 (Fixed/Recursive/Semantic/Hierarchical)                                      | P3-5-2           |
+| **Python** | `src/cognizes/engine/perception/embedder.py`                | Embedding 服务 (OpenAI/SentenceTransformers/Mock) (**NEW**)                                | P3-5-3           |
+| **Python** | `src/cognizes/engine/perception/ingestion.py`               | 文档摄入服务 (Markdown/TXT/PDF) (**NEW**)                                                  | P3-5-1           |
+| **Python** | `src/cognizes/engine/perception/rag_pipeline.py`            | RAG Pipeline 完整链路 (Index/Retrieve/Generate) (**NEW**)                                  | P3-5-4           |
+| **测试**   | `tests/perception/test_hybrid_search.py`                    | Hybrid Search 单元测试                                                                     | P3-3-4           |
+| **测试**   | `tests/perception/test_reranker.py`                         | Reranker 单元测试                                                                          | P3-3-4           |
+| **测试**   | `tests/unittests/perception/test_rrf_fusion.py`             | RRF Fusion 单元测试                                                                        | P3-1-8           |
+| **测试**   | `tests/unittests/perception/test_search_visualizer.py`      | SearchVisualizer 单元测试                                                                  | P3-4-2           |
+| **测试**   | `tests/unittests/perception/test_chunking.py`               | Chunking 单元测试 (**NEW**)                                                                | P3-5-2           |
+| **测试**   | `tests/unittests/perception/test_embedder.py`               | Embedder 单元测试 (**NEW**)                                                                | P3-5-3           |
+| **测试**   | `tests/unittests/perception/test_ingestion.py`              | Ingestion 单元测试 (**NEW**)                                                               | P3-5-1           |
+| **测试**   | `tests/unittests/perception/test_rag_pipeline.py`           | RAG Pipeline 单元测试 (**NEW**)                                                            | P3-5-4           |
+| **测试**   | `tests/integration/perception/test_hybrid_search.py`        | Hybrid Search 集成测试                                                                     | P3-1-5           |
+| **测试**   | `tests/integration/perception/test_high_selectivity.py`     | High-Selectivity 集成测试                                                                  | P3-2-3           |
+| **测试**   | `tests/integration/perception/test_kb_search.py`            | Knowledge Base 检索集成测试                                                                | P3-4-10          |
+| **测试**   | `tests/integration/perception/test_chunking_integration.py` | Chunking 集成测试 (**NEW**)                                                                | P3-5-2           |
+| **测试**   | `tests/integration/perception/test_rag_e2e.py`              | RAG E2E 集成测试 (RAG-E2E-01~05) (**NEW**)                                                 | P3-5-5           |
 
 > [!NOTE]
 >
 > **Schema 文件说明**：`perception_schema.sql` v2.0 包含以下模块：
 >
-> - Part 1: Knowledge Base Schema (`corpus` + `knowledge_base` 表)
+> - Part 1: Knowledge Base Schema (`corpus` + `knowledge` 表)
 > - Part 2: Memory Schema 扩展 (`search_vector` 列)
 > - Part 3: JSONB Complex Predicates 索引
 > - Part 4-5: `hybrid_search()` + `rrf_search()` 函数 (用于 `memories` 表)
-> - Part 6: `kb_hybrid_search()` 函数 (用于 `knowledge_base` 表)
+> - Part 6: `kb_hybrid_search()` 函数 (用于 `knowledge` 表)
 > - Part 7: 验证脚本
 
 ---
