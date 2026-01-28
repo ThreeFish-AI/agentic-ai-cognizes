@@ -321,11 +321,47 @@ L0 检索关注 **Recall (召回率)**，L1 重排关注 **Precision (准确率)
 | **对标系统** | RAGFlow Corpus、Dify RAG Engine        | LangGraph `Store`、ADK `MemoryBank` |
 | **存储表**   | `knowledge_base`                       | `memories` + `facts`                |
 
-#### 3.1.2 双存储 ER 图
+#### 3.1.2 双存储 ER 图 (Dual-Store Schema)
 
 ```mermaid
 erDiagram
-    %% Knowledge Base (静态知识)
+    %% 1. Dynamic Memory Stream (动态记忆流)
+    threads ||--o{ memories : "generates"
+    memories ||--o{ facts : "extracts"
+
+    threads {
+        uuid id PK "会话 ID (Session Container)"
+        varchar user_id "用户标识"
+        varchar app_name "应用标识"
+        jsonb state "当前上下文状态"
+        int version "OCC 版本号"
+    }
+
+    memories {
+        uuid id PK "记忆 ID"
+        uuid thread_id FK "来源会话 (Source Trace)"
+        varchar user_id FK "用户标识"
+        varchar app_name FK "应用标识"
+        text content "记忆内容 (Snapshot/Summary)"
+        vector embedding "向量嵌入 (1536D)"
+        tsvector search_vector "全文搜索向量"
+        jsonb metadata "元数据"
+        float retention_score "遗忘曲线分数"
+        timestamp created_at "创建时间"
+    }
+
+    facts {
+        uuid id PK "事实 ID"
+        uuid memory_id FK "来源记忆"
+        text fact_content "提取的事实"
+        vector embedding "向量嵌入"
+        tsvector search_vector "全文搜索向量"
+        varchar key "事实键 (e.g. 'preference')"
+        jsonb value "结构化值 (Semantic Knowledge)"
+        float confidence "置信度"
+    }
+
+    %% 2. Static Knowledge Base (静态知识库)
     corpus ||--o{ knowledge_base : "contains"
 
     corpus {
@@ -341,40 +377,25 @@ erDiagram
         uuid id PK "知识块 ID"
         uuid corpus_id FK "所属语料库"
         varchar app_name FK "应用标识"
-        text content "知识内容"
+        text content "静态知识切片"
         vector embedding "向量嵌入 (1536D)"
-        tsvector search_vector "全文搜索向量"
+        tsvector search_vector "全文索引 (GIN)"
         text source_uri "来源文件 URI"
-        jsonb metadata "元数据 (author, tags, etc.)"
+        jsonb metadata "结构化元数据 (Complex Filter)"
         int chunk_index "分块序号"
         timestamp created_at "创建时间"
     }
-
-    %% Memory (动态记忆)
-    threads ||--o{ sessions : "has"
-    sessions ||--o{ memories : "contains"
-    memories ||--o{ facts : "extracts"
-
-    memories {
-        uuid id PK "主键"
-        varchar user_id FK "用户标识"
-        varchar app_name FK "应用标识"
-        text content "记忆内容"
-        vector embedding "向量嵌入 (1536D)"
-        tsvector search_vector "全文搜索向量"
-        jsonb metadata "元数据"
-        float retention_score "记忆保留分数"
-        timestamp created_at "创建时间"
-    }
-
-    facts {
-        uuid id PK "主键"
-        uuid memory_id FK "关联记忆"
-        text fact_content "提取的事实"
-        vector embedding "向量嵌入"
-        tsvector search_vector "全文搜索向量"
-    }
 ```
+
+上图展示了 Perception Engine 的 **"双存储-三信号" (Dual-Store, Tri-Signal)** 正交架构：
+
+1. **存储正交性 (Storage Orthogonality)**：
+   - **左侧 (Dynamic Memory)**：以 `threads` 为源头，记录 User-Agent 的交互历史。数据是**流式生长**的，具有**时效性**（需遗忘），服务于 "Personal Context"。
+   - **右侧 (Static Knowledge)**：以 `corpus` 为容器，存储预置的领域知识。数据是**静态导入**的，具有**权威性**（不遗忘），服务于 "Domain Capability"。
+2. **信号完备性 (Signal Completeness)**：
+   - `memories` 和 `knowledge_base` 表均同时包含 `embedding` (语义信号)、`search_vector` (词法信号) 和 `metadata/state` (结构化信号)，确保了检索链路在物理层面的**同构性**，从而支持上层统一的 **Hybrid Search** 接口。
+3. **溯源性 (Traceability)**：
+   - 动态记忆通过 `thread_id` 严格锚定到原始会话，不仅能回答 "用户喜好什么"，还能追溯 "这是在哪次对话中提取的"，实现了记忆的可解释性。
 
 #### 3.1.3 检索场景对应
 
