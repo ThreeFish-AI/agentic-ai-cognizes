@@ -472,6 +472,10 @@ CREATE INDEX IF NOT EXISTS idx_kb_search_vector
 CREATE INDEX IF NOT EXISTS idx_kb_corpus_app
     ON knowledge(corpus_id, app_name);
 
+-- JSONB 元数据索引
+CREATE INDEX IF NOT EXISTS idx_kb_metadata_gin
+    ON knowledge USING GIN (metadata);
+
 -- 自动更新 search_vector 触发器
 CREATE OR REPLACE FUNCTION kb_search_vector_trigger()
 RETURNS trigger AS $$
@@ -481,6 +485,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_kb_search_vector ON knowledge;
 CREATE TRIGGER trigger_kb_search_vector
     BEFORE INSERT OR UPDATE ON knowledge
     FOR EACH ROW
@@ -1182,49 +1187,22 @@ flowchart LR
 
 **Schema 扩展脚本** (`src/cognizes/engine/schema/perception_schema.sql`)：
 
+> [!TIP]
+>
+> 完整 Schema 定义请参考本文档 [3. 架构设计：Perception Schema](#3-架构设计perception-schema) 章节。此处仅列出部署步骤。
+
+```bash
+# 执行部署
+psql -d cognizes-engine -f src/cognizes/engine/schema/perception_schema.sql
+```
+
+**验证查询**：
+
 ```sql
--- ============================================
--- Agentic AI Engine - Perception Schema Extension
--- Version: 1.0
--- Target: PostgreSQL 16+ with pgvector
--- Prerequisite: Phase 2 hippocampus_schema.sql 已部署
--- ============================================
-
--- 1. 添加全文搜索列
-ALTER TABLE memories ADD COLUMN IF NOT EXISTS
-    search_vector tsvector;
-
--- 2. 创建触发器自动更新 search_vector
-CREATE OR REPLACE FUNCTION memories_search_vector_trigger()
-RETURNS trigger AS $$
-BEGIN
-    NEW.search_vector := to_tsvector('english', COALESCE(NEW.content, ''));
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trigger_memories_search_vector ON memories;
-CREATE TRIGGER trigger_memories_search_vector
-    BEFORE INSERT OR UPDATE ON memories
-    FOR EACH ROW
-    EXECUTE FUNCTION memories_search_vector_trigger();
-
--- 3. 回填已有数据的 search_vector
-UPDATE memories SET search_vector = to_tsvector('english', content)
-WHERE search_vector IS NULL;
-
--- 4. 创建 GIN 全文索引
-CREATE INDEX IF NOT EXISTS idx_memories_search_vector
-    ON memories USING GIN (search_vector);
-
--- 5. 创建复合索引 (高频过滤场景)
-CREATE INDEX IF NOT EXISTS idx_memories_user_app_created
-    ON memories(user_id, app_name, created_at DESC);
-
--- 6. 验证索引
+-- 验证索引是否存在
 SELECT indexname, indexdef
 FROM pg_indexes
-WHERE tablename = 'memories';
+WHERE tablename = 'memories' AND indexname = 'idx_memories_search_vector';
 ```
 
 #### 4.1.2 RRF 融合算法 (Reciprocal Rank Fusion)
