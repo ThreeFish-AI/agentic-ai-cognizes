@@ -417,14 +417,10 @@ erDiagram
 >
 > **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 1.1) for the complete `corpus` table DDL.
 
-```sql
--- 关键字段示意 (完整定义见 schema 文件)
-CREATE TABLE corpus (
-    id UUID PRIMARY KEY,
-    config JSONB,  -- chunking/embedding config
-    UNIQUE(app_name, name)
-);
-```
+`corpus` 表作为静态知识的顶层容器，负责管理知识库的配置信息（如 Chunking 策略、Embedding 模型版本）以及租户隔离边界。
+
+- **核心职责**: defining the scope of static knowledge.
+- **关键字段**: `config` (JSONB) 用于存储策略配置，支持不同语料库采用不同的切分参数。
 
 #### 3.2.2 Knowledge Base 表 (知识块)
 
@@ -432,17 +428,10 @@ CREATE TABLE corpus (
 >
 > **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 1.2 - 1.4) for the complete `knowledge` table DDL, indexes, and triggers.
 
-```sql
--- 关键字段示意 (完整定义见 schema 文件)
-CREATE TABLE knowledge (
-    id UUID PRIMARY KEY,
-    corpus_id UUID REFERENCES corpus(id),
-    content TEXT,
-    embedding vector(1536),  -- HNSW Index
-    search_vector tsvector,  -- GIN Index
-    metadata JSONB           -- GIN Index
-);
-```
+`knowledge` 表存储经切分和向量化处理后的文档切片 (Chunks)。它是 Semantic Search 和 Keyword Search 的物理载体。
+
+- **Hybrid Indexing**: 同时维护 `embedding` (HNSW) 和 `search_vector` (GIN) 索引。
+- **Source Tracing**: 通过 `source_uri` 和 `chunk_index` 实现对原始文档的精确溯源。
 
 ### 3.3 Memory Schema 扩展
 
@@ -456,11 +445,11 @@ CREATE TABLE knowledge (
 >
 > **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 2) for the `memories` table extension DDL.
 
-```sql
--- 扩展示意 (完整定义见 schema 文件)
-ALTER TABLE memories ADD COLUMN search_vector tsvector;
-CREATE INDEX idx_memories_search_vector ON memories USING GIN (search_vector);
-```
+为复用 Phase 2 已有的 `memories` 表，我们需要对其进行**非侵入式扩展**，增加全文检索能力：
+
+1. **Add Column**: 增加 `search_vector` (tsvector) 列，用于存储分词后的词法向量。
+2. **Add Index**: 创建 GIN 倒排索引，支持高效的 BM25 关键词匹配 (`@@` 操作符)。
+3. **Auto-Update**: 配置 Trigger 自动保持 `content` 与 `search_vector` 的同步。
 
 ### 3.4 索引策略
 
@@ -655,16 +644,6 @@ CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
 
 该函数是 `hybrid_search` 的 Knowledge Base 版本，增加了 `source_uri` 等特有字段的返回。
 
-#### 8.0.3 双存储检索测试用例
-
-| 测试用例 ID | 测试场景                 | 检索函数             | 验收标准                  |
-| :---------- | :----------------------- | :------------------- | :------------------------ |
-| DUAL-01     | Knowledge 独立检索       | `kb_hybrid_search()` | 仅返回 `knowledge` 表数据 |
-| DUAL-02     | Memory 独立检索          | `hybrid_search()`    | 仅返回 `memories` 表数据  |
-| DUAL-03     | Unified 联合检索         | `unified_search()`   | 两表数据 RRF 融合         |
-| DUAL-04     | Knowledge 不影响 Memory  | 交叉测试             | 两表数据隔离，无交叉污染  |
-| DUAL-05     | Corpus 过滤 vs User 过滤 | 对比测试             | 各自过滤条件正确生效      |
-
 ### 3.8 RAG Pipeline 架构
 
 > [!NOTE]
@@ -703,37 +682,6 @@ flowchart TB
 #### 3.8.2 RAGPipeline 核心接口
 
 **实现文件**：`src/cognizes/engine/perception/rag_pipeline.py`
-
-```python
-class RAGPipeline:
-    """完整的 RAG Pipeline 实现"""
-
-    async def index_document(
-        self,
-        content: str,
-        source_uri: str,
-        corpus_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ) -> IndexingResult:
-        """文档索引入库"""
-
-    async def retrieve(
-        self,
-        query: str,
-        top_k: int = 10,
-        semantic_weight: float = 0.7,
-        keyword_weight: float = 0.3,
-    ) -> List[RetrievalResult]:
-        """混合检索"""
-
-    async def query(
-        self,
-        query: str,
-        top_k: int = 5,
-        system_prompt: Optional[str] = None,
-    ) -> RAGResponse:
-        """端到端 RAG 查询 (检索 + 生成)"""
-```
 
 #### 3.8.3 双存储解耦架构
 
@@ -2394,7 +2342,9 @@ uv run pytest tests/integration/perception/test_hybrid_search.py -v -s --tb=shor
 >
 > **对标 Roadmap KPI**：以下验收标准直接对标 `000-roadmap.md` 中 Pillar III 的核心核验指标："Recall@10 (with Filters) - 高过滤比下的召回率与耗时"。
 
-### 5.1 功能验收
+### 6.1 功能验收
+
+#### 6.1.1 核心检索能力
 
 | 验收项              | 验收标准                                        | 任务 ID        | 对标 Roadmap               |
 | :------------------ | :---------------------------------------------- | :------------- | :------------------------- |
@@ -2406,7 +2356,17 @@ uv run pytest tests/integration/perception/test_hybrid_search.py -v -s --tb=shor
 | **Iterative Scan**  | 99% 过滤比场景下仍能返回满足 LIMIT 的结果       | P3-2-3         | High-Selectivity Filtering |
 | **L1 Reranking**    | Cross-Encoder 重排后 Precision@10 提升          | P3-2-7, P3-2-8 | Post-Retrieval Reranking   |
 
-#### 5.1.1 Knowledge Base RAG Pipeline 验收
+#### 6.1.2 双存储检索场景 (Dual-Store Scenarios)
+
+| 测试用例 ID | 测试场景                 | 检索函数             | 验收标准                  |
+| :---------- | :----------------------- | :------------------- | :------------------------ |
+| DUAL-01     | Knowledge 独立检索       | `kb_hybrid_search()` | 仅返回 `knowledge` 表数据 |
+| DUAL-02     | Memory 独立检索          | `hybrid_search()`    | 仅返回 `memories` 表数据  |
+| DUAL-03     | Unified 联合检索         | `unified_search()`   | 两表数据 RRF 融合         |
+| DUAL-04     | Knowledge 不影响 Memory  | 交叉测试             | 两表数据隔离，无交叉污染  |
+| DUAL-05     | Corpus 过滤 vs User 过滤 | 对比测试             | 各自过滤条件正确生效      |
+
+#### 6.1.3 Knowledge Base RAG Pipeline 验收
 
 | 验收项                    | 验收标准                            | 任务 ID | 量化指标        |
 | :------------------------ | :---------------------------------- | :------ | :-------------- |
