@@ -5,9 +5,6 @@
 -- Prerequisite: Phase 1 agent_schema.sql 已部署
 -- ============================================
 
--- 确保依赖的扩展已启用
-CREATE EXTENSION IF NOT EXISTS "vector";
-
 -- ============================================
 -- 1. memories 表 (情景记忆: Episodic Memory)
 -- ============================================
