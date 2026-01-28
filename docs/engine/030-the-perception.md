@@ -27,7 +27,7 @@ tags:
 
 ## 1. 执行摘要
 
-### 1.1 Phase 3 定位与目标
+### 1.1 定位与目标 (Phase 3)
 
 **Phase 3: The Perception** 是整个验证计划的检索核心阶段，对标人类大脑的**感知系统 (Perception System)** —— 负责从海量信息中快速定位和识别目标的神经中枢。核心目标是：
 
@@ -53,53 +53,88 @@ graph LR
     style P3 fill:#7c2d12,stroke:#fb923c,color:#fff
 ```
 
-### 1.2 核心概念解析
+### 1.2 核心设计 (Core Architecture)
 
-#### 1.2.1 检索信号类型
+本章节阐述 The Perception 的核心设计理念，遵循 **正交分解 (Orthogonal Decomposition)** 原则，将检索过程解耦为信号提取、多路召回与分层排序三个独立维度。
 
-The Perception 的核心是将三种正交的检索信号融合为统一的检索结果：
+#### 1.2.1 检索信号正交性 (Signal Orthogonality)
 
-| 检索信号     | 定义                            | 适用场景           | PostgreSQL 实现                          |
-| :----------- | :------------------------------ | :----------------- | :--------------------------------------- |
-| **Semantic** | 语义相似度检索（向量距离）      | 语义理解、概念匹配 | `embedding <=> query_embedding` (HNSW)   |
-| **Keyword**  | 关键词匹配检索（BM25/全文搜索） | 精确词汇、技术术语 | `to_tsvector @@ plainto_tsquery` (GIN)   |
-| **Metadata** | 结构化元数据过滤（JSONB/标量）  | 权限控制、时间范围 | `metadata @> '{"key": "value"}'` (BTREE) |
+我们将检索信号解构为三个互不重叠的维度，确保在不同认知粒度上实现全覆盖：
 
-#### 1.2.2 检索链路架构
+| 维度       | 信号类型 (Signal)     | 认知层面                                             | 技术实现 (PostgreSQL)                                                                 |
+| :--------- | :-------------------- | :--------------------------------------------------- | :------------------------------------------------------------------------------------ |
+| **语义层** | **Semantic Search**   | 隐性意图、概念联想<br>语义相似度检索（向量距离）     | `vector` (HNSW): `embedding <=> query_embedding`<br>捕捉 "What you mean"              |
+| **词法层** | **Keyword Search**    | 显性关键词、专有名词<br>匹配检索（BM25/全文搜索）    | `tsvector` (BM25): `to_tsvector @@ plainto_tsquery`<br>捕捉 "What you said"           |
+| **结构层** | **Structural Filter** | 时空约束、权限边界<br>结构化元数据过滤（JSONB/标量） | `jsonb` (GIN/B-Tree): `metadata @> '{"key": "value}'`<br>捕捉 "Context & Constraints" |
+| **空间层** | **Spatial Search**    | 地理位置、物理空间<br>LBS 范围检索 (Radius Search)   | `geography` (GiST): `ST_DWithin(loc, $p, $r)`<br>捕捉 "Where it is"                   |
+
+#### 1.2.2 感知链路 (Perception Pipeline)
+
+检索链路采用 **漏斗型架构 (Funnel Architecture)**，通过两阶段处理实现由粗到精的 **熵减 (Entropy Reduction)** 过程。
 
 ```mermaid
-graph TB
-    subgraph "检索链路 (Retrieval Pipeline)"
-        Q[User Query] --> E[Embedding<br>向量化]
-        Q --> T[Tokenize<br>分词]
-        Q --> F[Filter Parse<br>过滤解析]
-
-        E --> S1[Semantic Search<br>HNSW 向量检索]
-        T --> S2[Keyword Search<br>BM25 全文检索]
-        F --> S3[Metadata Filter<br>JSONB 过滤]
-
-        S1 & S2 & S3 --> RRF[RRF Fusion<br>倒数排名融合]
-        RRF --> L0[L0 粗排结果<br>Top-50]
-        L0 --> RK[L1 Reranking<br>Cross-Encoder]
-        RK --> R[Final Results<br>Top-10]
+flowchart TB
+    subgraph Input ["感知输入 (Sensory Input)"]
+        Q[User Query]
+        H[Conversation History]
     end
 
-    style Q fill:#1e3a5f,stroke:#60a5fa,color:#fff
-    style RRF fill:#065f46,stroke:#34d399,color:#fff
-    style RK fill:#7c2d12,stroke:#fb923c,color:#fff
-    style R fill:#059669,stroke:#34d399,color:#fff
+    subgraph Runtime ["Agent Runtime"]
+        direction TB
+        QR[Query Rewrite<br>指代消解 & 意图补全]
+
+        subgraph Extractor ["Signal Extraction (信号提取)"]
+            E_Vec[Vector Generation]
+            E_Kwd[Keyword Extraction]
+            E_Meta[Filter Parsing]
+            E_Geo[Spatial Parsing]
+        end
+
+        subgraph Storage ["Cognizes Engine"]
+            direction TB
+
+            subgraph Signals ["正交召回 (Orthogonal Retrieval)"]
+                S1[Semantic<br>HNSW]
+                S2[Keyword<br>BM25]
+                S3[Structural<br>JSONB]
+                S4[Spatial<br>GiST]
+            end
+
+            RRF[RRF Fusion<br>倒数排名融合]
+        end
+
+        L1[L1 Reranking<br>Cross-Encoder 精排]
+    end
+
+    %% Flow
+    Q & H --> QR
+    QR --> E_Vec & E_Kwd & E_Meta & E_Geo
+
+    E_Vec --> S1
+    E_Kwd --> S2
+    E_Meta --> S3
+    E_Geo --> S4
+
+    S1 & S2 & S3 & S4 --> RRF
+    RRF -- "L0 Candidates (Top-50)" --> L1
+    L1 -- "Final Results (Top-10)" --> Output([Context Chunks])
+
+    %% Styling
+    style Input fill:#1e3a5f,stroke:#60a5fa,color:#fff
+    style Runtime fill:#7c2d12,stroke:#fb923c,color:#fff
+    style Storage fill:#065f46,stroke:#34d399,color:#fff
 ```
 
 #### 1.2.3 Two-Stage Retrieval (两阶段检索)
 
 > [!IMPORTANT]
 >
-> **对标 Roadmap Pillar III**：The Perception 采用两阶段检索架构，实现「粗排 (L0)」与「精排 (L1)」的分离。
+> **对标 Roadmap Pillar III**：The Perception 采用两阶段检索架构，分离“召回”与“排序”关注点，平衡性能、延迟与精度。
 
-| 阶段        | 定义             | 技术实现            | 目标                        |
-| :---------- | :--------------- | :------------------ | :-------------------------- |
-| **L0 粗排** | 数据库层融合检索 | PostgreSQL One-Shot | 高召回率 (Recall@50 > 95%)  |
-| **L1 精排** | 应用层语义重排   | Cross-Encoder Model | 高精度 (Precision@10 > 90%) |
+| 阶段                    | 定位                             | 运行环境      | 延迟预算 (Latency) | 关键指标           | 算法/模型                    |
+| :---------------------- | :------------------------------- | :------------ | :----------------- | :----------------- | :--------------------------- |
+| **L0 粗排 (Recall)**    | **广度优先**：确保不漏掉相关信息 | PostgreSQL    | < 50ms             | Recall@50 > 95%    | HNSW + BM25 + RRF            |
+| **L1 精排 (Precision)** | **深度优先**：不仅相关，更要精准 | Agent Runtime | < 200ms            | Precision@10 > 95% | BGE-Reranker (Cross-Encoder) |
 
 ### 1.3 对标分析：Google RAG Engine
 
