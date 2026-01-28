@@ -413,85 +413,35 @@ erDiagram
 
 #### 3.2.1 Corpus 表 (语料库)
 
-```sql
--- 语料库管理表
-CREATE TABLE IF NOT EXISTS corpus (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    app_name VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    config JSONB DEFAULT '{}',  -- chunking_strategy, embedding_model, etc.
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+> [!TIP]
+>
+> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 1.1) for the complete `corpus` table DDL.
 
+```sql
+-- 关键字段示意 (完整定义见 schema 文件)
+CREATE TABLE corpus (
+    id UUID PRIMARY KEY,
+    config JSONB,  -- chunking/embedding config
     UNIQUE(app_name, name)
 );
-
--- 索引
-CREATE INDEX IF NOT EXISTS idx_corpus_app_name ON corpus(app_name);
-
-COMMENT ON TABLE corpus IS '语料库管理表，用于管理 Knowledge Base 的顶层容器';
 ```
 
 #### 3.2.2 Knowledge Base 表 (知识块)
 
+> [!TIP]
+>
+> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 1.2 - 1.4) for the complete `knowledge` table DDL, indexes, and triggers.
+
 ```sql
--- 知识块存储表 (静态知识)
-CREATE TABLE IF NOT EXISTS knowledge (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    corpus_id UUID NOT NULL REFERENCES corpus(id) ON DELETE CASCADE,
-    app_name VARCHAR(255) NOT NULL,
-
-    -- 内容字段
-    content TEXT NOT NULL,
-    embedding vector(1536),
-    search_vector tsvector,
-
-    -- 来源追溯
-    source_uri TEXT,                -- 原始文件路径/URL
-    chunk_index INTEGER DEFAULT 0,   -- 分块序号
-
-    -- 元数据
-    metadata JSONB DEFAULT '{}',     -- author, tags, version, etc.
-
-    -- 时间戳
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- 关键字段示意 (完整定义见 schema 文件)
+CREATE TABLE knowledge (
+    id UUID PRIMARY KEY,
+    corpus_id UUID REFERENCES corpus(id),
+    content TEXT,
+    embedding vector(1536),  -- HNSW Index
+    search_vector tsvector,  -- GIN Index
+    metadata JSONB           -- GIN Index
 );
-
--- 向量索引 (HNSW)
-CREATE INDEX IF NOT EXISTS idx_kb_embedding
-    ON knowledge USING hnsw (embedding vector_cosine_ops)
-    WITH (m = 16, ef_construction = 64);
-
--- 全文索引 (GIN)
-CREATE INDEX IF NOT EXISTS idx_kb_search_vector
-    ON knowledge USING GIN (search_vector);
-
--- 过滤索引
-CREATE INDEX IF NOT EXISTS idx_kb_corpus_app
-    ON knowledge(corpus_id, app_name);
-
--- JSONB 元数据索引
-CREATE INDEX IF NOT EXISTS idx_kb_metadata_gin
-    ON knowledge USING GIN (metadata);
-
--- 自动更新 search_vector 触发器
-CREATE OR REPLACE FUNCTION kb_search_vector_trigger()
-RETURNS trigger AS $$
-BEGIN
-    NEW.search_vector := to_tsvector('english', COALESCE(NEW.content, ''));
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trigger_kb_search_vector ON knowledge;
-CREATE TRIGGER trigger_kb_search_vector
-    BEFORE INSERT OR UPDATE ON knowledge
-    FOR EACH ROW
-    EXECUTE FUNCTION kb_search_vector_trigger();
-
-COMMENT ON TABLE knowledge IS '知识块存储表，用于 RAG Pipeline 的静态知识检索';
 ```
 
 ### 3.3 Memory Schema 扩展
@@ -502,28 +452,14 @@ COMMENT ON TABLE knowledge IS '知识块存储表，用于 RAG Pipeline 的静�
 
 #### 3.3.1 新增 tsvector 列
 
+> [!TIP]
+>
+> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 2) for the `memories` table extension DDL.
+
 ```sql
--- 在 memories 表添加全文搜索向量列
-ALTER TABLE memories ADD COLUMN IF NOT EXISTS
-    search_vector tsvector;
-
--- 创建触发器自动更新 search_vector
-CREATE OR REPLACE FUNCTION memories_search_vector_trigger()
-RETURNS trigger AS $$
-BEGIN
-    NEW.search_vector := to_tsvector('english', COALESCE(NEW.content, ''));
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_memories_search_vector
-    BEFORE INSERT OR UPDATE ON memories
-    FOR EACH ROW
-    EXECUTE FUNCTION memories_search_vector_trigger();
-
--- 创建 GIN 索引加速全文搜索
-CREATE INDEX IF NOT EXISTS idx_memories_search_vector
-    ON memories USING GIN (search_vector);
+-- 扩展示意 (完整定义见 schema 文件)
+ALTER TABLE memories ADD COLUMN search_vector tsvector;
+CREATE INDEX idx_memories_search_vector ON memories USING GIN (search_vector);
 ```
 
 ### 3.4 索引策略
@@ -684,250 +620,40 @@ LIMIT 10;
 
 #### 3.5.3 JSONB 索引策略
 
+> [!TIP]
+>
+> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 3) for JSONB indexing strategies.
+
 ```sql
--- 1. GIN 索引：支持 @>、?、?&、?| 操作符
-CREATE INDEX idx_memories_metadata_gin
-    ON memories USING GIN (metadata);
-
--- 2. 表达式索引：针对高频查询路径
--- 场景：频繁按 author.role 过滤
-CREATE INDEX idx_memories_author_role
-    ON memories ((metadata->'author'->>'role'));
-
--- 3. 部分索引：针对特定业务场景
--- 场景：仅索引 admin 用户的记忆（减少索引大小）
-CREATE INDEX idx_memories_admin_only
-    ON memories USING hnsw (embedding vector_cosine_ops)
-    WHERE metadata @> '{"author": {"role": "admin"}}';
+-- 索引策略示意
+CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
 ```
 
 ### 3.6 核心 SQL 函数设计
 
 #### 3.6.1 One-Shot Hybrid Search 函数
 
-```sql
--- 核心函数：One-Shot 混合检索
-CREATE OR REPLACE FUNCTION hybrid_search(
-    p_user_id VARCHAR(255),
-    p_app_name VARCHAR(255),
-    p_query TEXT,
-    p_query_embedding vector(1536),
-    p_limit INTEGER DEFAULT 50,
-    p_semantic_weight FLOAT DEFAULT 0.7,
-    p_keyword_weight FLOAT DEFAULT 0.3,
-    p_metadata_filter JSONB DEFAULT NULL
-)
-RETURNS TABLE (
-    id UUID,
-    content TEXT,
-    semantic_score FLOAT,
-    keyword_score FLOAT,
-    combined_score FLOAT,
-    metadata JSONB
-) AS $$
-BEGIN
-    RETURN QUERY
-    WITH
-    -- 1. 语义检索 (向量)
-    semantic_results AS (
-        SELECT
-            m.id,
-            m.content,
-            1 - (m.embedding <=> p_query_embedding) AS score,
-            m.metadata
-        FROM memories m
-        WHERE m.user_id = p_user_id
-          AND m.app_name = p_app_name
-          AND (p_metadata_filter IS NULL OR m.metadata @> p_metadata_filter)
-        ORDER BY m.embedding <=> p_query_embedding
-        LIMIT p_limit * 2  -- 召回 2 倍用于融合
-    ),
-    -- 2. 关键词检索 (BM25)
-    keyword_results AS (
-        SELECT
-            m.id,
-            m.content,
-            ts_rank_cd(m.search_vector, plainto_tsquery('english', p_query)) AS score,
-            m.metadata
-        FROM memories m
-        WHERE m.user_id = p_user_id
-          AND m.app_name = p_app_name
-          AND m.search_vector @@ plainto_tsquery('english', p_query)
-          AND (p_metadata_filter IS NULL OR m.metadata @> p_metadata_filter)
-        ORDER BY score DESC
-        LIMIT p_limit * 2
-    ),
-    -- 3. 合并去重
-    combined AS (
-        SELECT
-            COALESCE(s.id, k.id) AS id,
-            COALESCE(s.content, k.content) AS content,
-            COALESCE(s.score, 0) AS semantic_score,
-            COALESCE(k.score, 0) AS keyword_score,
-            COALESCE(s.metadata, k.metadata) AS metadata
-        FROM semantic_results s
-        FULL OUTER JOIN keyword_results k ON s.id = k.id
-    )
-    -- 4. 加权融合排序
-    SELECT
-        c.id,
-        c.content,
-        c.semantic_score,
-        c.keyword_score,
-        (c.semantic_score * p_semantic_weight + c.keyword_score * p_keyword_weight) AS combined_score,
-        c.metadata
-    FROM combined c
-    ORDER BY combined_score DESC
-    LIMIT p_limit;
-END;
-$$ LANGUAGE plpgsql;
-```
+> [!TIP]
+>
+> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 4) for the `hybrid_search` function definition.
+
+该函数通过 CTE (COmmon Table Expressions) 实现了 Semantic (Vector) + Keyword (BM25) 的并行检索与加权融合。
 
 #### 3.6.2 RRF 融合函数
 
-```sql
--- RRF (Reciprocal Rank Fusion) 融合函数
-CREATE OR REPLACE FUNCTION rrf_search(
-    p_user_id VARCHAR(255),
-    p_app_name VARCHAR(255),
-    p_query TEXT,
-    p_query_embedding vector(1536),
-    p_limit INTEGER DEFAULT 50,
-    p_k INTEGER DEFAULT 60  -- RRF 平滑常数
-)
-RETURNS TABLE (
-    id UUID,
-    content TEXT,
-    rrf_score FLOAT,
-    semantic_rank INTEGER,
-    keyword_rank INTEGER,
-    metadata JSONB
-) AS $$
-BEGIN
-    RETURN QUERY
-    WITH
-    -- 1. 语义检索 + 排名
-    semantic_ranked AS (
-        SELECT
-            m.id, m.content, m.metadata,
-            ROW_NUMBER() OVER (ORDER BY m.embedding <=> p_query_embedding) AS rank
-        FROM memories m
-        WHERE m.user_id = p_user_id AND m.app_name = p_app_name
-        ORDER BY m.embedding <=> p_query_embedding
-        LIMIT p_limit * 3
-    ),
-    -- 2. 关键词检索 + 排名
-    keyword_ranked AS (
-        SELECT
-            m.id, m.content, m.metadata,
-            ROW_NUMBER() OVER (
-                ORDER BY ts_rank_cd(m.search_vector, plainto_tsquery('english', p_query)) DESC
-            ) AS rank
-        FROM memories m
-        WHERE m.user_id = p_user_id
-          AND m.app_name = p_app_name
-          AND m.search_vector @@ plainto_tsquery('english', p_query)
-        ORDER BY ts_rank_cd(m.search_vector, plainto_tsquery('english', p_query)) DESC
-        LIMIT p_limit * 3
-    ),
-    -- 3. RRF 融合
-    rrf_combined AS (
-        SELECT
-            COALESCE(s.id, k.id) AS id,
-            COALESCE(s.content, k.content) AS content,
-            COALESCE(s.metadata, k.metadata) AS metadata,
-            s.rank AS semantic_rank,
-            k.rank AS keyword_rank,
-            -- RRF 公式: sum(1 / (k + rank))
-            COALESCE(1.0 / (p_k + s.rank), 0) +
-            COALESCE(1.0 / (p_k + k.rank), 0) AS rrf_score
-        FROM semantic_ranked s
-        FULL OUTER JOIN keyword_ranked k ON s.id = k.id
-    )
-    -- 4. 按 RRF 分数排序
-    SELECT
-        c.id,
-        c.content,
-        c.rrf_score,
-        c.semantic_rank::INTEGER,
-        c.keyword_rank::INTEGER,
-        c.metadata
-    FROM rrf_combined c
-    ORDER BY c.rrf_score DESC
-    LIMIT p_limit;
-END;
-$$ LANGUAGE plpgsql;
-```
+> [!TIP]
+>
+> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 5) for the `rrf_search` function definition.
+
+该函数实现了 Reciprocal Rank Fusion 算法，用于无需权重的排名融合。
 
 ### 3.7 Knowledge Base 专用检索函数
 
-```sql
--- Knowledge Base 专用混合检索函数
-CREATE OR REPLACE FUNCTION kb_hybrid_search(
-    p_corpus_id UUID,
-    p_app_name VARCHAR(255),
-    p_query TEXT,
-    p_query_embedding vector(1536),
-    p_limit INTEGER DEFAULT 50,
-    p_semantic_weight FLOAT DEFAULT 0.7,
-    p_keyword_weight FLOAT DEFAULT 0.3
-)
-RETURNS TABLE (
-    id UUID,
-    content TEXT,
-    source_uri TEXT,
-    semantic_score FLOAT,
-    keyword_score FLOAT,
-    combined_score FLOAT,
-    metadata JSONB
-) AS $$
-BEGIN
-    RETURN QUERY
-    WITH
-    semantic_results AS (
-        SELECT
-            kb.id, kb.content, kb.source_uri,
-            1 - (kb.embedding <=> p_query_embedding) AS score,
-            kb.metadata
-        FROM knowledge kb
-        WHERE kb.corpus_id = p_corpus_id AND kb.app_name = p_app_name
-        ORDER BY kb.embedding <=> p_query_embedding
-        LIMIT p_limit * 2
-    ),
-    keyword_results AS (
-        SELECT
-            kb.id, kb.content, kb.source_uri,
-            ts_rank_cd(kb.search_vector, plainto_tsquery('english', p_query)) AS score,
-            kb.metadata
-        FROM knowledge kb
-        WHERE kb.corpus_id = p_corpus_id
-          AND kb.app_name = p_app_name
-          AND kb.search_vector @@ plainto_tsquery('english', p_query)
-        ORDER BY score DESC
-        LIMIT p_limit * 2
-    ),
-    combined AS (
-        SELECT
-            COALESCE(s.id, k.id) AS id,
-            COALESCE(s.content, k.content) AS content,
-            COALESCE(s.source_uri, k.source_uri) AS source_uri,
-            COALESCE(s.score, 0) AS semantic_score,
-            COALESCE(k.score, 0) AS keyword_score,
-            COALESCE(s.metadata, k.metadata) AS metadata
-        FROM semantic_results s
-        FULL OUTER JOIN keyword_results k ON s.id = k.id
-    )
-    SELECT
-        c.id, c.content, c.source_uri,
-        c.semantic_score, c.keyword_score,
-        (c.semantic_score * p_semantic_weight + c.keyword_score * p_keyword_weight) AS combined_score,
-        c.metadata
-    FROM combined c
-    ORDER BY combined_score DESC
-    LIMIT p_limit;
-END;
-$$ LANGUAGE plpgsql;
-```
+> [!TIP]
+>
+> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 6) for the `kb_hybrid_search` function definition.
+
+该函数是 `hybrid_search` 的 Knowledge Base 版本，增加了 `source_uri` 等特有字段的返回。
 
 #### 8.0.3 双存储检索测试用例
 
