@@ -136,120 +136,116 @@ flowchart TB
 | **L0 粗排 (Recall)**    | **广度优先**：确保不漏掉相关信息 | PostgreSQL    | < 50ms             | Recall@50 > 95%    | HNSW + BM25 + RRF            |
 | **L1 精排 (Precision)** | **深度优先**：不仅相关，更要精准 | Agent Runtime | < 200ms            | Precision@10 > 95% | BGE-Reranker (Cross-Encoder) |
 
-### 1.3 对标分析：Google RAG Engine
+### 1.3 执行导图 (Execution Map)
 
-基于 Google Vertex AI RAG Engine 和 ADK 文档<sup>[[1]](#ref1)</sup>的分析，我们需要复刻以下核心能力：
-
-| Google 核心能力             | 定义                    | PostgreSQL 复刻策略       |
-| :-------------------------- | :---------------------- | :------------------------ |
-| **Vertex AI Vector Search** | 托管向量检索服务        | PGVector HNSW 索引        |
-| **RAG Corpus**              | 检索语料库管理          | `memories` + `facts` 表   |
-| **Hybrid Retrieval**        | 向量 + 稀疏向量混合检索 | `DBMS_HYBRID_SEARCH` 函数 |
-| **Ranking API**             | LLM 驱动的重排服务      | Cross-Encoder 本地推理    |
-| **Filter-Based Retrieval**  | 元数据过滤检索          | JSONB 条件 + 部分索引     |
-
-#### 1.3.1 Google RAG Pipeline 对标
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Agent
-    participant RAG as RAG Engine
-    participant VS as Vector Search
-    participant LLM as Ranking LLM
-
-    User->>Agent: 用户查询
-    Agent->>RAG: retrieve(query, filters)
-
-    par 并行检索
-        RAG->>VS: 向量检索 (Semantic)
-        RAG->>VS: 稀疏向量检索 (Sparse)
-    end
-
-    VS-->>RAG: 多路召回结果
-    RAG->>RAG: RRF 融合
-    RAG->>LLM: Rerank (Top-50)
-    LLM-->>RAG: 重排结果 (Top-10)
-    RAG-->>Agent: 精排 Chunks
-    Agent->>User: 生成回答
-```
-
-**关键洞察**：
-
-1. **并行召回**：向量检索与关键词检索并行执行，减少总延迟
-2. **两阶段排序**：L0 (RRF) + L1 (Rerank) 分层处理，平衡效率与精度
-3. **动态过滤**：元数据过滤与检索融合，而非后置过滤
-
-### 1.4 任务-章节对照表
+#### 1.3.1 任务-文档锚定
 
 > [!NOTE]
 >
-> 以下表格将 [001-task-checklist.md](./001-task-checklist.md) 的任务 ID 与本文档章节进行对照，便于追踪执行进度。
+> 本执行导图对齐 [001-task-checklist.md](./001-task-checklist.md) 的 Phase 3 任务集，将验证工作划分为 **Core Engine (核心引擎)**、**Knowledge Base (知识库)** 与 **Support System (支撑系统)** 三大正交流。
 
-| 任务模块          | 任务 ID 范围    | 对应章节                                                                        |
-| :---------------- | :-------------- | :------------------------------------------------------------------------------ |
-| Hybrid Search SQL | P3-1-1 ~ P3-1-5 | [4.1 Step 1: Fusion Retrieval 实现](#41-step-1-fusion-retrieval-实现)           |
-| RRF 融合算法      | P3-1-6 ~ P3-1-9 | [4.1.2 RRF 融合算法](#412-rrf-融合算法-reciprocal-rank-fusion)                  |
-| High-Selectivity  | P3-2-1 ~ P3-2-4 | [4.2 Step 2: High-Selectivity Filtering](#42-step-2-high-selectivity-filtering) |
-| L1 Reranking      | P3-2-5 ~ P3-2-8 | [4.3 Step 3: L1 Reranking 实现](#43-step-3-l1-reranking-实现)                   |
-| 验收与文档        | P3-3-1 ~ P3-3-4 | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)                         |
+| 实施流 (Stream)                               | 任务模块            | 任务 ID          | 对应章节 Anchor                                                                 |
+| :-------------------------------------------- | :------------------ | :--------------- | :------------------------------------------------------------------------------ |
+| **1. Core Engine**<br>_(Dynamic Memory)_      | Hybrid Search SQL   | P3-1-1 ~ P3-1-5  | [4.1 Step 1: Fusion Retrieval 实现](#41-step-1-fusion-retrieval-实现)           |
+|                                               | RRF Algorithm       | P3-1-6 ~ P3-1-9  | [4.1.2 RRF 融合算法](#412-rrf-融合算法-reciprocal-rank-fusion)                  |
+|                                               | High-Selectivity    | P3-2-1 ~ P3-2-4  | [4.2 Step 2: High-Selectivity Filtering](#42-step-2-high-selectivity-filtering) |
+|                                               | L1 Reranking        | P3-2-5 ~ P3-2-8  | [4.3 Step 3: L1 Reranking 实现](#43-step-3-l1-reranking-实现)                   |
+| **2. Knowledge Base**<br>_(Static Knowledge)_ | KB Schema Design    | P3-4-7 ~ P3-4-10 | [3. Architecture: Perception Schema](#3-架构设计perception-schema)              |
+|                                               | RAG Pipeline        | P3-5-1 ~ P3-5-5  | [4.4 Step 4: Knowledge RAG Pipeline](#)                                         |
+|                                               | Hybrid Validation   | P3-5-6 ~ P3-5-13 | [4.4.2 Hybrid Search 融合](#)                                                   |
+| **3. Support System**<br>_(Observability)_    | AG-UI Visualization | P3-4-1 ~ P3-4-6  | [4.5 Step 5: Glass-Box Visualization](#)                                        |
+| **4. Delivery**                               | 验收与文档          | P3-3-1 ~ P3-3-4  | [5. 验收标准](#5-验收标准) + [6. 交付物](#6-交付物清单)                         |
 
-### 1.5 工期规划
+#### 1.3.2 工期规划 (1.5 Days)
 
-| 阶段 | 任务模块         | 任务 ID         | 预估工期 | 交付物                         |
-| :--- | :--------------- | :-------------- | :------- | :----------------------------- |
-| 3.1  | Fusion Retrieval | P3-1-1 ~ P3-1-9 | 0.5 Day  | `hybrid_search.sql` + RRF 函数 |
-| 3.2  | High-Selectivity | P3-2-1 ~ P3-2-4 | 0.25 Day | 迭代扫描配置 + 性能基准报告    |
-| 3.3  | L1 Reranking     | P3-2-5 ~ P3-2-8 | 0.25 Day | `reranker.py` + Precision 验证 |
-| 3.4  | 测试与验收       | P3-3-1 ~ P3-3-4 | 0.25 Day | 测试报告 + 技术文档            |
+> [!IMPORTANT]
+>
+> **Timeline Adjustment**: 由于增加了 Knowledge Base (RAG) 与 Visualization (AG-UI) 的验证范围，Phase 3 预估工期调整为 **1.5 Days**。
+
+| 阶段    | 实施内容 (Activity)                                                 | 关键产出 (Deliverables)                      | 预估工期 |
+| :------ | :------------------------------------------------------------------ | :------------------------------------------- | :------- |
+| **3.1** | **Core Retrieval Construction**<br>(Fusion SQL + RRF + HNSW Tuning) | `hybrid_search.sql`<br>`rrf_fusion.py`       | 0.5 Day  |
+| **3.2** | **Precision Engineering**<br>(Reranking + High-Selectivity)         | `reranker.py`<br>Recall/Precision Benchmarks | 0.25 Day |
+| **3.3** | **Knowledge Base Integration**<br>(KB Schema + RAG Pipeline)        | `knowledge_schema.sql`<br>`rag_pipeline.py`  | 0.5 Day  |
+| **3.4** | **System Visualization**<br>(AG-UI Events + End-to-End Test)        | `SearchVisualizer` Class<br>Test Report      | 0.25 Day |
 
 ---
 
 ## 2. 核心参考模型：检索机制感知系统
 
-### 2.1 混合检索策略对比
+### 2.1 对标分析：Google Vertex AI
 
-现代 RAG 系统普遍采用混合检索策略<sup>[[2]](#ref2)</sup>，结合向量检索和关键词检索的优势：
+基于 Google Vertex AI RAG Engine 和 ADK 文档<sup>[[1]](#ref1)</sup>的深度调研，我们将复刻以下核心能力，构建 **PostgreSQL-Native** 的感知基座：
 
-| 检索类型       | 优势                       | 劣势                             | 典型场景           |
-| :------------- | :------------------------- | :------------------------------- | :----------------- |
-| **向量检索**   | 语义理解强，泛化能力好     | 对精确词汇匹配弱，可能"语义漂移" | 概念查询、同义转换 |
-| **关键词检索** | 精确匹配，对专业术语敏感   | 缺乏语义理解，对同义词无力       | 代码搜索、术语查询 |
-| **混合检索**   | 综合两者优势，覆盖更多场景 | 实现复杂度高，需要融合策略       | 企业 RAG、通用搜索 |
+| 核心组件      | Google Vertex AI 能力       | PostgreSQL 复刻策略 (Glass-Box)                    |
+| :------------ | :-------------------------- | :------------------------------------------------- |
+| **Vector DB** | 托管向量检索服务 (ScaNN)    | **PGVector** (HNSW 索引)                           |
+| **Corpus**    | 语料库管理 (Managed Corpus) | `knowledge_base` (Static) + `memories` (Dynamic)   |
+| **Retrieval** | 混合检索 (Hybrid Search)    | **One-Shot SQL** (`vector` + `tsvector` + `jsonb`) |
+| **Fusion**    | 结果融合 (Result Merging)   | **RRF Algorithm** (Reciprocal Rank Fusion)         |
+| **Ranking**   | 重排 API (Ranking API)      | **Cross-Encoder** (Local Inference)                |
 
-#### 2.1.1 PostgreSQL 混合检索能力
+#### 2.1.1 RAG 架构管道 (Architecture Pipeline)
 
-PostgreSQL 天然支持混合检索，无需外部系统拼接：
+```mermaid
+sequenceDiagram
+    participant User
+    participant Runtime as Agent Runtime
+    participant Engine as Cognizes Engine
+    participant Rerank as L1 Reranker
 
-```sql
--- One-Shot 混合检索示例
-SELECT id, content,
-    -- 向量相似度分数 (转为 0-1 范围)
-    1 - (embedding <=> $query_embedding) AS semantic_score,
-    -- BM25 全文匹配分数
-    ts_rank_cd(search_vector, plainto_tsquery($query)) AS keyword_score
-FROM memories
-WHERE
-    -- 元数据过滤
-    app_name = $app_name AND user_id = $user_id
-    -- 可选：关键词必须匹配
-    AND search_vector @@ plainto_tsquery($query)
-ORDER BY
-    -- 融合排序 (可替换为 RRF)
-    semantic_score * 0.7 + keyword_score * 0.3 DESC
-LIMIT 50;
+    User->>Runtime: Inquiry
+    Runtime->>Engine: retrieve(query, filters)
+
+    rect rgb(6, 95, 70)
+        note right of Engine: L0 Retrieval (PostgreSQL)
+        par Parallel Execution
+            Engine->>Engine: Semantic Search (HNSW)
+            Engine->>Engine: Keyword Search (BM25)
+        end
+        Engine->>Engine: RRF Fusion (Top-100)
+    end
+
+    Engine-->>Runtime: L0 Candidates
+
+    rect rgb(124, 45, 18)
+        note right of Runtime: L1 Precision (Python)
+        Runtime->>Rerank: Cross-Encode(Query, Candidates)
+        Rerank-->>Runtime: Re-scored Results
+    end
+
+    Runtime->>User: Synthesized Response
 ```
 
-### 2.2 RRF 算法原理
+### 2.2 混合检索策略 (Hybrid Retrieval)
 
-**Reciprocal Rank Fusion (RRF)** 是一种无参数的多路召回融合算法<sup>[[3]](#ref3)</sup>，其核心思想是：
+混合检索通过结合 **Semantic (语义)** 与 **Lexical (词法)** 两种正交的检索信号，解决单一检索模式的盲区。
 
-> **排名靠前的文档，无论来自哪个检索器，都应该获得更高的融合分数。**
+| 信号维度     | 技术实现         | 优势场景                      | 盲区                         |
+| :----------- | :--------------- | :---------------------------- | :--------------------------- |
+| **Semantic** | Embedding (HNSW) | 概念联想、跨语言、意图理解    | 专有名词、精确匹配、低频词   |
+| **Lexical**  | BM25 (GIN)       | 精确关键词、代码片段、ID 匹配 | 同义词、语义漂移、上下文缺失 |
 
-#### 2.2.1 RRF 数学公式
+#### 2.2.1 PostgreSQL One-Shot Implementation
+
+不同于传统架构需分别查询 Vector DB 和 Search Engine，PostgreSQL 支持通过 **CTE (Common Table Expressions)** 实现单次 SQL 交互的混合检索：
+
+```sql
+WITH semantic AS (
+    SELECT id, 1 - (embedding <=> $emb) as score FROM docs ORDER BY embedding <=> $emb LIMIT 50
+),
+keyword AS (
+    SELECT id, ts_rank_cd(tsv, $query) as score FROM docs WHERE tsv @@ $query ORDER BY score DESC LIMIT 50
+)
+-- RRF Fusion Logic in SQL ...
+```
+
+### 2.3 融合算法 (RRF Algorithm)
+
+**Reciprocal Rank Fusion (RRF)** 是一种无需调参的稳健融合算法，公式如下：
 
 $$
-\text{RRF}(d) = \sum_{r \in R} \frac{1}{k + r(d)}
+    \text{Score}_{RRF}(d) = \sum_{r \in R} \frac{1}{k + rank_r(d)}
 $$
 
 其中：
@@ -259,98 +255,46 @@ $$
 - $r(d)$ 是文档 $d$ 在检索器中的排名 (从 1 开始)
 - $k$ 是平滑常数 (通常取 60)
 
-#### 2.2.2 RRF 示例计算
-
-| 文档 | 向量检索排名 | 关键词检索排名 | RRF 分数 (k=60)              |
-| :--- | :----------- | :------------- | :--------------------------- |
-| A    | 1            | 3              | 1/(60+1) + 1/(60+3) = 0.0325 |
-| B    | 2            | 1              | 1/(60+2) + 1/(60+1) = 0.0325 |
-| C    | 3            | 2              | 1/(60+3) + 1/(60+2) = 0.0322 |
-| D    | 5            | -              | 1/(60+5) = 0.0154            |
-
-**观察**：文档 A 和 B 的 RRF 分数相同，说明 RRF 对不同检索器的排名给予等权重。
-
-### 2.3 高过滤比检索问题
-
-> [!WARNING]
->
-> **High-Selectivity Filtering 陷阱**：当过滤条件非常严格 (如 `user_id = 'xxx'` 仅匹配 1% 数据) 时，向量索引的 Top-K 召回可能不包含任何符合过滤条件的结果！
-
-#### 2.3.1 问题场景
-
-```sql
--- 场景：用户 'alice' 只有 100 条记忆，总表有 100 万条
--- 问题：HNSW 默认的 ef_search=40 可能只扫描到其他用户的数据
-
-SELECT * FROM memories
-WHERE user_id = 'alice'  -- 仅 0.01% 的数据
-ORDER BY embedding <=> $query LIMIT 10;
-
--- 结果：可能返回 0 条数据！
-```
-
-#### 2.3.2 解决方案：迭代索引扫描
-
-PGVector 0.8.0+ 引入了 **Iterative Index Scan**<sup>[[4]](#ref4)</sup>，自动扩大检索范围直到满足 LIMIT：
-
-```sql
--- 开启迭代扫描
-SET hnsw.iterative_scan = relaxed_order;
-SET hnsw.max_scan_tuples = 20000;  -- 最大扫描元组数
-
--- 现在会自动扩展检索，直到找到 10 条符合条件的结果
-SELECT * FROM memories
-WHERE user_id = 'alice'
-ORDER BY embedding <=> $query LIMIT 10;
-```
-
-### 2.4 Reranking 技术栈
-
-L1 Reranking 使用 Cross-Encoder 模型对粗排结果进行精排<sup>[[5]](#ref5)</sup>：
-
-| 模型类型          | 特点                              | 推理速度 | 精度   |
-| :---------------- | :-------------------------------- | :------- | :----- |
-| **Bi-Encoder**    | Query 和 Doc 分别编码，可预计算   | ⚡ 极快  | 中等   |
-| **Cross-Encoder** | Query 和 Doc 联合编码，不可预计算 | 🐢 较慢  | **高** |
-
 > [!TIP]
 >
-> **两阶段检索的本质**：用 Bi-Encoder (向量检索) 快速召回候选，用 Cross-Encoder 精细排序。
-
-#### 2.4.1 推荐 Reranker 模型
-
-| 模型                       | 参数量 | 语言支持 | 推理速度 | 推荐场景     |
-| :------------------------- | :----- | :------- | :------- | :----------- |
-| `BAAI/bge-reranker-base`   | 278M   | 中英     | 中等     | **推荐首选** |
-| `BAAI/bge-reranker-v2-m3`  | 568M   | 多语言   | 较慢     | 多语言场景   |
-| `cross-encoder/ms-marco-*` | 66M    | 英文     | 快       | 英文专用     |
-| `jinaai/jina-reranker-v2`  | 137M   | 多语言   | 中等     | API 友好     |
-
-### 2.5 调研交付物摘要
-
-> [!NOTE]
+> **Why RRF?** 相比线性加权 (Weighted Sum)，RRF 不依赖分数的绝对值（向量距离 vs BM25 分数很难归一化），仅依赖相对排名，鲁棒性更强。即使某一检索路 "失效"（返回无关结果），RRF 也能保证相关文档被另一路 "捞回"。
 >
-> 本节对应任务 **P3-1-6** (理解 RRF 算法原理) 的调研交付物。
+> **RRF 示例计算**
+>
+> | 文档 | 向量检索排名 | 关键词检索排名 | RRF 分数 (k=60)              |
+> | :--- | :----------- | :------------- | :--------------------------- |
+> | A    | 1            | 3              | 1/(60+1) + 1/(60+3) = 0.0325 |
+> | B    | 2            | 1              | 1/(60+2) + 1/(60+1) = 0.0325 |
+> | C    | 3            | 2              | 1/(60+3) + 1/(60+2) = 0.0322 |
+> | D    | 5            | -              | 1/(60+5) = 0.0154            |
+>
+> **观察**：文档 A 和 B 的 RRF 分数相同，说明 RRF 对不同检索器的排名给予等权重。
 
-#### 2.5.1 检索策略对比表
+### 2.4 工程挑战：高过滤比 (High-Selectivity)
 
-| 评估维度       | 纯向量检索 | 纯关键词检索 | 混合检索 (RRF) |
-| :------------- | :--------- | :----------- | :------------- |
-| **语义理解**   | ⭐⭐⭐     | ⭐           | ⭐⭐⭐         |
-| **精确匹配**   | ⭐         | ⭐⭐⭐       | ⭐⭐⭐         |
-| **实现复杂度** | ⭐         | ⭐           | ⭐⭐           |
-| **召回率**     | 中等       | 中等         | **高**         |
-| **适用场景**   | 概念搜索   | 术语搜索     | **通用 RAG**   |
+> [!WARNING]
+> **The Top-K Trap**: 在 "Strict Filtering" (如私有记忆检索) 场景下，若符合条件的数据极少 (e.g., 0.1%)，由于 HNSW 的近似最近邻特性，标准 Top-K 查询可能返回空集。
 
-#### 2.5.2 PostgreSQL vs 专用向量库对比
+**解决方案**: 启用 PGVector 0.8.0+ 的 **Iterative Index Scan**。即在索引扫描未满足 `LIMIT` 时，自动扩大搜索半径，直到找到足够的符合元数据过滤条件的记录。
 
-| 维度           | PostgreSQL + PGVector | Milvus / Weaviate |
-| :------------- | :-------------------- | :---------------- |
-| **混合检索**   | ✅ One-Shot SQL       | ⚠️ 需应用层拼接   |
-| **事务支持**   | ✅ 完整 ACID          | ❌ 有限           |
-| **元数据过滤** | ✅ 原生 SQL           | ⚠️ 专用 DSL       |
-| **运维复杂度** | ⭐ (已有 PG)          | ⭐⭐⭐ (新增组件) |
-| **极端规模**   | 亿级需调优            | 设计目标即为亿级  |
+```sql
+SET hnsw.iterative_scan = relaxed_order; -- 牺牲严格顺序换取召回率
+SET hnsw.max_scan_tuples = 20000;        -- 设定扫描上限防止全表扫描
+```
+
+### 2.5 精排策略 (L1 Reranking)
+
+L0 检索关注 **Recall (召回率)**，L1 重排关注 **Precision (准确率)**。
+
+| 阶段             | 模型架构          | 特性                                 | 延迟预算 |
+| :--------------- | :---------------- | :----------------------------------- | :------- |
+| **L0 Recall**    | Bi-Encoder        | 向量预计算，极快                     | < 50ms   |
+| **L1 Precision** | **Cross-Encoder** | Query-Doc 联合编码，深度交互，高精度 | < 200ms  |
+
+**选型建议**:
+
+- **Base**: `BAAI/bge-reranker-base` (Balance)
+- **High-Performance**: `BAAI/bge-reranker-v2-m3` (Multi-Lingual)
 
 ---
 
