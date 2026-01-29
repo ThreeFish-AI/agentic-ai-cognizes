@@ -146,6 +146,10 @@ CREATE INDEX IF NOT EXISTS idx_memories_metadata_gin
 CREATE INDEX IF NOT EXISTS idx_memories_author_role
     ON memories ((metadata->'author'->>'role'));
 
+-- 场景：频繁按 priority 范围过滤
+CREATE INDEX IF NOT EXISTS idx_memories_metadata_priority
+    ON memories (((metadata->>'priority')::int));
+
 -- ================================
 -- Part 4: Hybrid Search 函数 (用于 memories 表)
 -- One-Shot 混合检索：语义 + 关键词
