@@ -185,7 +185,7 @@ flowchart TB
 | **Fusion**    | 结果融合 (Result Merging)   | **RRF Algorithm** (Reciprocal Rank Fusion)         |
 | **Ranking**   | 重排 API (Ranking API)      | **Cross-Encoder** (Local Inference)                |
 
-#### 2.1.1 RAG 架构管道 (Architecture Pipeline)
+### 2.2 RAG Pipeline
 
 ```mermaid
 sequenceDiagram
@@ -217,7 +217,7 @@ sequenceDiagram
     Runtime->>User: Synthesized Response
 ```
 
-### 2.2 混合检索策略 (Hybrid Retrieval)
+### 2.3 混合检索策略 (Hybrid Retrieval)
 
 混合检索通过结合 **Semantic (语义)** 与 **Lexical (词法)** 两种正交的检索信号，解决单一检索模式的盲区。
 
@@ -226,21 +226,7 @@ sequenceDiagram
 | **Semantic** | Embedding (HNSW) | 概念联想、跨语言、意图理解    | 专有名词、精确匹配、低频词   |
 | **Lexical**  | BM25 (GIN)       | 精确关键词、代码片段、ID 匹配 | 同义词、语义漂移、上下文缺失 |
 
-#### 2.2.1 PostgreSQL One-Shot Implementation
-
-不同于传统架构需分别查询 Vector DB 和 Search Engine，PostgreSQL 支持通过 **CTE (Common Table Expressions)** 实现单次 SQL 交互的混合检索：
-
-```sql
-WITH semantic AS (
-    SELECT id, 1 - (embedding <=> $emb) as score FROM docs ORDER BY embedding <=> $emb LIMIT 50
-),
-keyword AS (
-    SELECT id, ts_rank_cd(tsv, $query) as score FROM docs WHERE tsv @@ $query ORDER BY score DESC LIMIT 50
-)
--- RRF Fusion Logic in SQL ...
-```
-
-### 2.3 融合算法 (RRF Algorithm)
+### 2.4 融合算法 (RRF Algorithm)
 
 **Reciprocal Rank Fusion (RRF)** 是一种无需调参的稳健融合算法，公式如下：
 
@@ -269,18 +255,6 @@ $$
 > | D    | 5            | -              | 1/(60+5) = 0.0154            |
 >
 > **观察**：文档 A 和 B 的 RRF 分数相同，说明 RRF 对不同检索器的排名给予等权重。
-
-### 2.4 工程挑战：高过滤比 (High-Selectivity)
-
-> [!WARNING]
-> **The Top-K Trap**: 在 "Strict Filtering" (如私有记忆检索) 场景下，若符合条件的数据极少 (e.g., 0.1%)，由于 HNSW 的近似最近邻特性，标准 Top-K 查询可能返回空集。
-
-**解决方案**: 启用 PGVector 0.8.0+ 的 **Iterative Index Scan**。即在索引扫描未满足 `LIMIT` 时，自动扩大搜索半径，直到找到足够的符合元数据过滤条件的记录。
-
-```sql
-SET hnsw.iterative_scan = relaxed_order; -- 牺牲严格顺序换取召回率
-SET hnsw.max_scan_tuples = 20000;        -- 设定扫描上限防止全表扫描
-```
 
 ### 2.5 精排策略 (L1 Reranking)
 
@@ -405,6 +379,42 @@ erDiagram
 | **Memory 检索**    | `memories`  | `user_id`, `app_name`   | "用户之前说过什么偏好?"  |
 | **Unified 检索**   | 两表联合    | `app_name` + RRF 融合   | 结合知识库与用户记忆回答 |
 
+#### 3.1.4 索引策略
+
+| 存储表      | 列              | 索引类型 | 用途       |
+| :---------- | :-------------- | :------- | :--------- |
+| `knowledge` | `embedding`     | HNSW     | 语义检索   |
+| `knowledge` | `search_vector` | GIN      | 关键词检索 |
+| `knowledge` | `corpus_id`     | BTREE    | 语料库过滤 |
+| `memories`  | `embedding`     | HNSW     | 语义检索   |
+| `memories`  | `search_vector` | GIN      | 关键词检索 |
+| `memories`  | `user_id`       | BTREE    | 用户过滤   |
+
+#### 3.1.5 One-Shot Hybrid Search (PostgreSQL)
+
+> [!IMPORTANT]
+>
+> **三重索引策略**：为支持 One-Shot Hybrid Search，需要同时维护三类索引。
+
+| 索引类型     | 目标列                | 索引算法 | 用途            |
+| :----------- | :-------------------- | :------- | :-------------- |
+| **向量索引** | `embedding`           | HNSW     | 语义相似度检索  |
+| **全文索引** | `search_vector`       | GIN      | BM25 关键词检索 |
+| **标量索引** | `user_id`, etc.       | BTREE    | 元数据过滤      |
+| **复合索引** | `(user_id, app_name)` | BTREE    | 高频过滤场景    |
+
+不同于传统架构需分别查询 Vector DB 和 Search Engine，PostgreSQL 支持通过 **CTE (Common Table Expressions)** 实现单次 SQL 交互的混合检索：
+
+```sql
+WITH semantic AS (
+    SELECT id, 1 - (embedding <=> $emb) as score FROM docs ORDER BY embedding <=> $emb LIMIT 50
+),
+keyword AS (
+    SELECT id, ts_rank_cd(tsv, $query) as score FROM docs WHERE tsv @@ $query ORDER BY score DESC LIMIT 50
+)
+-- RRF Fusion Logic in SQL ...
+```
+
 ### 3.2 Knowledge Base Schema 设计
 
 > [!NOTE]
@@ -439,7 +449,7 @@ erDiagram
 >
 > **延续 Phase 2**：复用 Hippocampus 已建立的 `memories` 和 `facts` 表，仅需添加全文搜索支持。
 
-#### 3.3.1 逻辑扩展设计
+#### 3.3.1 逻辑扩展
 
 > [!TIP]
 >
@@ -451,35 +461,13 @@ erDiagram
 2. **Add Index**: 创建 GIN 倒排索引，支持高效的 BM25 关键词匹配 (`@@` 操作符)。
 3. **Auto-Update**: 通过数据库 Trigger 机制，确保持久化存储中 `content` 与 `search_vector` 的强一致性。
 
-### 3.4 索引策略
-
-| 存储表      | 列              | 索引类型 | 用途       |
-| :---------- | :-------------- | :------- | :--------- |
-| `knowledge` | `embedding`     | HNSW     | 语义检索   |
-| `knowledge` | `search_vector` | GIN      | 关键词检索 |
-| `knowledge` | `corpus_id`     | BTREE    | 语料库过滤 |
-| `memories`  | `embedding`     | HNSW     | 语义检索   |
-| `memories`  | `search_vector` | GIN      | 关键词检索 |
-| `memories`  | `user_id`       | BTREE    | 用户过滤   |
-
-> [!IMPORTANT]
->
-> **三重索引策略**：为支持 One-Shot Hybrid Search，需要同时维护三类索引。
-
-| 索引类型     | 目标列                | 索引算法 | 用途            |
-| :----------- | :-------------------- | :------- | :-------------- |
-| **向量索引** | `embedding`           | HNSW     | 语义相似度检索  |
-| **全文索引** | `search_vector`       | GIN      | BM25 关键词检索 |
-| **标量索引** | `user_id`, etc.       | BTREE    | 元数据过滤      |
-| **复合索引** | `(user_id, app_name)` | BTREE    | 高频过滤场景    |
-
-### 3.5 JSONB Complex Predicates 设计
+#### 3.3.2 JSONB Complex Predicates 设计
 
 > [!IMPORTANT]
 >
 > **对标 Roadmap Pillar III**: Complex Predicates 支持基于 JSONB 的任意深度的布尔逻辑过滤，是 The Perception 区别于简单向量检索的核心能力。
 
-#### 3.5.1 JSONB 过滤语法参考
+**JSONB 过滤语法参考**：
 
 | 场景             | SQL 语法                                      | 说明               |
 | :--------------- | :-------------------------------------------- | :----------------- |
@@ -492,7 +480,7 @@ erDiagram
 | **多键存在检查** | `metadata ?& array['type', 'status']`         | 同时存在多个 key   |
 | **任一键存在**   | `metadata ?\| array['vip', 'premium']`        | 存在任一 key       |
 
-#### 3.5.2 主流业务场景示例
+#### 3.3.3 主流业务场景示例
 
 > [!NOTE]
 >
@@ -607,7 +595,7 @@ ORDER BY embedding <=> $query_embedding
 LIMIT 10;
 ```
 
-#### 3.5.3 JSONB 索引策略
+#### 3.3.4 JSONB 索引策略
 
 > [!TIP]
 >
@@ -618,9 +606,9 @@ LIMIT 10;
 CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
 ```
 
-### 3.6 核心 SQL 函数设计
+### 3.4 核心 SQL 函数设计
 
-#### 3.6.1 One-Shot Hybrid Search 函数
+#### 3.4.1 One-Shot Hybrid Search 函数
 
 > [!TIP]
 >
@@ -628,7 +616,7 @@ CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
 
 该函数通过 CTE (COmmon Table Expressions) 实现了 Semantic (Vector) + Keyword (BM25) 的并行检索与加权融合。
 
-#### 3.6.2 RRF 融合函数
+#### 3.4.2 RRF 融合函数
 
 > [!TIP]
 >
@@ -636,7 +624,7 @@ CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
 
 该函数实现了 Reciprocal Rank Fusion 算法，用于无需权重的排名融合。
 
-### 3.7 Knowledge Base 专用检索函数
+#### 3.4.3 Knowledge Base 专用检索函数
 
 > [!TIP]
 >
@@ -644,13 +632,13 @@ CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
 
 该函数是 `hybrid_search` 的 Knowledge Base 版本，增加了 `source_uri` 等特有字段的返回。
 
-### 3.8 RAG Pipeline 架构
+### 3.5 RAG Pipeline 架构
 
 > [!NOTE]
 >
 > **对标 Roadmap Pillar III**：RAG Pipeline 是 Knowledge Base 的核心检索链路，实现「文档摄入 → 检索 → 生成」的完整闭环。
 
-#### 3.8.1 Pipeline 完整流程
+#### 3.5.1 Pipeline 完整流程
 
 ```mermaid
 flowchart LR
@@ -679,11 +667,11 @@ flowchart LR
     style 在线阶段 fill:#365314,stroke:#4d7c0f,color:#f7fee7
 ```
 
-#### 3.8.2 RAG Pipeline 核心接口
+#### 3.5.2 RAG Pipeline 核心接口
 
 **实现文件**：`src/cognizes/engine/perception/rag_pipeline.py`
 
-#### 3.8.3 双存储解耦架构
+#### 3.5.3 双存储解耦架构
 
 | 存储表      | 数据类型     | 过滤维度                | 检索函数             |
 | :---------- | :----------- | :---------------------- | :------------------- |
@@ -692,11 +680,11 @@ flowchart LR
 
 ---
 
-### 3.9 文档摄入架构
+### 3.6 文档摄入架构
 
 **实现文件**：`src/cognizes/engine/perception/ingestion.py`
 
-#### 3.9.1 摄入管道 (Ingestion Pipeline)
+#### 3.6.1 摄入管道 (Ingestion Pipeline)
 
 整个摄入过程采用 **管道-过滤器 (Pipes and Filters)** 架构，由 `DocumentIngester` 统一编排，分为解析、分块、增强、向量化四个正交阶段：
 
@@ -746,7 +734,7 @@ flowchart TB
     style Output fill:#365314,stroke:#4d7c0f,color:#f7fee7
 ```
 
-#### 3.9.2 组件设计模式 (Component Design)
+#### 3.6.2 组件设计模式 (Component Design)
 
 本模块广泛应用了 **分离关注点 (SoC)** 的设计原则，确保了系统的可扩展性与可维护性。
 
@@ -758,7 +746,7 @@ flowchart TB
 >
 > **Implementation Reference**: See [4.5.3 任务详解](#p3-5-1-文档摄入服务) for the `DocumentIngester` class definition and usage.
 
-#### 3.9.3 元数据架构 (Metadata Schema)
+#### 3.6.3 元数据架构 (Metadata Schema)
 
 元数据是实现 **Structural Filtering** 的基础。系统在摄入时自动提取三类元数据：
 
@@ -776,11 +764,11 @@ flowchart TB
 
 ---
 
-### 3.10 Chunking 策略体系
+### 3.7 Chunking 策略体系
 
 **实现文件**：`src/cognizes/engine/perception/chunking.py`
 
-#### 3.10.1 四种策略对比
+#### 3.7.1 四种策略对比
 
 | 策略                    | 方法                 | 优点         | 缺点         | 适用场景  |
 | :---------------------- | :------------------- | :----------- | :----------- | :-------- |
@@ -789,7 +777,7 @@ flowchart TB
 | **SemanticChunker**     | Embedding 相似度判断 | 语义完整     | 计算成本高   | 长篇文章  |
 | **HierarchicalChunker** | 父子 Chunk 结构      | 上下文丰富   | 存储开销大   | 法律/合同 |
 
-#### 3.10.2 策略选型决策树
+#### 3.7.2 策略选型决策树
 
 ```mermaid
 flowchart TD
@@ -811,11 +799,11 @@ flowchart TD
 
 ---
 
-### 3.11 Rerank 精排层
+### 3.8 Rerank 精排层
 
 **实现文件**：`src/cognizes/engine/perception/reranker.py`
 
-#### 3.11.1 两阶段检索架构
+#### 3.8.1 两阶段检索架构
 
 ```mermaid
 flowchart LR
@@ -829,7 +817,7 @@ flowchart LR
     style L1 fill:#e8f5e9,color:#000
 ```
 
-#### 3.11.2 Reranker 模型选型
+#### 3.8.2 Reranker 模型选型
 
 | 模型                        | 特点          | 推荐场景 |
 | :-------------------------- | :------------ | :------- |
@@ -838,7 +826,7 @@ flowchart LR
 | **BCE-Reranker**            | 中英双语优秀  | 双语场景 |
 | **Cohere Rerank**           | 商业 API      | 快速集成 |
 
-#### 3.11.3 Lost in the Middle 优化
+#### 3.8.3 Lost in the Middle 优化
 
 研究表明 LLM 对长上下文中间部分信息利用率较低。解决方案：
 
@@ -995,7 +983,18 @@ if __name__ == "__main__":
         print(f"ID: {result.id}, RRF Score: {result.score:.4f}")
 ```
 
-### 4.2 Step 2: High-Selectivity Filtering
+### 4.2 Step 2: 工程挑战：高过滤比 (High-Selectivity)
+
+> [!WARNING]
+>
+> **The Top-K Trap**: 在 "Strict Filtering" (如私有记忆检索) 场景下，若符合条件的数据极少 (e.g., 0.1%)，由于 HNSW 的近似最近邻特性，标准 Top-K 查询可能返回空集。
+
+**解决方案**: 启用 PGVector 0.8.0+ 的 **Iterative Index Scan**。即在索引扫描未满足 `LIMIT` 时，自动扩大搜索半径，直到找到足够的符合元数据过滤条件的记录。
+
+```sql
+SET hnsw.iterative_scan = relaxed_order; -- 牺牲严格顺序换取召回率
+SET hnsw.max_scan_tuples = 20000;        -- 设定扫描上限防止全表扫描
+```
 
 #### 4.2.1 迭代扫描配置
 
