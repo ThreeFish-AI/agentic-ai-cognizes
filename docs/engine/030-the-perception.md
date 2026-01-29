@@ -530,12 +530,13 @@ CREATE INDEX idx_memories_metadata_author_role ON memories ((metadata->'author'-
 SELECT id, content, embedding <=> $query_embedding AS distance
 FROM memories
 WHERE
+    user_id = $user_id
+    AND app_name = $app_name
     metadata @> '{"tenant_id": "org_acme_corp"}'
-    AND user_id = $user_id
 ORDER BY embedding <=> $query_embedding
 LIMIT 10;
 
--- 优化：为高频租户创建部分索引
+-- 优化：为高频租户创建部分索引 (Partial Index)
 CREATE INDEX idx_memories_tenant_acme
     ON memories USING hnsw (embedding vector_cosine_ops)
     WHERE metadata @> '{"tenant_id": "org_acme_corp"}';
@@ -544,18 +545,15 @@ CREATE INDEX idx_memories_tenant_acme
 ##### 场景 2：权限控制 (Access Control)
 
 ```sql
--- 业务需求：根据用户角色过滤可访问的知识
--- 过滤条件：access_level, department (组合条件)
+-- 业务需求：根据用户角色过滤可访问的记忆（如果有共享机制）
+-- 过滤条件：user_id (Context) + access_level (Attribute)
 SELECT id, content, embedding <=> $query_embedding AS distance
 FROM memories
 WHERE
-    -- 访问级别检查：用户级别 >= 文档级别
-    (metadata->>'access_level')::int <= $user_access_level
-    -- 部门归属检查：用户所属部门或公开文档
-    AND (
-        metadata @> '{"visibility": "public"}'
-        OR metadata->'departments' @> $user_department::jsonb
-    )
+    user_id = $user_id -- 必须限定用户上下文
+    AND app_name = $app_name
+    -- 访问级别检查
+    AND (metadata->>'access_level')::int <= $user_access_level
 ORDER BY embedding <=> $query_embedding
 LIMIT 10;
 ```
@@ -564,69 +562,54 @@ LIMIT 10;
 
 ```sql
 -- 业务需求：只检索特定时间段内的记忆
--- 过滤条件：created_at, updated_at (范围过滤)
+-- 过滤条件：user_id + created_at
 SELECT id, content, embedding <=> $query_embedding AS distance
 FROM memories
 WHERE
-    -- 时间范围过滤
-    created_at >= $start_time AND created_at <= $end_time
-    -- 可选：只要最近更新的
-    AND (updated_at IS NULL OR updated_at >= NOW() - INTERVAL '7 days')
-    -- 元数据时间戳过滤（存储在 JSONB 中的业务时间）
-    AND (metadata->>'event_time')::timestamp >= $event_start
+    user_id = $user_id
+    AND app_name = $app_name
+    AND created_at BETWEEN $start_time AND $end_time
 ORDER BY embedding <=> $query_embedding
 LIMIT 10;
 
--- 优化：创建复合索引覆盖时间范围查询
-CREATE INDEX idx_memories_created_at_embedding
-    ON memories (created_at DESC, user_id);
+-- 优化：创建复合索引覆盖时间范围查询 (B-Tree)
+CREATE INDEX idx_memories_user_created_at
+    ON memories (user_id, created_at DESC);
 ```
 
 ##### 场景 4：标签系统 (Tag-Based Filtering)
 
 ```sql
--- 业务需求：根据标签组合过滤知识
--- 过滤条件：tags 数组 (包含/排除逻辑)
+-- 业务需求：根据标签组合过滤
+-- 过滤条件：tags 数组
 SELECT id, content, embedding <=> $query_embedding AS distance
 FROM memories
 WHERE
-    -- 必须包含所有指定标签 (AND 语义)
-    metadata @> '{"tags": ["machine-learning", "research"]}'
-    -- 排除特定标签
-    AND NOT metadata @> '{"tags": ["deprecated"]}'
-    -- 可选：包含任一标签 (OR 语义，需应用层处理)
+    user_id = $user_id
+    AND app_name = $app_name
+    -- Generic GIN Index 加速：
+    AND metadata @> '{"tags": ["AI", "Research"]}'
 ORDER BY embedding <=> $query_embedding
 LIMIT 10;
 
--- 优化：GIN 索引支持数组包含查询
-CREATE INDEX idx_memories_tags
-    ON memories USING GIN ((metadata->'tags'));
+-- 优化：这也是 Generic GIN 索引 (idx_memories_metadata_gin) 的典型应用场景，无需额外创建索引。
 ```
 
 ##### 场景 5：复合条件与优先级 (Complex Business Logic)
 
 ```sql
--- 业务需求：企业知识库的复杂检索条件
--- 过滤条件：多维度组合 (角色 + 状态 + 类型 + 优先级)
+-- 业务需求：复杂的多维度组合过滤
 SELECT id, content, embedding <=> $query_embedding AS distance
 FROM memories
 WHERE
-    -- 文档类型
-    metadata @> '{"doc_type": "policy"}'
-    -- 状态：已发布
-    AND metadata @> '{"status": "published"}'
-    -- 创建者角色：管理员或专家
-    AND (
-        metadata @> '{"author": {"role": "admin"}}'
-        OR metadata @> '{"author": {"role": "expert"}}'
-    )
-    -- 优先级 >= 高
+    user_id = $user_id
+    AND app_name = $app_name
+    -- 1. Existence (GIN)
+    AND metadata @> '{"status": "published", "doc_type": "policy"}'
+    -- 2. Containment (GIN)
+    AND metadata @> '{"author": {"role": "admin"}}'
+    -- 3. Path Comparison (B-Tree Expression Index)
     AND (metadata->>'priority')::int >= 3
-    -- 未过期
-    AND (
-        metadata->>'expires_at' IS NULL
-        OR (metadata->>'expires_at')::timestamp > NOW()
-    )
 ORDER BY embedding <=> $query_embedding
 LIMIT 10;
 ```
