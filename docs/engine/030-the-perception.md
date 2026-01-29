@@ -417,10 +417,10 @@ erDiagram
 >
 > **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 1.1) for the complete `corpus` table DDL.
 
-`corpus` 表作为静态知识的顶层容器，负责管理知识库的配置信息（如 Chunking 策略、Embedding 模型版本）以及租户隔离边界。
+`corpus` 表作为静态知识的顶层容器，负责管理知识库的配置信息（如 Chunking 策略、Embedding 模型版本）以及租户隔离边界。它是 Knowledge Base 的逻辑根节点。
 
 - **核心职责**: defining the scope of static knowledge.
-- **关键字段**: `config` (JSONB) 用于存储策略配置，支持不同语料库采用不同的切分参数。
+- **关键属性**: `config` (JSONB) 用于存储策略配置，支持不同语料库采用不同的切分参数。
 
 #### 3.2.2 Knowledge Base 表 (知识块)
 
@@ -439,17 +439,17 @@ erDiagram
 >
 > **延续 Phase 2**：复用 Hippocampus 已建立的 `memories` 和 `facts` 表，仅需添加全文搜索支持。
 
-#### 3.3.1 新增 tsvector 列
+#### 3.3.1 逻辑扩展设计
 
 > [!TIP]
 >
 > **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 2) for the `memories` table extension DDL.
 
-为复用 Phase 2 已有的 `memories` 表，我们需要对其进行**非侵入式扩展**，增加全文检索能力：
+为复用 Phase 2 已有的 `memories` 表，我们对其进行 **非侵入式扩展 (Non-invasive Extension)**，赋予其全文检索能力。
 
 1. **Add Column**: 增加 `search_vector` (tsvector) 列，用于存储分词后的词法向量。
 2. **Add Index**: 创建 GIN 倒排索引，支持高效的 BM25 关键词匹配 (`@@` 操作符)。
-3. **Auto-Update**: 配置 Trigger 自动保持 `content` 与 `search_vector` 的同步。
+3. **Auto-Update**: 通过数据库 Trigger 机制，确保持久化存储中 `content` 与 `search_vector` 的强一致性。
 
 ### 3.4 索引策略
 
@@ -696,71 +696,82 @@ flowchart TB
 
 **实现文件**：`src/cognizes/engine/perception/ingestion.py`
 
-#### 3.9.1 摄入流程
+#### 3.9.1 摄入管道 (Ingestion Pipeline)
+
+整个摄入过程采用 **管道-过滤器 (Pipes and Filters)** 架构，由 `DocumentIngester` 统一编排，分为解析、分块、增强、向量化四个正交阶段：
 
 ```mermaid
-flowchart LR
-    subgraph Input["输入层"]
-        MD[Markdown]
-        TXT[TXT]
-        PDF[PDF]
+flowchart TB
+    subgraph Input["输入源 (Input)"]
+        File[File/Stream]
     end
 
-    subgraph Parse["解析层"]
-        MD --> MP[MarkdownParser]
-        TXT --> TP[TextParser]
-        PDF --> PP[PDFParser]
+    subgraph Orchestrator["DocumentIngester (编排器)"]
+        direction TB
+
+        subgraph Parser["Strategy: Parsing"]
+            direction LR
+
+            MP[MarkdownParser]
+            TP[TextParser]
+            PP[PDFParser]
+
+            MP -.- TP -.- PP
+        end
+
+        subgraph Transform["Transformation"]
+            direction LR
+
+            Doc[Document Object]
+            Chunker[Chunking Strategy]
+            Meta[Metadata Enrichment]
+            Embed[Embedding Adapter]
+
+            Doc --> Chunker
+            Chunker --> Meta
+            Meta --> Embed
+        end
     end
 
-    subgraph Process["处理层"]
-        MP --> DOC[Document]
-        TP --> DOC
-        PP --> DOC
-        DOC --> CHUNK[Chunking]
-        CHUNK --> EMBED[Embedding]
+    subgraph Output["标准化输出 (Normalized Output)"]
+        ID[IngestedDocument]
     end
 
-    subgraph Store["存储层"]
-        EMBED --> KB[(knowledge)]
-    end
+    Input --> Parser
+    Parser --> Transform
+    Transform --> Output
 
     style Input fill:#fff3e0,color:#000
-    style Parse fill:#e3f2fd,color:#000
-    style Process fill:#e8f5e9,color:#000
-    style Store fill:#fce4ec,color:#000
+    style Output fill:#e8f5e9,color:#000
 ```
 
-#### 3.9.2 DocumentIngester 接口
+#### 3.9.2 组件设计模式 (Component Design)
 
-```python
-class DocumentIngester:
-    """高层文档摄入服务"""
+本模块广泛应用了 **分离关注点 (SoC)** 的设计原则，确保了系统的可扩展性与可维护性。
 
-    def ingest_text(
-        self,
-        content: str,
-        source_uri: str = "inline.txt",
-        generate_embeddings: bool = True,
-    ) -> IngestedDocument:
-        """摄入文本内容"""
+- **Orchestrator Pattern**: `DocumentIngester` 作为核心协调者，隔离了复杂的处理流程，对外提供统一的 `ingest_file/ingest_text` 接口。
+- **Strategy Pattern**: `DocumentParser` 定义抽象策略，支持根据 MIME Type 动态加载 `markdown`、`pdf` 等解析器，符合 **OCP (开闭原则)**。
+- **Data Transfer Object (DTO)**: 使用 `Document` (中间态) 和 `IngestedDocument` (终态) 数据类在各阶段间传递标准化数据，确保类型安全。
 
-    def ingest_files(
-        self,
-        file_paths: List[Path],
-        generate_embeddings: bool = True,
-    ) -> List[IngestedDocument]:
-        """批量摄入文件"""
-```
+> [!TIP]
+>
+> **Implementation Reference**: See [4.5.3 任务详解](#p3-5-1-文档摄入服务) for the `DocumentIngester` class definition and usage.
 
-#### 3.9.3 元数据抽取规范
+#### 3.9.3 元数据架构 (Metadata Schema)
 
-| 元数据字段    | 类型   | 来源         | 用途       |
-| :------------ | :----- | :----------- | :--------- |
-| `source_uri`  | string | 文件路径/URL | 引用溯源   |
-| `title`       | string | 文档首行/H1  | 显示标题   |
-| `mime_type`   | string | 文件扩展名   | 解析器选择 |
-| `doc_id`      | string | 内容哈希     | 去重标识   |
-| `chunk_index` | int    | 分块索引     | 上下文定位 |
+元数据是实现 **Structural Filtering** 的基础。系统在摄入时自动提取三类元数据：
+
+| 维度     | 字段          | 类型   | 说明                   | 设计目的                                       |
+| :------- | :------------ | :----- | :--------------------- | :--------------------------------------------- |
+| **溯源** | `source_uri`  | string | 文件绝对路径或 URL     | 支持引用跳转与来源追溯                         |
+| **身份** | `doc_id`      | sha256 | `SHA256(content)[:16]` | **内容寻址去重** (Content-Based Deduplication) |
+| **内容** | `title`       | string | 文件名或一级标题       | 增强搜索结果的可读性 (Snippet Title)           |
+| **结构** | `chunk_index` | int    | 0, 1, 2...             | 支持 **Window Retrieval** (获取相邻分块)       |
+| **类型** | `mime_type`   | string | e.g. `application/pdf` | 支持按文档类型过滤                             |
+
+> [!NOTE]
+>
+> **元数据增强 (Enrichment)**: 分块后的每个 Chunk 会自动继承父文档的 `doc_id`、`title`、`source_uri` 等关键属性，确保每个切片都能独立溯源。
 
 ---
 
@@ -796,14 +807,6 @@ flowchart TD
     style Hierarchical fill:#fff3e0,color:#000
     style Fixed fill:#fce4ec,color:#000
 ```
-
-#### 3.10.3 参数调优指南
-
-| 参数             | 默认值     | 调优建议                    |
-| :--------------- | :--------- | :-------------------------- |
-| `chunk_size`     | 512 tokens | 短文档 256，长文档 1024     |
-| `chunk_overlap`  | 50 tokens  | 通常为 chunk_size 的 10-20% |
-| `min_chunk_size` | 50 tokens  | 避免过短无意义块            |
 
 ---
 
@@ -1825,6 +1828,14 @@ class DocumentIngester:
 - [ ] 四种策略单元测试通过
 - [ ] Overlap 功能测试通过
 - [ ] 字符/Token 模式切换测试通过
+
+**参数调优指南**：
+
+| 参数             | 默认值     | 调优建议                    |
+| :--------------- | :--------- | :-------------------------- |
+| `chunk_size`     | 512 tokens | 短文档 256，长文档 1024     |
+| `chunk_overlap`  | 50 tokens  | 通常为 chunk_size 的 10-20% |
+| `min_chunk_size` | 50 tokens  | 避免过短无意义块            |
 
 ---
 
