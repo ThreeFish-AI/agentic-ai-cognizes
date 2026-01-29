@@ -1,12 +1,12 @@
 ---
 name: doc-review
-description: 遵循 AGENTS.md 标准，对文档进行系统性审计与熵减优化，确保架构正交、逻辑自洽、内容完整且直观。
+description: 对文档进行系统性审计与熵减优化，确保架构正交、逻辑自洽、内容完整且直观。
 allowed-tools: view_file, list_dir, grep_search, find_by_name, replace_file_content, multi_replace_file_content, write_to_file, search_web
 ---
 
 # Document Review Skill
 
-本 Skill 旨在为文档提供标准化、全维度的审查与精调服务。通过系统性思维与架构视角，确保文档不仅在内容上准确无误，更在结构与逻辑上符合 **Entropy Reduction (熵减)** 与 **Context-Driven (上下文驱动)** 的核心原则。
+本 Skill 旨在为文档提供标准化、全维度的审查与精调服务。不仅要发现问题，更要**解决问题**。通过系统性思维与架构视角审查文档，并在确认优化方案后，**主动将精调后的版本直接落实到目标文档中**，确保文档质量的实质性提升。
 
 ## 核心审查维度 (The 5 Pillars)
 
@@ -76,11 +76,15 @@ allowed-tools: view_file, list_dir, grep_search, find_by_name, replace_file_cont
 
 ## 交付产物 (Deliverables)
 
-每次 Review 应输出以下内容之一或组合：
+Review 的最终目的不是产出报告，而是**产出更好的文档**。
 
-1. **Review Report**: 包含问题分级（Critical/Major/Minor）的详细清单。
-2. **Refined Document**: 直接修正后的文档版本（需注明修改点）。
-3. **Optimization Suggestions**: 针对架构或设计层面的改进建议。
+1. **Direct Refinement (首选)**:
+   - 对于所有可确定的优化（如排版修复、逻辑理顺、术语统一、熵减精简），**必须直接修改目标文件**。
+   - 修改后，简要说明修改理由（Why）与变更点（Diff）。
+
+2. **Review Report (次选)**:
+   - 仅在遇到需要用户决策的重大架构问题或不确定性较高时，才输出纯建议报告。
+   - 报告中应包含问题分级（Critical/Major/Minor）。
 
 ## 最佳实践 (Best Practices & Examples)
 
