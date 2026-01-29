@@ -616,29 +616,29 @@ LIMIT 10;
 
 ### 3.4 核心 SQL 函数设计
 
-#### 3.4.1 One-Shot Hybrid Search 函数
+#### 3.4.1 Dynamic Memory 检索函数 (`hybrid_search`)
 
 > [!TIP]
->
-> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 4) for the `hybrid_search` function definition.
+> **Implementation Reference**: [src/cognizes/engine/schema/perception_schema.sql](../../src/cognizes/engine/schema/perception_schema.sql) (Part 4)
 
-该函数通过 CTE (COmmon Table Expressions) 实现了 Semantic (Vector) + Keyword (BM25) 的并行检索与加权融合。
+该函数通过 CTE 实现 **Semantic + Keyword** 的并行检索。它是 Dynamic Memory (`memories` 表) 的标准检索入口。
 
-#### 3.4.2 RRF 融合函数
+- **Key Inputs**: `query_text` (BM25), `query_embedding` (Vector), `match_count`
+- **Logic**: 并行执行 HNSW 与 GIN 查询，并通过 RRF 进行 One-Shot 融合。
 
-> [!TIP]
->
-> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 5) for the `rrf_search` function definition.
-
-该函数实现了 Reciprocal Rank Fusion 算法，用于无需权重的排名融合。
-
-#### 3.4.3 Knowledge Base 专用检索函数
+#### 3.4.2 排名融合函数 (`rrf_search`)
 
 > [!TIP]
->
-> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 6) for the `kb_hybrid_search` function definition.
+> **Implementation Reference**: [src/cognizes/engine/schema/perception_schema.sql](../../src/cognizes/engine/schema/perception_schema.sql) (Part 5)
 
-该函数是 `hybrid_search` 的 Knowledge Base 版本，增加了 `source_uri` 等特有字段的返回。
+实现 **Reciprocal Rank Fusion** 算法 (原理见 [2.4 RRF Fusion](#24-reciprocal-rank-fusion-rrf))。该函数通常被 `hybrid_search` 内部调用，也可独立使用。
+
+#### 3.4.3 Knowledge Base 检索函数 (`kb_hybrid_search`)
+
+> [!TIP]
+> **Implementation Reference**: [src/cognizes/engine/schema/perception_schema.sql](../../src/cognizes/engine/schema/perception_schema.sql) (Part 6)
+
+专用于 Static Knowledge (`knowledge` 表) 的混合检索版本。
 
 ### 3.5 RAG Pipeline 架构
 
