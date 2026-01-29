@@ -653,7 +653,7 @@ CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
 #### 3.8.1 Pipeline 完整流程
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph 离线阶段["📦 离线阶段 (Indexing)"]
         D[文档集合] --> Parse[文档解析]
         Parse --> Chunk[分块策略]
@@ -675,11 +675,11 @@ flowchart TB
         LLM --> Answer[回答 + 引用]
     end
 
-    style 离线阶段 fill:#e3f2fd,color:#000
-    style 在线阶段 fill:#e8f5e9,color:#000
+    style 离线阶段 fill:#334155,stroke:#475569,color:#f8fafc
+    style 在线阶段 fill:#365314,stroke:#4d7c0f,color:#f7fee7
 ```
 
-#### 3.8.2 RAGPipeline 核心接口
+#### 3.8.2 RAG Pipeline 核心接口
 
 **实现文件**：`src/cognizes/engine/perception/rag_pipeline.py`
 
@@ -741,8 +741,9 @@ flowchart TB
     Parser --> Transform
     Transform --> Output
 
-    style Input fill:#fff3e0,color:#000
-    style Output fill:#e8f5e9,color:#000
+    style Input fill:#334155,stroke:#475569,color:#f8fafc
+    style Orchestrator fill:#3f3f46,stroke:#52525b,color:#fafafa
+    style Output fill:#365314,stroke:#4d7c0f,color:#f7fee7
 ```
 
 #### 3.9.2 组件设计模式 (Component Design)
