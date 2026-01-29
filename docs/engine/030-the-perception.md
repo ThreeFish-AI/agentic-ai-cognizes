@@ -415,7 +415,7 @@ keyword AS (
 -- RRF Fusion Logic in SQL ...
 ```
 
-### 3.2 Knowledge Base Schema 设计
+### 3.2 Knowledge Base Schema (Static Knowledge)
 
 > [!NOTE]
 >
@@ -425,7 +425,7 @@ keyword AS (
 
 > [!TIP]
 >
-> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 1.1) for the complete `corpus` table DDL.
+> **Implementation Reference**: See [src/cognizes/engine/schema/perception_schema.sql](../../src/cognizes/engine/schema/perception_schema.sql) (Part 1.1) for the complete `corpus` table DDL.
 
 `corpus` 表作为静态知识的顶层容器，负责管理知识库的配置信息（如 Chunking 策略、Embedding 模型版本）以及租户隔离边界。它是 Knowledge Base 的逻辑根节点。
 
@@ -436,36 +436,45 @@ keyword AS (
 
 > [!TIP]
 >
-> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 1.2 - 1.4) for the complete `knowledge` table DDL, indexes, and triggers.
+> **Implementation Reference**: See [src/cognizes/engine/schema/perception_schema.sql](../../src/cognizes/engine/schema/perception_schema.sql) (Part 1.2 - 1.4) for the complete `knowledge` table DDL, indexes, and triggers.
 
 `knowledge` 表存储经切分和向量化处理后的文档切片 (Chunks)。它是 Semantic Search 和 Keyword Search 的物理载体。
 
 - **Hybrid Indexing**: 同时维护 `embedding` (HNSW) 和 `search_vector` (GIN) 索引。
 - **Source Tracing**: 通过 `source_uri` 和 `chunk_index` 实现对原始文档的精确溯源。
 
-### 3.3 Memory Schema 扩展
+### 3.3 Memory Schema Extension (Dynamic Memory)
 
 > [!NOTE]
 >
-> **延续 Phase 2**：复用 Hippocampus 已建立的 `memories` 和 `facts` 表，仅需添加全文搜索支持。
+> **Design Principle**: 对 Phase 2 建立的 `memories` 表进行 **非侵入式扩展 (Non-invasive Extension)**，在保留原有 "Episodic Storage" 能力的基础上，叠加 "Information Retrieval" 能力。
 
-#### 3.3.1 逻辑扩展
+#### 3.3.1 Full-Text Search Extension
 
 > [!TIP]
 >
-> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 2) for the `memories` table extension DDL.
+> **Implementation Reference**: [src/cognizes/engine/schema/perception_schema.sql](../../src/cognizes/engine/schema/perception_schema.sql) (See **Part 2**)
 
-为复用 Phase 2 已有的 `memories` 表，我们对其进行 **非侵入式扩展 (Non-invasive Extension)**，赋予其全文检索能力。
+通过 "Add-on" 模式为 Memory 注入检索能力：
 
-1. **Add Column**: 增加 `search_vector` (tsvector) 列，用于存储分词后的词法向量。
-2. **Add Index**: 创建 GIN 倒排索引，支持高效的 BM25 关键词匹配 (`@@` 操作符)。
-3. **Auto-Update**: 通过数据库 Trigger 机制，确保持久化存储中 `content` 与 `search_vector` 的强一致性。
+1. **Schema Mutation**: 新增 `search_vector` (tsvector) 列，用于存储分词后的词法特征。
+2. **Consistency**: 部署 `search_vector_trigger`，确保 `content` 变更时自动更新索引，保证数据一致性。
+3. **Indexing**: 创建 GIN 索引，支持 `@@` 操作符的高效匹配。
 
-#### 3.3.2 JSONB Complex Predicates 设计
+#### 3.3.2 Complex Predicates (JSONB)
 
 > [!IMPORTANT]
 >
-> **对标 Roadmap Pillar III**: Complex Predicates 支持基于 JSONB 的任意深度的布尔逻辑过滤，是 The Perception 区别于简单向量检索的核心能力。
+> **Systemic Capability**: 利用 PostgreSQL 的 JSONB 强大的表达能力，实现 "Attribute Filtering" (属性过滤) 与 "Structure Matching" (结构匹配) 的统一。
+
+JSONB 过滤能力正交分解为以下维度：
+
+| 过滤维度                      | 操作符 | 场景示例           | 对应 SQL                                      |
+| :---------------------------- | :----- | :----------------- | :-------------------------------------------- |
+| **Existence**<br>(存在性)     | `?`    | 检查是否有标签     | `metadata ? 'urgent'`                         |
+| **Containment**<br>(包含关系) | `@>`   | 匹配多级嵌套属性   | `metadata @> '{"author": {"role": "admin"}}'` |
+| **Path Access**<br>(路径取值) | `->>`  | 数值比较或范围查询 | `(metadata->>'priority')::int > 3`            |
+| **Array Logic**<br>(数组逻辑) | `@>`   | 标签集合匹配       | `metadata @> '{"tags": ["AI", "Research"]}'`  |
 
 **JSONB 过滤语法参考**：
 
@@ -480,7 +489,34 @@ keyword AS (
 | **多键存在检查** | `metadata ?& array['type', 'status']`         | 同时存在多个 key   |
 | **任一键存在**   | `metadata ?\| array['vip', 'premium']`        | 存在任一 key       |
 
-#### 3.3.3 主流业务场景示例
+#### 3.3.3 JSONB 索引策略
+
+> [!TIP]
+>
+> **Systemic Performance**: 索引策略并非“锦上添花”，而是 JSONB 过滤在大规模数据下可用性的物理保证。
+
+为支撑上述正交分解的过滤维度，基于 PostgreSQL 的 `GIN` 与 `B-Tree` 索引特性差异，需采用 **"Generic + Specific"** 的组合策略：
+
+| 索引策略                         | 适用正交维度 (From 3.3.2)                 | 覆盖语法                    | 实现方式 (Implementation)                                  |
+| :------------------------------- | :---------------------------------------- | :-------------------------- | :--------------------------------------------------------- |
+| **GIN (Generic Inverted Index)** | **Existence**, **Containment**, **Array** | `@>`, `?`, `?&`, `?\|`      | `CREATE INDEX ON memories USING GIN (metadata)`            |
+| **B-Tree Expression Index**      | **Path Access** (Values, Ranges)          | `=`, `>`, `<`, `BETWEEN`... | `CREATE INDEX ON memories ((metadata->'author'->>'role'))` |
+
+> [!IMPORTANT]
+>
+> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 3) for the actual DDLs.
+
+```sql
+-- 1. 通用 GIN 索引 (One Size Fits All): 支撑 80% 的包含/存在性查询
+CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
+
+-- 2. 专用 B-Tree 索引 (Path Specific): 针对高频的路径/范围查询进行加速
+-- 场景：频繁查询 "优先级 > 3" 或 "作者角色 = admin"
+CREATE INDEX idx_memories_metadata_priority ON memories (((metadata->>'priority')::int));
+CREATE INDEX idx_memories_metadata_author_role ON memories ((metadata->'author'->>'role'));
+```
+
+#### 3.3.4 主流业务场景示例
 
 > [!NOTE]
 >
@@ -593,17 +629,6 @@ WHERE
     )
 ORDER BY embedding <=> $query_embedding
 LIMIT 10;
-```
-
-#### 3.3.4 JSONB 索引策略
-
-> [!TIP]
->
-> **Implementation Reference**: See `src/cognizes/engine/schema/perception_schema.sql` (Part 3) for JSONB indexing strategies.
-
-```sql
--- 索引策略示意
-CREATE INDEX idx_memories_metadata_gin ON memories USING GIN (metadata);
 ```
 
 ### 3.4 核心 SQL 函数设计
