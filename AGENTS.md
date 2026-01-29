@@ -43,6 +43,7 @@ _注：业务应用层（Business Layer）详情请见 `docs/000-prd-architectur
 
 - **Vibe Coding Pipeline**: 遵循 **Specification-Driven (规划驱动)** + **Context-Anchored (上下文锚定)** + **AI-Pair (AI 结对)** 模式，将开发固化为可审计的流水线，避免代码腐化为无法维护的“大泥球 (Big Ball of Mud)”。
 - **Visual Documentation (图文并茂)**: 对于复杂逻辑，优先使用 Mermaid 图表（Sequence/Flowchart/Class）辅助说明，构建“图文并茂”的直观文档。
+- **Direct Hyperlinking (直接跳转)**: 在文档中提及 Repo 内其他资源（文档/代码）时，**必须**构建可跳转的相对路径链接（如 `[Doc Name](./path.md)`），严禁使用“死文本”引用，以降低信息检索熵。
 - **Operational Excellence (卓越运营)**:
   1. **Git Hygiene**: 如非显性要求，严禁调用 git commit；
   2. **Temp Management**: 临时产物（执行计划等）一律收敛至 `.temp/` 并及时清理；
